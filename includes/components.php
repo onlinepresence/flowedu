@@ -3,13 +3,17 @@
 
     // component elements
     function input($type = "text", $label = "", $name = "", $value = "", $required = false, $attributes = []){
+        if($type == "hidden"){
+            return hidden_input($name, $value);
+        }
+
         $attr = convert_attributes($attributes);
-        $required = $required ? "required" : "";
+        $required = required($required);
         $error = $_SESSION["errors"][$name] ?? "";
         $value = old($name, $value);
 
         $input = "
-            <label class=\"block text-sms\">
+            <label class=\"block text-sm\">
                 <span class=\"text-gray-700 dark:text-gray-400\">$label</span>
                 <input 
                 type=\"$type\" name=\"$name\" value=\"$value\" $required
@@ -27,9 +31,13 @@
         return $input;
     }
 
+    function hidden_input($name = "", $value = ""){
+        return "<input type=\"hidden\" name=\"$name\" value=\"$value\" \>";
+    }
+
     function input_h($type = "text", $label = "", $name = "", $value = "", $required = false, $sub_text = "", $attributes = []){
         $attr = convert_attributes($attributes);
-        $required = $required ? "required" : "";
+        $required = required($required);
         $error = $_SESSION["errors"][$name] ?? "";
         $value = old($name, $value);
         
@@ -60,7 +68,7 @@
             <label class=\"flex items-center dark:text-gray-400\">
                 <input
                     type=\"checkbox\"
-                    name=\"$name\" value=\"$value\"".($required ? "required" : "")." 
+                    name=\"$name\" value=\"$value\"".(required($required))." 
                     class=\"text-purple-600 form-checkbox focus:border-purple-400 focus:outline-none focus:shadow-outline-purple dark:focus:shadow-outline-gray\"
                     $attr
                 />
@@ -73,19 +81,19 @@
 
     function select($name = "", $text = "", $options = [], $multiple = false, $required = false, $value = "", $attributes = []){
         $attr = convert_attributes($attributes);
-        $required = $required ? "required" : "";
+        $required = required($required);
         $multiple = $multiple ? "multiple" : "";
 
         if($options){
             $options_ = [];
-            foreach($options as $key => $text){
-                $options_[] = "<option value=\"$key\">$text</option>";
+            foreach($options as $key => $text_){
+                $options_[] = "<option value=\"$key\" ".($key == $value ? "selected" : "").">$text_</option>";
             }
             $options = implode("\n", $options_);
         }
 
         return "
-            <label class=\"block mt-4 text-sm\">
+            <label class=\"block text-sm\">
                 <span class=\"text-gray-700 dark:text-gray-400\">
                   $text
                 </span>
@@ -113,8 +121,39 @@
         ";
     }
 
+    function textarea($name="", $text="", $value="", $required = false, $attributes = []){
+        $attr = convert_attributes($attributes);
+        $required = required($required);
+        $value = old($name, $value);
+
+        return "
+            <label class=\"block text-sm\">
+                <span class=\"text-gray-700 dark:text-gray-400\">$text</span>
+                <textarea
+                  class=\"block w-full mt-1 text-sm dark:text-gray-300 dark:border-gray-600 dark:bg-gray-700 form-textarea focus:border-purple-400 focus:outline-none focus:shadow-outline-purple dark:focus:shadow-outline-gray\"
+                  rows=\"3\" name=\"$name\"
+                  $attr
+                >$value</textarea>
+            </label>
+        ";
+    }
+
+    function placeholder($text = ""){
+        return ["placeholder" => $text];
+    }
+
+    function data_attr($attr = "", $value = ""){
+        return ["data-$attr" => $value];
+    }
+
     function header_text($text = ""){
 
+    }
+
+    function page_header($title){
+        return "
+            <h1 class=\"text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-6\">$title</h1>
+        ";
     }
 
     function form_message($message = "", $color = ""){
@@ -146,7 +185,7 @@
                 class=\"inline-flex items-center w-full text-sm font-semibold transition-colors duration-150 $class\"
                 href=\"".url($link)."\"
                 >
-                <i class=\"w-5 h-5 $icon\"></i>
+                <i class=\"w-5 $icon\"></i>
                 
                 <span class=\"ml-4\">$text</span>
                 </a>

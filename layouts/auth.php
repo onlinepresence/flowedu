@@ -3,10 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Blank - Windmill Dashboard</title>
-    <link rel="stylesheet" href="<?= asset("css/tailwind.output.css") ?>" />
+    <title><?= $title ?? "Blank Page" ?></title>
     <link rel="stylesheet" href="<?= asset("fontawesome/css/fontawesome.min.css") ?>">
     <link rel="stylesheet" href="<?= asset("fontawesome/css/all.min.css") ?>">
+    <link rel="stylesheet" href="<?= asset("css/tailwind.output.css") ?>">
+    <script src="<?= asset("js/tailwind.js") ?>"></script>
     <script src="<?= asset("js/alpine.min.js") ?>" defer></script>
     <script src="<?= asset("js/init-alpine.js") ?>"></script>
   </head>
@@ -220,11 +221,10 @@
         <main class="h-full pb-16 overflow-y-auto">
           <!-- Remove everything INSIDE this div to a really blank page -->
           <div class="container px-6 mx-auto grid">
-            <h2
-              class="my-6 text-2xl font-semibold text-gray-700 dark:text-gray-200"
-            >
-                <?= $content ?? ''; ?>
-            </h2>
+            <div class="container mx-auto px-4 py-6">
+                <?= page_header($title) ?>
+                <?= $content ?? "" ?>
+            </div>
           </div>
         </main>
       </div>

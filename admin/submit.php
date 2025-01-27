@@ -57,9 +57,9 @@
                 header("location: $request_from");
             }elseif($admin_register == 1){
                 // create a login session
-                header("location: ".url("admin/personal"));
+                header("location: ".url("admin-setup/personal"));
             }else{
-                header("location: ".url("student/personal"));
+                header("location: ".url("student-setup/personal"));
             }
 
 

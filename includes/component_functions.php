@@ -31,3 +31,7 @@
     
         return $currentUrl === $url;
     }
+
+    function required($required){
+        return $required ? "required" : "";
+    }

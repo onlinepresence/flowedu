@@ -8,16 +8,16 @@
         '/logout' => ['file' => 'logout.php'],
 
         // admin routes
-        '/admin' => [
-            'prefix' => '/admin',
+        '/admin-setup' => [
+            'prefix' => '/admin-setup',
             'middleware' => ['auth'],
             'routes' => [
-                '/personal' => ['file' => 'admin/setup/personal.php']
+                '/personal' => ['file' => 'admin/setup/personal.php'],
+                '/school' => ['file' => 'admin/setup/school.php'],
+                '/programs' => ['file' => 'admin/setup/program.php'],
+                '/halls' => ['file' => 'admin/setup/hall.php']
             ]
         ]
-        // '/admin/personal' => ['file' => 'admin/setup/personal.php'],
-
-        // '/dashboard' => ['file' => 'dashboard.php', 'middleware' => []],
     ];
 
     
