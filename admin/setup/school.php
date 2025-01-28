@@ -32,7 +32,7 @@ ob_start();
     </div>
 
     <!-- Submit Button -->
-    <div class="mt-4">
+    <div class="mt-4 sm:w-48 w-auto">
         <?= button('submit', 'Save School', 'submit', 'setup_school') ?>
     </div>
 </form>

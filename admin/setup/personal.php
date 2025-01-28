@@ -58,24 +58,15 @@ ob_start();
                     "hod" => "Head of Department",
                     "dean" => "Dean" // Add more options dynamically as needed
                 ],
-                false,
-                false,
-                $_SESSION["user_type"],
-                ["placeholder" => "Select admin type", "disabled" => "disabled"]
+                value: $_SESSION["user_type"],
+                attributes:["placeholder" => "Select admin type", "disabled" => "disabled"]
             ); ?>
         </div>
     </div>
 
     <!-- Submit Button -->
-    <div class="mt-4">
-        <?php echo button(
-            "submit",
-            "Save",
-            "create_admin",
-            "",
-            "purple",
-            ["class" => "w-full lg:w-auto"]
-        ); ?>
+    <div class="mt-4 sm:w-48">
+        <?= button("submit", "Setup Admin Account", "submit", "create_admin", "blue") ?>
     </div>
 </form>
 <?php

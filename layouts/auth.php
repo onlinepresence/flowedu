@@ -128,12 +128,16 @@
                   aria-label="Account"
                   aria-haspopup="true"
                 >
+                <?php if(1 == 2): ?>
                   <img
                     class="object-cover w-8 h-8 rounded-full"
                     src="https://images.unsplash.com/photo-1502378735452-bc7d86632805?ixlib=rb-0.3.5&q=80&fm=jpg&crop=entropy&cs=tinysrgb&w=200&fit=max&s=aa3a807e1bbdfd4364d1f449eaa96d82"
                     alt=""
                     aria-hidden="true"
                   />
+                  <?php else: ?>
+                    <i class="w-8 object-cover h-8 fas fa-user"></i>
+                  <?php endif; ?>
                 </button>
                 <template x-if="isProfileMenuOpen">
                   <ul
@@ -229,6 +233,7 @@
         </main>
       </div>
     </div>
+    <script src="<?= asset("js/jquery.min.js", false) ?>"></script>
   </body>
 </html>
 <?php flush_session() ?>

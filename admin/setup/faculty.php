@@ -1,31 +1,21 @@
 <?php
 require_once relative_path("includes/components.php");
 
-$title = 'Setup Halls'; // Set the page title
+$title = 'Setup Faculties'; // Set the page title
 
 // Start output buffering to capture the content
 ob_start();
 ?>
+
 <form action="<?= url("admin/submit.php") ?>" method="POST">
     <?= form_body_start() ?>
-        <!-- Hall Name -->
-        <?= input("text", "Hall Name", "name", required: true, attributes: placeholder("Name of hall")); ?>
-
-        <!-- Hall cost -->
-        <?= input("number", "Cost Per Head (GHC)", "cost", required: true, attributes: array_merge(
-            placeholder("0.00"), attribute("step", 0.01)
-        )); ?>
-
-        <!-- payment life -->
-        <?= select("period", "Duration of Cost", [
-            "per_semester" => "Per Semester", "per_year" => "Per Year"
-        ], true); ?>
-        
+        <!-- Faculty Name -->
+        <?= input("text", "Faculty Name", "name", required: true, attributes: placeholder("Name of the department")); ?>
     <?= form_body_end() ?>
 
     <!-- Submit Button -->
     <div class="mt-4 sm:w-48">
-        <?= button("submit", "Add Hall", "submit", "create_hall", "blue") ?>
+        <?= button("submit", "Add Faculty", "submit", "create_faculty", "blue") ?>
     </div>
 </form>
 
@@ -34,16 +24,16 @@ ob_start();
 <?= table_start(); ?>
     <?= thead_start() ?>
         <?php 
-            echo th("Name of Hall");
-            echo th("Cost");
+            echo th("Name of Faculty");
             echo th();
         ?>
     <?= thead_end() ?>
     <?= tbody_start() ?>
         <?php if($faculties = faculties()): ?>
-        <?php else: echo td_empty("No halls have been set yet", 2); endif; ?>
+        <?php else: echo td_empty("No faculties have been set yet", 2); endif; ?>
     <?= tbody_end() ?>
 <?= table_end(); ?>
+
 <?php
 // Capture the content and assign it to a variable
 $content = ob_get_clean();

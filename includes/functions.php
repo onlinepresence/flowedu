@@ -254,3 +254,155 @@
     function flush_session(){
         unset($_SESSION["errors"], $_SESSION["old_input"]);
     }
+
+    /**
+     * Used to pluck an array to the form [key => value, key => value]...
+     * If $value is "array", it will store the remainder of the keys as an array.
+     * All internal keys are uppercase by default
+     * @param $array The array. Rejects non-arrays
+     * @param string $key The key values
+     * @param string $value The value key or use "array" to store the remainder
+     * @param bool $reserve_keys Set to true if it should reserve the internal keys in the default format
+     * @param array $rename Use this to rename columns to different names. Used especially for value = 'array'
+     * @return array
+     */
+    function pluck(mixed $array, string $key, string $value, bool $reserve_keys = false, array $rename = []) :array{
+        $response = [];
+
+        if(empty($array) || !is_array($array)){
+            return $response;
+        }
+        
+        array_map(function($object) use (&$response, $key, $value, $reserve_keys, $rename){
+            $keyValue = strtoupper($object[$key]);
+
+            if ($value === 'array') {
+                unset($object[$key]);
+                $response[$keyValue] = $reserve_keys ? $object : array_change_key_case($object, CASE_UPPER);
+
+                if($rename){
+                    foreach($response as $n_key => $n_response){
+                        if(is_array($n_response)){
+                            foreach($rename as $existing_key => $new_key){
+                                if(isset($n_response[$existing_key])){
+                                    $n_response[$new_key] = $n_response[$existing_key];
+                                    unset($n_response[$existing_key]);
+                                }
+                            }
+                        }
+                        $response[$n_key] = $n_response;
+                    }
+                }
+            } else {
+                $response[$keyValue] = strtoupper($object[$value]);
+            }
+        }, $array);
+
+        return $response;
+    }
+
+    /**
+     * This gets all or specified departments in the system
+     * @param int $id The id of the department
+     * @param bool $complete joins necessary tables
+     * @param string|array $columns Specific columns to be displayed
+     * @return array|false
+     */
+    function departments($id = null, $complete = false, $columns = []){
+        return fetchData("*", "departments", limit: 0);
+    }
+
+    /**
+     * This gets all or specified faculties in the system
+     * @param int $id The id of the faculty
+     * @param bool $complete joins necessary tables
+     * @param string|array $columns Specific columns to be displayed
+     * @return array|false
+     */
+    function faculties($id = null, $complete = false, $columns = []){
+        return fetchData("*", "faculties", limit: 0);
+    }
+
+    /**
+     * This gets all or specified programs in the system
+     * @param int $id The id of the program
+     * @param bool $complete joins necessary tables
+     * @param string|array $columns Specific columns to be displayed
+     * @return array|false
+     */
+    function programs($id = null, $complete = false, $columns = []){
+        return fetchData("*", "programs", limit: 0);
+    }
+
+    /**
+     * This gets all or specified halls in the system
+     * @param int $id The id of the hall
+     * @param bool $complete joins necessary tables
+     * @param string|array $columns Specific columns to be displayed
+     * @return array|false
+     */
+    function halls($id = null, $complete = false, $columns = []){
+        return fetchData("*", "halls", limit: 0);
+    }
+
+    /**
+     * This function gets information about the current logged in user
+     * @param bool $refresh Used to refresh the information stored
+     * @return array|null
+     */
+    function user($refresh = false) {
+        $user = null;
+
+        if($refresh){
+            $userId = $_SESSION['user_id'] ?? null;
+            if (!$userId) {
+                return null; // User is not authenticated.
+            }
+
+            $columns = get_user_columns();
+
+            // Fallback to database if session data is unavailable.
+            $user = fetchData('*', 'users', ['id' => $userId]);
+            if ($user) {
+                $_SESSION['user'] = $user; // Cache user data in the session.
+                $_SESSION["last_fetch"] = time();
+            }
+        }
+
+        if (isset($_SESSION['user'])) {
+            $user = $_SESSION['user']; // Return cached user data from the session.
+        }
+    
+        return $user;
+    }
+
+    /**
+     * This retrieves the columns for the currently logged in user
+     */
+    function get_user_columns(){
+        $default = ["username", "email"];
+        $type = $_SESSION["user_type"];
+
+        switch($type){
+            case "admin":
+            case "hod":
+            case "dean":
+                $cols = ["lastname", "othernames", "type"];
+                break;
+            case "student":
+                $cols = [
+                    "index_number", "othernames", "lastname", "department_id",
+                    "date_of_birth", "gender", "nationality", "religion", "current_year",
+                    "contact_address", "phone_number", "admission_date", "graduated",
+                    "allergy", "insurance_number", "hall_id", "is_new", "approved"
+                ];
+                break;
+            case "teacher":
+                $cols = ["lastname", "othernames"];
+                break;
+            default:
+                $cols = [];
+        }
+
+        return array_merge($default, $cols);
+    }

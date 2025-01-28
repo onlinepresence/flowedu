@@ -1,5 +1,5 @@
 <?php
-    function convert_attributes($attributes, $exclude = null) {
+    function convert_attributes($attributes, $exclude = null, $add_class = false) {
         $attr = "";
 
         if($attributes){
@@ -34,4 +34,13 @@
 
     function required($required){
         return $required ? "required" : "";
+    }
+
+    function create_select_option($text = "", $value = "", $attr = []){
+        $attr = convert_attributes($attr);
+        return "<option value=\"$value\" $attr>$text</option>";
+    }
+
+    function merge_class($attributes = []){
+        return $attributes["class"] ?? "";
     }

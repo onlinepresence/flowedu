@@ -1,6 +1,6 @@
 <?php 
     $serverName = $_SERVER['SERVER_NAME'];
-    $serverDown = true;
+    $serverDown = false;
 
     $sqlServer = array();
 
