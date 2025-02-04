@@ -152,6 +152,51 @@
                     $_SESSION["system_message"] = "Department '$name' has been added";
                 }
             }
+        }elseif($submit == "create_program"){
+            if(empty($_POST["name"])){
+                $errors["name"] = "Name of program is required";
+            }if(empty($_POST["cost"])){
+                $errors["cost"] = "Cost fee of program is required";
+            }if(empty($_POST["certificate"])){
+                $errors["certificate"] = "Program certificate of completion is required";
+            }
+            if(empty($_POST["department_id"])){
+                $errors["department_id"] = "No department has been selected";
+            }elseif(!is_numeric($_POST["department_id"])){
+                $errors["department_id"] = "Chosen department is invalid";
+            }
+
+            if(!$errors){
+                $data = form_data();
+                if(data_insert("programs", $data)){
+                    $_SESSION["system_message"] = "Program '{$_POST['name']}' has been added";
+                }
+            }
+        }elseif($submit == "create_hall"){
+            if(empty($_POST["name"])){
+                $errors["name"] = "Name of hall is required";
+            }if(empty($_POST["cost"])){
+                $errors["cost"] = "Please specify the cost per head";
+            }elseif(!is_numeric($_POST["cost"])){
+                $errors["cost"] = "Invalid cost value provided";
+            }
+            if(empty($_POST["period"])){
+                $errors["period"] = "Please specify the cost duration";
+            }elseif(!in_array($_POST["period"], ["per_semester", "per_year"])){
+                $errors["period"] = "Invalid cost duration provided";
+            }
+
+            if(!$errors){
+                if(data_insert("halls", form_data())){
+                    $_SESSION["system_message"] = "The hall '{$_POST['name']}' has been added";
+                }
+            }
+        }elseif($submit == "change_school_status"){
+            if(update(school(), form_data(), "schools", ["id"])){
+                $_SESSION["system_message"] = "Settings have been updated";
+                unset($_SESSION["admin_register"]);
+                $next_request = "/admin/dashboard";
+            }
         }else{
             $errors["system_message"] = "Submission value '$submit' not accepted";
         }

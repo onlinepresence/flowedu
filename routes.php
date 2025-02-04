@@ -14,10 +14,19 @@
             'routes' => [
                 '/personal' => ['file' => 'admin/setup/personal.php'],
                 '/school' => ['file' => 'admin/setup/school.php'],
-                '/programs' => ['file' => 'admin/setup/program.php'],
+                '/programs' => ['file' => 'admin/setup/program.php', 'middleware' => ['check_departments']],
                 '/halls' => ['file' => 'admin/setup/hall.php'],
                 '/departments' => ['file' => 'admin/setup/department.php'],
-                '/faculties' => ['file' => 'admin/setup/faculty.php']
+                '/faculties' => ['file' => 'admin/setup/faculty.php'],
+                '/activate' => ['file' => 'admin/setup/activate.php']
+            ]
+        ],
+
+        '/admin' => [
+            'prefix' => '/admin',
+            'middleware' => ['auth'],
+            'routes' => [
+                '/dashboard' => ['file' => 'admin/dashboard.php'],
             ]
         ]
     ];

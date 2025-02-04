@@ -25,3 +25,12 @@
 
         $next();
     }
+
+    function check_departments($next){
+        if(!departments()){
+            $_SESSION["errors"]["system_message"] = "No active departments created. Programs cannot be added";
+            $_SESSION["message_to_next_request"] = true;
+            header("location: /admin-setup/departments");
+        }
+        $next();
+    }

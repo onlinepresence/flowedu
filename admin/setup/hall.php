@@ -11,6 +11,9 @@ ob_start();
         <!-- Hall Name -->
         <?= input("text", "Hall Name", "name", required: true, attributes: placeholder("Name of hall")); ?>
 
+        <!-- Hall Master -->
+        <?= input("text", "Hall Master", "master", attributes: placeholder("Name of hall master")); ?>
+
         <!-- Hall cost -->
         <?= input("number", "Cost Per Head (GHC)", "cost", required: true, attributes: array_merge(
             placeholder("0.00"), attribute("step", 0.01)
@@ -19,7 +22,7 @@ ob_start();
         <!-- payment life -->
         <?= select("period", "Duration of Cost", [
             "per_semester" => "Per Semester", "per_year" => "Per Year"
-        ], true); ?>
+        ], true, required: true); ?>
         
     <?= form_body_end() ?>
 
@@ -35,13 +38,32 @@ ob_start();
     <?= thead_start() ?>
         <?php 
             echo th("Name of Hall");
+            echo th("House Master");
             echo th("Cost");
+            echo th("Duration");
             echo th();
         ?>
     <?= thead_end() ?>
     <?= tbody_start() ?>
-        <?php if($faculties = faculties()): ?>
-        <?php else: echo td_empty("No halls have been set yet", 2); endif; ?>
+        <?php if($halls = halls()): 
+            foreach($halls as $hall):
+        ?>
+        <?= tr_start(); ?>
+                <?php 
+                    $action = "
+                        <div class=\"flex gap-2 items-center\">
+                            <i class=\"fas fa-pen text-blue-500 hover:text-blue-600 cursor-pointer\" title=\"Edit\"></i>
+                            <i class=\"fas fa-trash-can text-red-500 hover:text-red-600 cursor-pointer\" title=\"Delete\"></i>
+                        </div>
+                    ";
+                ?>
+                <?= td($hall["name"]); ?>
+                <?= td($hall["master"] ? $hall["master"] : "Not Set"); ?>
+                <?= td("GHC ".number_format($hall["cost"], 2)); ?>
+                <?= td(format_hall_period($hall["period"])); ?>
+                <?= td($action) ?>
+            <?= tr_end(); ?>
+        <?php endforeach; else: echo td_empty("No halls have been set yet", 2); endif; ?>
     <?= tbody_end() ?>
 <?= table_end(); ?>
 <?php

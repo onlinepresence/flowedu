@@ -121,6 +121,7 @@
                 >
                   $options
                 </select>
+                ".($error ? error_span($error) : '')."
               </label>
         ";
     }
@@ -426,5 +427,7 @@
             return alert($_SESSION["errors"]["system_message"], "error");
         }elseif(isset($_SESSION["system_message"])){
             return alert($_SESSION["system_message"], "success");
+        }elseif(isset($_SESSION["system_warning"])){
+            return alert($_SESSION["system_warning"], "warning");
         }
     }

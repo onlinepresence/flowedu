@@ -252,7 +252,11 @@
      * This flushes session variables expected to last a request
      */
     function flush_session(){
-        unset($_SESSION["errors"], $_SESSION["old_input"], $_SESSION["system_message"]);
+        if(!isset($_SESSION["message_to_next_request"])){
+            unset($_SESSION["errors"], $_SESSION["old_input"], $_SESSION["system_message"]);
+        }
+
+        unset($_SESSION["message_to_next_request"]);
     }
 
     /**
@@ -354,7 +358,15 @@
      * @return array|false
      */
     function programs($id = null, $complete = false, $columns = []){
-        return fetchData("*", "programs", limit: 0);
+        $where = $id ? "id = $id" : [];
+        $tables = $complete ? ["join" => "programs departments", "on" => "department_id id", "alias" => "p d"] : "programs";
+        
+        if(!$complete && !$columns){
+            $columns = ["id", "name", "department_id", "certificate", "cost"];
+        }elseif($complete){
+            $columns = ["p.id", "p.name", "department_id", "certificate", "cost", "d.name as department_name"];
+        }
+        return fetchData($columns, $tables, $where, 0, join_type: "left");
     }
 
     /**
@@ -365,7 +377,29 @@
      * @return array|false
      */
     function halls($id = null, $complete = false, $columns = []){
-        return fetchData("*", "halls", limit: 0);
+        $where = $id ? "id = $id" : [];
+        $tables = "halls";
+        
+        if(!$columns){
+            $columns = ["id", "name", "master", "cost", "period"];
+        }
+        return fetchData($columns, $tables, $where, 0, join_type: "left");
+    }
+
+    /**
+     * Used to format the hall period
+     * @param ?string $period The period from the db
+     * @return string
+     */
+    function format_hall_period(?string $period){
+        if(!$period){
+            return "Per Year";
+        }
+
+        $period = str_replace("_", " ", $period);
+        $period = ucwords(strtolower($period));
+
+        return $period;
     }
 
     /**

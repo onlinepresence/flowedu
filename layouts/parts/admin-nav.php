@@ -6,7 +6,7 @@
                 "icon" => ""
             ]
     */
-    if($_SESSION["admin_register"]){
+    if((isset($_SESSION["admin_register"]) && $_SESSION["admin_register"]) || (isset($setup_page) && $setup_page)){
         return [
             "personal" => [
                 "text" => "Personal Information",
@@ -37,10 +37,19 @@
                 "text" => "Setup Halls",
                 "link" => "/admin-setup/halls",
                 "icon" => "fas fa-hotel"
+            ],
+            "activate" => [
+                "text" => "Activate System",
+                "link" => "/admin-setup/activate",
+                "icon" => "fas ".(isset($_SESSION["admin_register"]) && $_SESSION["admin_register"] ? "fas fa-toggle-off" : "fas fa-toggle-on")
             ]
         ];
     }else{
         return [
-            
+            "dashboard" => [
+                "text" => "Dashboard",
+                "link" => "/admin/dashboard",
+                "icon" => "fas fa-compass"
+            ]
         ];
     }
