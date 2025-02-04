@@ -309,7 +309,20 @@
      * @return array|false
      */
     function departments($id = null, $complete = false, $columns = []){
-        return fetchData("*", "departments", limit: 0);
+        $where = $id ? "id = $id" : [];
+        $tables = $complete ? [
+            ["join" => "departments faculties", "on" => "faculty_id id", "alias" => "d f"],
+            ["join" => "departments admins", "on" => "hod user_id", "alias" => "d a"]
+        ] : "departments";
+        
+        if(!$complete && !$columns){
+            $columns = ["id", "name", "faculty_id", "hod"];
+        }elseif($complete){
+            $columns = ["d.id", "d.name", "hod", "faculty_id", "d.name AS faculty_name", "lastname", "othernames"];
+        }else{
+            $columns = ["f.*"];
+        }
+        return fetchData($columns, $tables, $where, 0, join_type: "left");
     }
 
     /**
@@ -320,7 +333,17 @@
      * @return array|false
      */
     function faculties($id = null, $complete = false, $columns = []){
-        return fetchData("*", "faculties", limit: 0);
+        $where = $id ? "id = $id" : [];
+        $tables = $complete ? ["join" => "faculties admins", "on" => "dean_id user_id", "alias" => "f a"] : "faculties";
+        
+        if(!$complete && !$columns){
+            $columns = ["id", "name", "dean_id"];
+        }elseif($complete){
+            $columns = ["f.id", "name", "dean_id", "lastname", "othernames"];
+        }else{
+            $columns = ["f.*"];
+        }
+        return fetchData($columns, $tables, $where, 0, join_type: "left");
     }
 
     /**

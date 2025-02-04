@@ -329,10 +329,6 @@
             if(!$response){
                 throw new Exception($stmt->error);
             }
-                
-            /*if($stmt->execute($values) !== false){
-                $response = true;
-            }*/
         }catch(Throwable $th){
             $errors["system_message"] = $th->getMessage();
         }

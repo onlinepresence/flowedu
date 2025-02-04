@@ -10,7 +10,7 @@ ob_start();
 <form action="<?= url("admin/submit.php") ?>" method="POST">
     <?= form_body_start() ?>
         <!-- Faculty Name -->
-        <?= input("text", "Faculty Name", "name", required: true, attributes: placeholder("Name of the department")); ?>
+        <?= input("text", "Faculty Name", "name", required: true, attributes: placeholder("Faculty of Arts")); ?>
     <?= form_body_end() ?>
 
     <!-- Submit Button -->
@@ -25,12 +25,28 @@ ob_start();
     <?= thead_start() ?>
         <?php 
             echo th("Name of Faculty");
+            echo th("Name of Dean");
             echo th();
         ?>
     <?= thead_end() ?>
     <?= tbody_start() ?>
-        <?php if($faculties = faculties()): ?>
-        <?php else: echo td_empty("No faculties have been set yet", 2); endif; ?>
+        <?php if($faculties = faculties(complete: true)):
+            foreach($faculties as $faculty):
+        ?>
+            <?= tr_start(); ?>
+                <?php 
+                    $action = "
+                        <div class=\"flex gap-2 items-center\">
+                            <i class=\"fas fa-pen text-blue-500 hover:text-blue-600 cursor-pointer\" title=\"Edit\"></i>
+                            <i class=\"fas fa-trash-can text-red-500 hover:text-red-600 cursor-pointer\" title=\"Delete\"></i>
+                        </div>
+                    ";
+                ?>
+                <?= td($faculty["name"]); ?>
+                <?= td($faculty["dean_id"] ? $faculty["lastname"].' '.$faculty["othernames"] : "Not Set"); ?>
+                <?= td($action) ?>
+            <?= tr_end(); ?>
+        <?php endforeach; else: echo td_empty("No faculties have been set yet", 2); endif; ?>
     <?= tbody_end() ?>
 <?= table_end(); ?>
 

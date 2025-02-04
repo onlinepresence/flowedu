@@ -79,7 +79,7 @@
                 />
                 <span class=\"ml-2\">
                     $text $asterisks
-                </span>
+                </span>".(empty($error) ? "" : error_span($error))."
             </label>
         ";
     }
@@ -91,6 +91,7 @@
         $value = old($name, $value);
         $multiple = $multiple ? "multiple" : "";
         $options_ = [];
+        $error = $_SESSION["errors"][$name] ?? "";
         $class_ = merge_class($attributes);
 
         if($nullable){

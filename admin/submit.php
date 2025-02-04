@@ -122,6 +122,36 @@
                     $_SESSION["system_message"] = $message;
                 }
             }
+        }elseif($submit == "create_faculty"){
+            $name = $_POST["name"] ?? null;
+
+            if(empty($name)){
+                $errors["name"] = "Faculty name is required";
+            }
+
+            if(empty($errors)){
+                $data = form_data();
+
+                if(data_insert("faculties", $data)){
+                    $_SESSION["system_message"] = "Faculty '$name' has been added";
+                }
+            }
+        }elseif($submit == "create_department"){
+            $name = $_POST["name"] ?? null;
+            $faculty_id = $_POST["faculty_id"] ?? null;
+    
+            if(empty($name)){
+                $errors["name"] = "Name of department not provided";
+            }if(!empty($faculty_id) && !is_numeric($faculty_id)){
+                $errors["faculty_id"] = "Faculty provided is invalid or incorrect";
+            }
+    
+            if(empty($errors)){
+                $data = form_data(exclude: empty($faculty_id) ? ["faculty_id"] : []);
+                if(data_insert("departments", $data)){
+                    $_SESSION["system_message"] = "Department '$name' has been added";
+                }
+            }
         }else{
             $errors["system_message"] = "Submission value '$submit' not accepted";
         }

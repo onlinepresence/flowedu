@@ -33,12 +33,29 @@ ob_start();
         <?php 
             echo th("Name of Department");
             echo th("Faculty");
+            echo th("Head of Department");
             echo th();
         ?>
     <?= thead_end() ?>
     <?= tbody_start() ?>
-        <?php if($departments = departments()): ?>
-        <?php else: echo td_empty("No departments have been set yet", 3); endif; ?>
+        <?php if($departments = departments(complete: true)):
+            foreach($departments as $department) :
+        ?>
+            <?= tr_start(); ?>
+                <?php 
+                    $action = "
+                        <div class=\"flex gap-2 items-center\">
+                            <i class=\"fas fa-pen text-blue-500 hover:text-blue-600 cursor-pointer\" title=\"Edit\"></i>
+                            <i class=\"fas fa-trash-can text-red-500 hover:text-red-600 cursor-pointer\" title=\"Delete\"></i>
+                        </div>
+                    ";
+                ?>
+                <?= td($department["name"]); ?>
+                <?= td($department["faculty_id"] ? $department["faculty_name"] : "Not Set"); ?>
+                <?= td($department["hod"] ? $department["lastname"].' '.$department["othernames"] : "Not Set"); ?>
+                <?= td($action) ?>
+            <?= tr_end(); ?>
+        <?php endforeach; else: echo td_empty("No departments have been set yet", 4); endif; ?>
     <?= tbody_end() ?>
 <?= table_end(); ?>
 <?php
