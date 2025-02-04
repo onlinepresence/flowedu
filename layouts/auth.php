@@ -225,8 +225,9 @@
         <main class="h-full pb-16 overflow-y-auto">
           <!-- Remove everything INSIDE this div to a really blank page -->
           <div class="container px-6 mx-auto grid">
-            <div class="container mx-auto px-4 py-6">
-                <?= page_header($title) ?>
+            <div class="container mx-auto space-y-4 px-4 py-6">
+                <?= page_header($title); ?>
+                <?= system_message(); ?>
                 <?= $content ?? "" ?>
             </div>
           </div>

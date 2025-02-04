@@ -2,6 +2,7 @@
 require_once relative_path("includes/components.php");
 
 $title = 'Personal Information'; // Set the page title
+$user = user();
 
 // Start output buffering to capture the content
 ob_start();
@@ -18,7 +19,7 @@ ob_start();
                 "text",
                 "Username",
                 "username",
-                "",
+                $user["username"] ?? '',
                 true,
                 ["placeholder" => "Enter your username"]
             ); ?>
@@ -30,7 +31,7 @@ ob_start();
                 "text",
                 "Last Name",
                 "lastname",
-                "",
+                $user["lastname"] ?? "",
                 true,
                 ["placeholder" => "Enter your last name"]
             ); ?>
@@ -42,7 +43,7 @@ ob_start();
                 "text",
                 "Other Names",
                 "othernames",
-                "",
+                $user["othernames"] ?? '',
                 true,
                 ["placeholder" => "Enter your other names"]
             ); ?>
@@ -51,16 +52,17 @@ ob_start();
         <!-- Admin Type -->
         <div>
             <?php echo select(
-                "type",
+                "",
                 "Admin Type",
                 [
                     "admin" => "Super Admin",
                     "hod" => "Head of Department",
-                    "dean" => "Dean" // Add more options dynamically as needed
+                    "dean" => "Faculty Dean" // Add more options dynamically as needed
                 ],
                 value: $_SESSION["user_type"],
                 attributes:["placeholder" => "Select admin type", "disabled" => "disabled"]
             ); ?>
+            <?= input("hidden",name:"type", value: $_SESSION["admin_register"] ? 1 : ($user["type"] ?? 2)) ?>
         </div>
     </div>
 

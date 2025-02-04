@@ -1,5 +1,17 @@
 <?php 
     /**
+     * Present a dumped data in a more readable format
+     * @param mixed $data The data to be checked
+     */
+    function formatDump(...$data) {
+        echo "<pre>";
+        foreach ($data as $item) {
+            var_dump($item);
+        }
+        echo "</pre>";
+    }
+
+    /**
      * Used to stringify the column
      * @param string|string[] $column This is the column to be stringified
      * @return string the stringified column
@@ -172,4 +184,277 @@
             $new_table .= " $add_on";
         }
     }
+
+    /**
+     * Verifies the existence of a table
+     */
+    function verifyTable($table_name) :bool{
+        global $connect;
+        return boolval($connect->query("SHOW TABLES LIKE '$table_name'")->num_rows);
+    }
+
+    /**
+     * This is used to create the placeholders for database insertions
+     * @param int $column_count The number of coulms
+     */
+    function createPlaceholder(int $column_count): string{
+        $placeholder = [];
+
+        while($column_count-- > 0){
+            $placeholder[] = "?";
+        }
+
+        return implode(", ", $placeholder);
+    }
+
+    /**
+     * This function is used to insert a new rows into a table
+     * @param string $table_name This is the table name
+     * @param array $data This is the data to be inserted [NB: It should be an associative array]
+     * @return bool returns true or false if something
+     */
+    function data_insert(string $table_name, array $data) :bool|string{
+        $response = false;
+        global $errors;
+
+        try {
+            if(!is_array($data)){
+                $errors["system_message"] = "Data provided is not an array";
+                return false;
+            }
+
+            if(verifyTable($table_name)){
+                $columns = array_keys($data);
+                $values = array_values($data);
+                $placeholders = createPlaceholder(count($columns));
+    
+                $sql = "INSERT INTO $table_name (".implode(", ", $columns).") VALUES ($placeholders)";
+                $response = parse_statement($sql, create_param_types($columns, $table_name), $values);
+                
+                /*if(!$response){
+                    $errors['system_message'] = "Data could not be added to table '$table_name'";
+                }*/
+            }else{
+                $errors["system_message"] = "Table '$table_name' not found";
+            }
+        } catch (Throwable $th) {
+            $errors["system_message"] = $th->getMessage();
+        }
+
+        return $response;
+    }
+
+    /**
+     * specify the parameter type for columns in prepared statments
+     * @param string $type The type of the column
+     * @return string
+     */
+    function get_param_type($type) {
+        $type = strtolower($type); // Convert to lowercase for case-insensitive matching
+    
+        // Integer types
+        if (preg_match('/^(tinyint|smallint|mediumint|int|bigint)$/', $type)) return 'i';
+    
+        // Floating-point and decimal types
+        if (preg_match('/^(decimal|double|float|real)$/', $type)) return 'd';
+    
+        // Binary and blob types (store as binary)
+        if (preg_match('/^(blob|binary|varbinary|bit)$/', $type)) return 'b';
+    
+        // Default to string (covers varchar, text, char, etc.)
+        return 's';
+    }
+
+    /**
+     * Get the column type from the database
+     * @param string $table name of the table
+     * @return array 
+     */
+    function get_column_types(string $table):array {
+        global $connect;
+
+        $types = [];
+        $query = "SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?";
+        
+        if ($stmt = $connect->prepare($query)) {
+            $stmt->bind_param("s", $table);
+            $stmt->execute();
+            $result = $stmt->get_result();
+    
+            while ($row = $result->fetch_assoc()) {
+                $types[strtolower($row['COLUMN_NAME'])] = get_param_type($row['DATA_TYPE']);
+            }
+    
+            $stmt->close();
+        }
+        
+        return $types;
+    }
+
+    /**
+     * This creates the types for a prepared statement
+     * @param array $columns The columns
+     * @param string $table_name The name of the table
+     * @return string
+     */
+    function create_param_types(array $columns, string $table_name) :string{
+        $response = [];
+
+        $table_columns = get_column_types($table_name);
+
+        foreach($columns as $column){
+            $response[] = $table_columns[strtolower($column)];
+        }
+
+        return implode("", $response);
+    }
+
+    /**
+     * This function is used to parse prepared statememts
+     * Effective for INSERT, UPDATE and DELETE statements
+     * @param string $prepared_statement This is the prepared statement
+     * @param string $types Specifies the types for the columns to be parsed
+     * @param array $values This is the list of values to be inserted
+     * @return bool Returns true if successful, or false if failure
+     */
+    function parse_statement(string $prepared_statement, string $types, array $values) :bool{
+        global $connect, $errors;
+        $response = false;
+
+        try{
+            $stmt = $connect->prepare($prepared_statement);
+            $stmt->bind_param($types, ...$values);
+            $response = $stmt->execute();
+
+            if(!$response){
+                throw new Exception($stmt->error);
+            }
+                
+            /*if($stmt->execute($values) !== false){
+                $response = true;
+            }*/
+        }catch(Throwable $th){
+            $errors["system_message"] = $th->getMessage();
+        }
+
+        return $response;
+    }
+
+    /**
+     * This function gets the form data from a request
+     * @param string|array|null $upload_dir A string of the upload directory or an associative array of them
+     * @param array $exclude Some more keys to be excluded
+     * @param array $key_change Specify an array with keys to be renamed in the new array
+     * @return array
+     */
+    function form_data(string|array|null $upload_dir = null, array $exclude = [], array $key_change = []) {
+        global $errors;
+        $data = [];
+        $excludedKeys = array_merge(["submit", "request_type"], $exclude); // Default + user-specified keys
+
+        // Ensure the main upload directory exists
+        if (is_string($upload_dir) && !is_dir($upload_dir)) {
+            mkdir($upload_dir, 0777, true);
+        }
+
+        // Process text input (excluding specific keys)
+        foreach ($_REQUEST as $key => $value) {
+            if (!in_array($key, $excludedKeys)) {
+                $newKey = $key_change[$key] ?? $key; // Rename key if specified
+                $data[$newKey] = trim($value);
+            }
+        }
+
+        // Process file uploads
+        foreach ($_FILES as $key => $file) {
+            if ($file['error'] === UPLOAD_ERR_OK) {
+                $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+                $filename = uniqid("file_") . "." . $extension;
+
+                // Determine upload directory
+                if (is_array($upload_dir) && isset($upload_dir[$key])) {
+                    $filePath = rtrim($upload_dir[$key], "/") . "/" . $filename;
+                    if (!is_dir($upload_dir[$key])) mkdir($upload_dir[$key], 0777, true);
+                } else {
+                    $filePath = rtrim($upload_dir, "/") . "/" . $filename;
+                }
+
+                if (move_uploaded_file($file['tmp_name'], $filePath)) {
+                    $newKey = $key_change[$key] ?? $key; // Rename key if specified
+                    $data[$newKey] = $filePath;
+                } else {
+                    $errors[$key] = "File received an error while uploading.";
+                }
+            }
+        }
+
+        return $data; // Return processed request data
+    }
+
+    /**
+     * Update some set of records
+     * @param string[] $original The originial or initial values
+     * @param string[] $new_data The new replacement data 
+     * @param string $table The name of the table to be updated
+     * @param string|array $conditions The set of condition(s) to be checked. Specify just the names of the keys
+     * @param string|array $condition_binds This holds either AND, OR or any of the binds for the conditions
+     * @return bool|string returns true if successful or a string of message
+     */
+    function update(array $original, array $new_data, string $table, array $conditions, string|array $condition_binds = "") :bool|string{
+        $response = false;
+
+        //grab column keys and values
+        $keys = array_keys($new_data);
+        $values = array_values($new_data);
+
+        //set column string
+        $columns = updateColumns($keys);
+
+        //set condition string
+        $conditions_ = updateWhere($conditions, $original, $values, $condition_binds);
+        
+        $sql = "UPDATE $table SET $columns WHERE $conditions_";
+
+        // parse the statement
+        $datatypes = create_param_types(array_merge($keys, $conditions), $table);
+        $response = parse_statement($sql, $datatypes, $values);
+
+        return $response;
+    }
+
+    /**
+     * Used to create the columns for the update statement
+     * @param array $columns An array of columns
+     * @return string
+     */
+    function updateColumns(array $columns) :string{
+        $response = [];
+
+        foreach($columns as $column){
+            $response[] = "$column = ?";
+        }
+
+        return implode(", ",$response);
+    }
+
+    /**
+     * Creates the where condition for the update statment
+     * @param array $keys The keys for the condition
+     * @param array $subject
+     * @param array $values
+     */
+    function updateWhere(array $keys, array $subject, array &$values, string|array $condition_binds) :string{
+        $response = [];
+
+        foreach($keys as $key){
+            $response[] = "$key = ?";
+            
+            //pass value into values
+            // array_push($values, $subject[$key]);
+            $values[] = $subject[$key];
+        }
+
+        return stringifyWhere($response, $condition_binds);
+    }
+
 ?>

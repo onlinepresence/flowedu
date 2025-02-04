@@ -49,7 +49,7 @@
         $value = old($name, $value);
         
         $input = "
-            <label class=\"block text-sms\">
+            <label class=\"block text-sm\">
                 <span class=\"text-gray-700 dark:text-gray-400\">$label $asterisks</span>
                 <input 
                 type=\"$type\" name=\"$name\" value=\"$value\" $required
@@ -187,7 +187,7 @@
 
     // navigation items
     function auth_nav($text = "", $link = "", $icon = "", $active = false){
-        $link = $active ? "javascript:void()" : $link;
+        $link = $active ? "javascript:void()" : url($link);
         $class = $active ? 
             "text-gray-800 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-100" : 
             "hover:text-gray-800 dark:hover:text-gray-200" ;
@@ -203,7 +203,7 @@
                 $active
                 <a
                 class=\"inline-flex items-center w-full text-sm font-semibold transition-colors duration-150 $class\"
-                href=\"".url($link)."\"
+                href=\"".$link."\"
                 >
                 <i class=\"w-5 $icon\"></i>
                 
@@ -333,7 +333,7 @@
         $final_text = "
             <div class=\"flex items-center text-sm\">
                 $icon
-                <div>
+                <div class=\"dark:text-white\">
                     <p class=\"font-semibold\">$text</p>
                     $sub_text
                 </div>
@@ -351,22 +351,23 @@
 
     function alert($text = "", $type = "", $icon = ""){
         $icons = [
-            "success" => "fas fa-check",
-            "error" => "",
-            "warning" => "fas fa-exclamation"
+            "success" => ["icon" => "fas fa-check", "color" => "green"],
+            "error" => ["icon" => "fas fa-times-circle", "color" => "red"],
+            "warning" => ["icon" => "fas fa-exclamation", "color" => "yellow"]
         ];
 
         if(empty($icon)){
-            $icon = $icons[$type] ?? "fas fa-bell";
+            $icon = $icons[$type]["icon"] ?? "fas fa-bell";
+            $color = $icons[$type]["color"] ?? "neutral";
         }
 
         return "
-            <div class=\"flex justify-between p-4 rounded-md bg-red-50 border border-red-300\">
+            <div x-data=\"{ show: true }\" x-show=\"show\" @click=\"show = false\" class=\"flex justify-between p-4 cursor-pointer rounded-md bg-$color-50 border border-$color-300\">
                 <div class=\"flex gap-3 sm:items-center\">
                     <div>
-                        <i class=\"w-6 h-6 $icon\"></i>
+                        <i class=\"w-6 h-6 $icon text-$color-500\"></i>
                     </div>
-                    <p class=\"text-red-600 sm:text-sm\">
+                    <p class=\"text-$color-600 sm:text-sm\">
                         $text
                     </p>
                 </div>
@@ -417,4 +418,12 @@
             return implode("\n", $tags);
         }
         return "</$tag>";
+    }
+
+    function system_message(){
+        if(isset($_SESSION["errors"]["system_message"])){
+            return alert($_SESSION["errors"]["system_message"], "error");
+        }elseif(isset($_SESSION["system_message"])){
+            return alert($_SESSION["system_message"], "success");
+        }
     }

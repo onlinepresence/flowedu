@@ -249,10 +249,10 @@
     }
 
     /**
-     * This flushes session variables expected to last a time
+     * This flushes session variables expected to last a request
      */
     function flush_session(){
-        unset($_SESSION["errors"], $_SESSION["old_input"]);
+        unset($_SESSION["errors"], $_SESSION["old_input"], $_SESSION["system_message"]);
     }
 
     /**
@@ -360,9 +360,10 @@
             }
 
             $columns = get_user_columns();
+            $table = get_user_table();
 
             // Fallback to database if session data is unavailable.
-            $user = fetchData('*', 'users', ['id' => $userId]);
+            $user = fetchData($columns, $table, "u.id = $userId");
             if ($user) {
                 $_SESSION['user'] = $user; // Cache user data in the session.
                 $_SESSION["last_fetch"] = time();
@@ -380,29 +381,76 @@
      * This retrieves the columns for the currently logged in user
      */
     function get_user_columns(){
-        $default = ["username", "email"];
+        $default = ["username", "email", "lastname", "othernames"];
         $type = $_SESSION["user_type"];
 
         switch($type){
             case "admin":
             case "hod":
             case "dean":
-                $cols = ["lastname", "othernames", "type"];
+                $cols = ["a.type", "name AS admin_type", "display_name"];
                 break;
             case "student":
                 $cols = [
-                    "index_number", "othernames", "lastname", "department_id",
+                    "index_number", "department_id",
                     "date_of_birth", "gender", "nationality", "religion", "current_year",
                     "contact_address", "phone_number", "admission_date", "graduated",
                     "allergy", "insurance_number", "hall_id", "is_new", "approved"
                 ];
                 break;
             case "teacher":
-                $cols = ["lastname", "othernames"];
+                $cols = [];
                 break;
             default:
                 $cols = [];
         }
 
         return array_merge($default, $cols);
+    }
+
+    /**
+     * This gets the user tables
+     */
+    function get_user_table(){
+        $type = $_SESSION["user_type"];
+
+        switch($type){
+            case "admin":
+            case "hod":
+            case "dean":
+            case "owner":
+                $tables = [
+                    ["join" => "users admins", "on" => "id user_id", "alias" => "u a"],
+                    ["join" => "admins admin_types", "on" => "type id", "alias" => "a at"]
+                ];
+                break;
+            case "teacher":
+                $tables = [
+                    "join" => "users teachers", "on" => "id user_id", "alias" => "u t"
+                ];
+                break;
+            case "student":
+                $tables = [
+                    "join" => "users students", "on" => "id user_id", "alias" => "u t"
+                ];
+                break;
+        }
+
+        return $tables;
+    }
+
+    /**
+     * Fetches all the admin types in the system
+     * @return array
+     */
+    function admin_types(){
+        return fetchData("id, name, display_name", "admin_types", limit: 0);
+    }
+
+    /**
+     * Returns the details of the school
+     * @return array|false
+     */
+    function school(){
+        return fetchData("*", "schools", "id = 1");
     }
