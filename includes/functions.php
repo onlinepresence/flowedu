@@ -229,8 +229,45 @@
      * @param string $email The email
      * @param string $password The password
      */
-    function login($email, $password){
+    function login(){
+        $_SESSION["old_input"] = $_POST;
+        $errors = [];
+        $data = form_data();
+        $response = false;
 
+        if(empty($data["email"])){
+            $errors["email"] = "Please provide an email";
+        }elseif(!filter_var($data["email"], FILTER_VALIDATE_EMAIL)){
+            $errors["email"] = "Please provide a valid email";
+        }
+
+        if(empty($data["password"])){
+            $errors["password"] = "Please provide a password";
+        }
+
+        if(!$errors){
+            // check if user can be found
+            $user = fetchData("id, password, type", "users", "email='{$data['email']}'");
+            if($user){
+                if(password_verify($data["password"], $user["password"])){
+                    create_user_session($user["type"], $user["id"]);
+                    user(true);
+                    return url($user["type"]."/dashboard");
+                }else{
+                    $errors["password"] = "Password provided is incorrect";
+                }
+            }else{
+                $errors["email"] = "User with the specified email was not found";
+            }
+        }
+
+        if($errors){
+            $_SESSION["errors"] = $errors;
+        }
+
+        send_to_next_request();
+
+        return $response;
     }
 
     /**
@@ -241,8 +278,8 @@
     function create_user_session($type, $user_id){
         $_SESSION["user_id"] = $user_id;
 
-        if($type == "admin" && $_SESSION["admin_register"] == false){
-            $type = fetchData("type", "admins_table", "user_id=$user_id")["type"] ?? "unknown";
+        if($type == "admin" && (!isset($_SESSION["admin_register"]) || $_SESSION["admin_register"] == false)){
+            $type = fetchData("name", ["join" => "admins admin_types", "on" => "type id", "alias" => "a t"], "user_id=$user_id")["name"] ?? "unknown";
         }
         
         $_SESSION["user_type"] = $type;
@@ -253,10 +290,17 @@
      */
     function flush_session(){
         if(!isset($_SESSION["message_to_next_request"])){
-            unset($_SESSION["errors"], $_SESSION["old_input"], $_SESSION["system_message"]);
+            unset($_SESSION["errors"], $_SESSION["old_input"], $_SESSION["system_message"], $_SESSION["system_warning"]);
         }
 
         unset($_SESSION["message_to_next_request"]);
+    }
+
+    /**
+     * creates the message to last two requests
+     */
+    function send_to_next_request(){
+        $_SESSION["message_to_next_request"] = true;
     }
 
     /**
@@ -438,7 +482,7 @@
      * This retrieves the columns for the currently logged in user
      */
     function get_user_columns(){
-        $default = ["username", "email", "lastname", "othernames"];
+        $default = ["u.id", "username", "email", "lastname", "othernames"];
         $type = $_SESSION["user_type"];
 
         switch($type){
@@ -470,6 +514,7 @@
      */
     function get_user_table(){
         $type = $_SESSION["user_type"];
+        echo $type;
 
         switch($type){
             case "admin":

@@ -36,28 +36,17 @@
             }
 
             if(!$errors){
-                $sql = "INSERT INTO users (email, password, type) VALUES (?,?,?)";
-                try{
-                    $stmt = $connect->prepare($sql);
-                    $password = password_hash($password, PASSWORD_DEFAULT);
-                    $stmt->bind_param("sss", $email, $password, $type);
+                $data = form_data(exclude: ["system_secret", "admin_register"]);
+                $response = data_insert("users", $data);
+                if($response){
+                    create_user_session($type, $connect->insert_id);
                     
-                    if($stmt->execute()){
-                        // create the user session
-                        create_user_session($type, $connect->insert_id);
+                    if($admin_register == 1){
+                        $next_request = "admin-setup/personal";
                     }else{
-                        throw new Exception($stmt->error);
+                        $next_request = "student-setup/personal";
                     }
-                }catch(\Throwable $th){
-                    $message = throwableMessage($th);
-                    $errors["system_message"] = $message;
                 }
-            }
-
-            if($admin_register == 1){
-                $next_request = "admin-setup/personal";
-            }else{
-                $next_request = "student-setup/personal";
             }
         }elseif($submit == "create_admin"){
             $user_id = $_POST["user_id"] ?? null;
@@ -81,11 +70,11 @@
             }
 
             if(!$errors){
-                $data = form_data();
+                $data = form_data(exclude: ["username"]);
                 $response = empty(user()["username"]) ? data_insert("admins", $data) : update(user(), $data, "admins", ["id"]);
 
                 if($response === true){
-                    $response = update(user(true), ["username" => $data["username"]], "users", ["id"]);
+                    $response = update(user(true), ["username" => $username], "users", ["id"]);
 
                     if($response === true){
                         $_SESSION["system_message"] = "Admin account updated";

@@ -44,11 +44,7 @@
           </h1>
 
           <div class="space-y-4">
-            <?php 
-              if(isset($_SESSION["errors"]["message"])){
-                echo form_message($_SESSION["errors"]["message"], "red");
-              }
-            ?>
+            <?= system_message() ?>
             <!-- email -->
             <?= input("email", "Email", "email", required: true, attributes: [
               "placeholder" => "Email Address"
@@ -78,19 +74,19 @@
             <!-- hidden elements -->
             <input type="hidden" name="type" value="<?= $type ?>">
             <input type="hidden" name="admin_register" value="<?= intval($admin_register) ?>">
-          </div>
 
-          <!-- You should use a button here, as the anchor is only used for the example  -->
-          <?= button(
-            "submit", $admin_register ? "Setup Account" : "Create Account", 
-            "submit","create_account"
-          ); ?>
+            <!-- submit button -->
+            <?= button(
+              "submit", $admin_register ? "Setup Account" : "Create Account", 
+              "submit","create_account"
+            ); ?>
+          </div>
 
           <?php if(!$admin_register): ?>
           <p class="mt-4">
             <a
               class="text-sm font-medium text-purple-600 dark:text-purple-400 hover:underline"
-              href="./login.html"
+              href="./"
             >
               Already have an account? Login
             </a>

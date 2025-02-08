@@ -1,5 +1,5 @@
 <?php 
-    $admins = ["admin", "hod", "dean"];
+    $admins = ["admin", "hod", "dean", "owner"];
     $file = in_array($_SESSION["user_type"], $admins) ? "admin" : $_SESSION["user_type"];
     $options = require relative_path("layouts/parts/$file-nav.php");
 ?>

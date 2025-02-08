@@ -357,7 +357,8 @@
         foreach ($_REQUEST as $key => $value) {
             if (!in_array($key, $excludedKeys)) {
                 $newKey = $key_change[$key] ?? $key; // Rename key if specified
-                $data[$newKey] = trim($value);
+                $value = trim($value);
+                $data[$newKey] = empty($value) ? null : $value;
             }
         }
 

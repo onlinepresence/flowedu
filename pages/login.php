@@ -2,6 +2,17 @@
   require_once relative_path("includes/components.php");
   $title = "Login to Account";
 
+  // login user
+  if(isset($_POST["submit"]) && $_POST["submit"] == "login"){
+    $next_request = login();
+
+    if(!$next_request){
+      header("location: /");
+    }else{
+      header("location: $next_request");
+    }
+  }
+
   // Start output buffering to capture the content
   ob_start();
 ?>
@@ -25,43 +36,42 @@
               alt="Office"
             />
           </div>
-          <div class="flex items-center justify-center p-6 sm:p-12 md:w-1/2">
+          <form action="" method="post" class="flex items-center justify-center p-6 sm:p-12 md:w-1/2">
             <div class="w-full">
               <h1
                 class="mb-4 text-xl font-semibold text-gray-700 dark:text-gray-200"
               >
                 Login
               </h1>
-              <label class="block text-sm">
-                <span class="text-gray-700 dark:text-gray-400">Email</span>
-                <input
-                  class="block w-full mt-1 text-sm dark:border-gray-600 dark:bg-gray-700 focus:border-purple-400 focus:outline-none focus:shadow-outline-purple dark:text-gray-300 dark:focus:shadow-outline-gray form-input"
-                  placeholder="Jane Doe"
-                />
-              </label>
-              <label class="block mt-4 text-sm">
-                <span class="text-gray-700 dark:text-gray-400">Password</span>
-                <input
-                  class="block w-full mt-1 text-sm dark:border-gray-600 dark:bg-gray-700 focus:border-purple-400 focus:outline-none focus:shadow-outline-purple dark:text-gray-300 dark:focus:shadow-outline-gray form-input"
-                  placeholder="***************"
-                  type="password"
-                />
-              </label>
+              
+              <div class="space-y-4">
+                <?= system_message() ?>
 
-              <!-- You should use a button here, as the anchor is only used for the example  -->
-              <a
-                class="block w-full px-4 py-2 mt-4 text-sm font-medium leading-5 text-center text-white transition-colors duration-150 bg-purple-600 border border-transparent rounded-lg active:bg-purple-600 hover:bg-purple-700 focus:outline-none focus:shadow-outline-purple"
-                href="../index.html"
-              >
-                Log in
-              </a>
+                <!-- email -->
+                <?= input("email", "Email", "email", required: true, attributes: [
+                  "placeholder" => "Email Address"
+                ]) ?>
+
+                <!-- password -->
+                <?= 
+                  input("password", "Password", "password", required: true, attributes: [
+                    "placeholder" => "Password"
+                  ])
+                ?>
+
+                <!-- submit button -->
+                <?= button(
+                  "submit", "Login", 
+                  "submit","login"
+                ); ?>
+              </div>
 
               <hr class="my-8" />
 
               <p class="mt-4">
                 <a
                   class="text-sm font-medium text-purple-600 dark:text-purple-400 hover:underline"
-                  href="./forgot-password.html"
+                  href="javascript:void()"
                 >
                   Forgot your password?
                 </a>
@@ -69,13 +79,13 @@
               <p class="mt-1">
                 <a
                   class="text-sm font-medium text-purple-600 dark:text-purple-400 hover:underline"
-                  href="./create-account.html"
+                  href="./register"
                 >
                   Create account
                 </a>
               </p>
             </div>
-          </div>
+          </form>
         </div>
       </div>
     </div>

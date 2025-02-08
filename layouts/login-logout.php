@@ -10,7 +10,7 @@
     <script src="<?= asset("js/init-alpine.js") ?>"></script>
   </head>
   <body>
-    <?= $content ?? "" ?>
+      <?= $content ?? "" ?>
   </body>
 </html>
 <?php flush_session() ?>

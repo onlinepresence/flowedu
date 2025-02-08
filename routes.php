@@ -24,11 +24,28 @@
 
         '/admin' => [
             'prefix' => '/admin',
-            'middleware' => ['auth'],
+            'middleware' => ['auth', 'check_school_status'],
             'routes' => [
                 '/dashboard' => ['file' => 'admin/dashboard.php'],
             ]
-        ]
+        ],
+
+        '/student-setup' => [
+            'prefix' => '/student-setup',
+            'middleware' => ['auth', 'check_school_status'],
+            'routes' => [
+                '/personal' => ['file' => 'student/setup/personal.php'],
+            ]
+        ],
+
+        '/student' => [
+            'prefix' => '/student',
+            'middleware' => ['auth', 'check_school_status'],
+            'routes' => [
+                '/dashboard' => ['file' => 'student/dashboard.php'],
+            ]
+        ],
+
     ];
 
     
