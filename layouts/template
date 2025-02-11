@@ -7,6 +7,14 @@ $title = ''; // Set the page title
 ob_start();
 ?>
 
+<?php $scripts = <<<HTML
+<script>
+    $(document).ready(function(){
+        
+    })
+</script>
+HTML;
+?>
 <?php
 // Capture the content and assign it to a variable
 $content = ob_get_clean();

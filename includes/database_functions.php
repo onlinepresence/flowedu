@@ -341,16 +341,18 @@
      * @param string|array|null $upload_dir A string of the upload directory or an associative array of them
      * @param array $exclude Some more keys to be excluded
      * @param array $key_change Specify an array with keys to be renamed in the new array
+     * @param array $preserve This is used to specify some keys that need to be preserved, especially for bools and integer values with 0 as a valid value
      * @return array
      */
-    function form_data(string|array|null $upload_dir = null, array $exclude = [], array $key_change = []) {
+    function form_data(string|array|null $upload_dir = null, array $exclude = [], array $key_change = [], array $preserve = []) {
         global $errors;
         $data = [];
         $excludedKeys = array_merge(["submit", "request_type"], $exclude); // Default + user-specified keys
+        $folder_location = $upload_dir && is_string($upload_dir) ? asset($upload_dir, false, $upload_dir) : null;
 
         // Ensure the main upload directory exists
-        if (is_string($upload_dir) && !is_dir($upload_dir)) {
-            mkdir($upload_dir, 0777, true);
+        if (is_string($upload_dir) && !is_dir($folder_location)) {
+            mkdir($folder_location, 0777, true);
         }
 
         // Process text input (excluding specific keys)
@@ -358,7 +360,7 @@
             if (!in_array($key, $excludedKeys)) {
                 $newKey = $key_change[$key] ?? $key; // Rename key if specified
                 $value = trim($value);
-                $data[$newKey] = empty($value) ? null : $value;
+                $data[$newKey] = empty($value) && !in_array($key, $preserve) ? null : $value;
             }
         }
 
@@ -370,15 +372,15 @@
 
                 // Determine upload directory
                 if (is_array($upload_dir) && isset($upload_dir[$key])) {
-                    $filePath = rtrim($upload_dir[$key], "/") . "/" . $filename;
-                    if (!is_dir($upload_dir[$key])) mkdir($upload_dir[$key], 0777, true);
+                    $filePath = rtrim(asset($upload_dir[$key], false, true), "/") . "/" . $filename;
+                    if (!is_dir(asset($upload_dir[$key], false, true))) mkdir(asset($upload_dir[$key], false, true), 0777, true);
                 } else {
-                    $filePath = rtrim($upload_dir, "/") . "/" . $filename;
+                    $filePath = rtrim($folder_location, "/") . "/" . $filename;
                 }
 
                 if (move_uploaded_file($file['tmp_name'], $filePath)) {
                     $newKey = $key_change[$key] ?? $key; // Rename key if specified
-                    $data[$newKey] = $filePath;
+                    $data[$newKey] = str_replace(asset('', false, true), '', $filePath);
                 } else {
                     $errors[$key] = "File received an error while uploading.";
                 }
@@ -454,4 +456,12 @@
         return stringifyWhere($response, $condition_binds);
     }
 
+    /**
+     * This is usually called when a user with a profile pic makes an update. It removes an old profile pic and make the replacement where the need be
+     */
+    function reset_profile_pic(){
+        if(!empty($profile_pic = user()["profile_pic"])){
+            unlink(asset($profile_pic, false, true));
+        }
+    }
 ?>

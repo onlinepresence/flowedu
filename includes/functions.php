@@ -195,13 +195,14 @@
      * Creates a path to an assets file
      * @param string $path The path to the file (from the assets directory)
      * @param bool $live set to true if it should have current changes per reload
+     * @param bool $relative returns a relative path instead of a url
      * @return string 
      */
-    function asset($path = '', $live = true) {
+    function asset($path = '', $live = true, $relative = false) {
         $base = ltrim($path, '/') . ($live ? "?v=".time() : '');
         $path = "assets/$base";
 
-        return url($path);
+        return $relative ? relative_path($path) : url($path);
 
     }
 
@@ -464,7 +465,8 @@
             $table = get_user_table();
 
             // Fallback to database if session data is unavailable.
-            $user = fetchData($columns, $table, "u.id = $userId");
+            $user = fetchData($columns, $table, "u.id = $userId", join_type: "left");
+            
             if ($user) {
                 $_SESSION['user'] = $user; // Cache user data in the session.
                 $_SESSION["last_fetch"] = time();
@@ -482,25 +484,25 @@
      * This retrieves the columns for the currently logged in user
      */
     function get_user_columns(){
-        $default = ["u.id", "username", "email", "lastname", "othernames"];
+        $default = ["u.id", "user_id", "username", "email", "lastname", "othernames", "u.active"];
         $type = $_SESSION["user_type"];
 
         switch($type){
             case "admin":
             case "hod":
             case "dean":
-                $cols = ["a.type", "name AS admin_type", "display_name"];
+                $cols = ["a.id as admin_id", "a.type", "name AS admin_type", "display_name"];
                 break;
             case "student":
                 $cols = [
-                    "index_number", "department_id",
+                    "s.id AS student_id", "index_number", "department_id", "program_id", "profile_pic",
                     "date_of_birth", "gender", "nationality", "religion", "current_year",
                     "contact_address", "phone_number", "admission_date", "graduated",
                     "allergy", "insurance_number", "hall_id", "is_new", "approved"
                 ];
                 break;
             case "teacher":
-                $cols = [];
+                $cols = ["t.id AS teacher_id"];
                 break;
             default:
                 $cols = [];
@@ -514,7 +516,6 @@
      */
     function get_user_table(){
         $type = $_SESSION["user_type"];
-        echo $type;
 
         switch($type){
             case "admin":
@@ -533,7 +534,7 @@
                 break;
             case "student":
                 $tables = [
-                    "join" => "users students", "on" => "id user_id", "alias" => "u t"
+                    "join" => "users students", "on" => "id user_id", "alias" => "u s"
                 ];
                 break;
         }
@@ -550,9 +551,159 @@
     }
 
     /**
+     * This generates an index number for a student during admission
+     * @return string
+     */
+    function generate_admission_index(){
+        $year = date("y");
+        do {
+            $index_number = str_shuffle(substr(uniqid(), 0, 8));
+            $index_number .= $year;
+        } while (fetchData("index_number", "students", "index_number = '$index_number'"));
+
+        return $index_number;
+    }
+
+    /**
+     * This is used to lead a string with a zero
+     * @param string $text The value to be transformed
+     * @param int $length The desired length
+     * @return string
+     */
+    function lead_by_zero(string $text, int $length = 2) :string{
+        return str_pad($text, $length, "0", STR_PAD_LEFT);
+    }
+
+    /**
+     * This generates an index number for a specified student
+     * @return string|false
+     */
+    function create_index_number() :string|false{
+        // user needs to be logged in for this to happen
+        if(!isset($_SESSION["user_id"]) || $_SESSION["user_type"] != "student" || !user()['approved']){
+            return false;
+        }
+
+        $user = user(); $school = school();
+
+        if(intval($student_id_ = $user['student_id'])){
+            do {
+                $school_id = lead_by_zero($school["id"]);
+                $student_id = lead_by_zero($student_id_++, 4);
+                $department_id = lead_by_zero($user["department_id"]);
+                $year = date("y");
+
+                $index_number = $school_id.$year.$department_id.$student_id;
+            } while (fetchData("id", "students", "index_number = '$index_number' AND id != ".user()["student_id"]));
+        }
+
+        return $index_number ?? false;
+    }
+
+    /**
      * Returns the details of the school
      * @return array|false
      */
     function school(){
         return fetchData("*", "schools", "id = 1");
+    }
+
+    /**
+     * This gets all the nationalities
+     */
+    function nationalites() {
+        $file = 'nationalities.json';
+        $oneMonth = 30 * 24 * 60 * 60; // 30 days in seconds
+    
+        // Check if file exists and its last update time
+        if (file_exists($file) && (time() - filemtime($file) < $oneMonth)) {
+            $nationalities = json_decode(file_get_contents($file), true); // Return cached data
+        }else{
+            $apiUrl = "https://restcountries.com/v3.1/all?fields=demonyms";
+        
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $apiUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            $response = curl_exec($ch);
+            curl_close($ch);
+            
+            if (!$response) {
+                $nationalities = file_exists($file) ? json_decode(file_get_contents($file), true) : []; // Fallback to old data if API fails
+            }else{
+                $countries = json_decode($response, true);
+                $nationalities = [];
+            
+                foreach ($countries as $country) {
+                    if (isset($country['demonyms']['eng']['m'])) {
+                        $nationalities[] = $country['demonyms']['eng']['m'];
+                    }
+                }
+            
+                // Save to JSON file
+                file_put_contents($file, json_encode($nationalities, JSON_PRETTY_PRINT));
+            }
+        }
+        
+        sort($nationalities, SORT_STRING);
+        return $nationalities;
+    }
+
+    /**
+     * This creates a user account in the users table
+     */
+    function create_new_user(){
+        global $connect;
+        $errors = [];
+
+        $email = $_POST["email"] ?? null;
+        $password = $_POST["password"] ?? null;
+        $password_confirm = $_POST["password_confirm"] ?? null;
+        $type = $_POST["type"] ?? null;
+        $admin_register = $_POST["admin_register"] ?? null;
+        $system_secret = $_POST["system_secret"] ?? null;
+
+        if(empty($email)){
+            $errors["email"] = "No email provided";
+        }elseif(!filter_var($email, FILTER_VALIDATE_EMAIL)){
+            $errors["email"] = "Invalid email provided";
+        }if(empty($password)){
+            $errors["password"] = "No password provided";
+        }if(empty($password_confirm)){
+            $errors["password_confirm"] = "No confirmation password provided";
+        }if(strlen($password) < 8){
+            $errors["password"] = "Password provided should be at least 8 characters";
+        }if(strcmp($password, $password_confirm) != 0){
+            $errors["password"] = "Passwords do not match";
+        }if($admin_register == 1 && empty($system_secret)){
+            $errors["system_secret"] = "System secret is needed to activate it";
+        }if($admin_register == 1 && !check_secret($system_secret)){
+            $errors["system_secret"] = "System secret provided is not valid";
+        }
+
+        if(!$errors){
+            $data = form_data(exclude: ["system_secret", "admin_register", "password_confirm"]);
+            $data["password"] = password_hash($data["password"], PASSWORD_DEFAULT);
+            $response = data_insert("users", $data);
+            if($response){
+                create_user_session($type, $connect->insert_id);
+                
+                if($admin_register == 1){
+                    $next_request = "admin-setup/personal";
+                }else{
+                    $next_request = "student-setup/personal";
+                }
+            }
+        }else{
+            $_SESSION["errors"] = $errors;
+        }
+
+        return $next_request ?? null;
+    }
+
+    /**
+     * This gets the guardian information for a specified student
+     * @return array|false;
+     */
+    function guardian(){
+        return fetchData("id,name,relationship,address, phone_number,email", "parent_guardians", "student_id = ".user()['student_id']);
     }

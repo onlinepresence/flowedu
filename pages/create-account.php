@@ -5,11 +5,14 @@
   $title = "Create an Account";
   $type = $admin_register ? "admin" : "student";
 
-  $submit = [
-    "admin" => "admin/submit.php",
-    "student" => "student/submit.php",
-    "teacher" => "teacher/submit.php"
-  ];
+  if(isset($_POST["submit"]) && $_POST["submit"] == "create_account"){
+    $_SESSION["old_input"] = $_REQUEST;
+    $next_request = create_new_user();
+
+    if($next_request){
+      header("location: $next_request");
+    }
+  }
 
   // Start output buffering to capture the content
   ob_start();
@@ -35,7 +38,7 @@
         />
       </div>
 
-      <form action="<?= url($submit[$type]) ?>" method="post" class="flex items-center justify-center p-6 sm:p-12 md:w-1/2">
+      <form action="" method="post" class="flex items-center justify-center p-6 sm:p-12 md:w-1/2">
         <div class="w-full">
           <h1
             class="mb-4 text-xl font-semibold text-gray-700 dark:text-gray-200"

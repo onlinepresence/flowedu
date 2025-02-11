@@ -44,3 +44,17 @@
     function merge_class($attributes = []){
         return $attributes["class"] ?? "";
     }
+
+    function process_options_list($options){
+        $options_ = [];
+        foreach($options as $option){
+            if(is_array($option)){
+                $options_ = $options;
+                break;
+            }
+            if($option)
+                $options_[strtolower($option)] = $option;
+        }
+
+        return $options_;
+    }

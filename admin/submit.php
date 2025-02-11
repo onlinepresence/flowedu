@@ -8,47 +8,7 @@
         $next_request = null;
         $_SESSION["old_input"] = $_REQUEST;
 
-        if($submit == "create_account"){
-            $email = $_POST["email"] ?? null;
-            $password = $_POST["password"] ?? null;
-            $password_confirm = $_POST["password_confirm"] ?? null;
-            $type = $_POST["type"] ?? null;
-            $admin_register = $_POST["admin_register"] ?? null;
-            $system_secret = $_POST["system_secret"] ?? null;
-            $errors = [];
-
-            if(empty($email)){
-                $errors["email"] = "No email provided";
-            }if(!filter_var($email, FILTER_VALIDATE_EMAIL)){
-                $errors["email"] = "Invalid email provided";
-            }if(empty($password)){
-                $errors["password"] = "No password provided";
-            }if(empty($password_confirm)){
-                $errors["password_confirm"] = "No confirmation password provided";
-            }if(strlen($password) < 8){
-                $errors["password"] = "Password provided should be at least 8 characters";
-            }if(strcmp($password, $password_confirm) != 0){
-                $errors["password"] = "Passwords do not match";
-            }if($admin_register == 1 && empty($system_secret)){
-                $errors["system_secret"] = "System secret is needed to activate it";
-            }if($admin_register == 1 && !check_secret($system_secret)){
-                $errors["system_secret"] = "System secret provided is not valid";
-            }
-
-            if(!$errors){
-                $data = form_data(exclude: ["system_secret", "admin_register"]);
-                $response = data_insert("users", $data);
-                if($response){
-                    create_user_session($type, $connect->insert_id);
-                    
-                    if($admin_register == 1){
-                        $next_request = "admin-setup/personal";
-                    }else{
-                        $next_request = "student-setup/personal";
-                    }
-                }
-            }
-        }elseif($submit == "create_admin"){
+        if($submit == "create_admin"){
             $user_id = $_POST["user_id"] ?? null;
             $username = $_POST["username"] ?? null;
             $lastname = $_POST["lastname"] ?? null;
@@ -71,7 +31,7 @@
 
             if(!$errors){
                 $data = form_data(exclude: ["username"]);
-                $response = empty(user()["username"]) ? data_insert("admins", $data) : update(user(), $data, "admins", ["id"]);
+                $response = empty(user()["username"]) ? data_insert("admins", $data) : update(user(), $data, "admins", ["user_id"]);
 
                 if($response === true){
                     $response = update(user(true), ["username" => $username], "users", ["id"]);
@@ -195,6 +155,12 @@
 
     if($_REQUEST["response_type"] == "json"){
         header("Content-type: application/json");
+        echo json_encode([
+            "errors" => $errors,
+            "old_input" => $_REQUEST,
+            "status" => $status ?? false,
+            "message" => $message ?? null
+        ]);
     }elseif($errors){
         $_SESSION["errors"] = $errors;
         header("location: $request_from");

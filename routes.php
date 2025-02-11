@@ -4,7 +4,7 @@
     return [
         '/' => ['file' => 'pages/login.php', 'middleware' => ["check_school"]],
         '/shutdown' => ['file' => 'shutdown.php', 'middleware' => ['check_school']],
-        '/register' => ['file' => 'pages/create-account.php'],
+        '/register' => ['file' => 'pages/create-account.php', 'middleware' => ['admission_is_open']],
         '/logout' => ['file' => 'logout.php'],
 
         // admin routes
@@ -35,6 +35,8 @@
             'middleware' => ['auth', 'check_school_status'],
             'routes' => [
                 '/personal' => ['file' => 'student/setup/personal.php'],
+                '/status' => ['file' => 'student/setup/activate.php'],
+                '/guardian' => ['file' => 'student/setup/guardian.php']
             ]
         ],
 
@@ -42,7 +44,7 @@
             'prefix' => '/student',
             'middleware' => ['auth', 'check_school_status'],
             'routes' => [
-                '/dashboard' => ['file' => 'student/dashboard.php'],
+                '/dashboard' => ['file' => 'student/dashboard.php', 'middleware' => ['student_ready']],
             ]
         ],
 

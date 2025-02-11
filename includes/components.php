@@ -95,14 +95,23 @@
         $class_ = merge_class($attributes);
 
         if($nullable){
-            $options_[] = create_select_option("Select an option");
+            $options_[] = create_select_option($nullable === true ? "Select an option" : $nullable);
         }
 
         if($options){
-            if($options){
-                foreach($options as $key => $text_){
-                    $options_[] = create_select_option($text_, $key, $key == $value ? attribute("selected") : []);
+            if(array_is_list($options)){
+                $options = process_options_list($options);
+            }
+
+            foreach($options as $key => $text_){
+                $attr_ = [];
+                if(is_array($text_)){
+                    $attr_ = $text_["attr"] ?? [];
+                    $text_ = $text_["text"];
                 }
+
+                $options_[] = create_select_option($text_, $key, $key == $value ? array_merge($attr_, attribute("selected")) : $attr_);
+
             }
         }
 
@@ -430,4 +439,20 @@
         }elseif(isset($_SESSION["system_warning"])){
             return alert($_SESSION["system_warning"], "warning");
         }
+    }
+
+    function fieldset_start($attributes = []){
+        $attr = convert_attributes($attributes);
+        $class = merge_class($attributes);
+        return "<fieldset class=\"border border-gray-300 p-4 rounded-lg $class\" $attr>";
+    }
+
+    function fieldset_legend($text = "", $attributes = []){
+        $attr = convert_attributes($attributes);
+        $class = merge_class($attributes);
+        return "<legend class=\"px-2 font-semibold text-gray-700 dark:text-white $class\" $attr>$text</legend>";
+    }
+
+    function fieldset_end(){
+        return close_tag("fieldset");
     }

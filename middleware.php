@@ -11,6 +11,13 @@
             user(true);
         }
 
+        // prevent further autorization if user is locked
+        if(!user()['active']){
+            session_unset();
+            $_SESSION["errors"]["system_message"] = "Your account has been deactivated";
+            header("location: /");
+        }
+
         $next(); // Proceed to the next handler
     }
 
@@ -52,5 +59,35 @@
             send_to_next_request();
             header("location: /admin-setup/departments");
         }
+        $next();
+    }
+
+    function student_ready($next){
+        if(is_null(user()['approved'])){
+            $_SESSION["errors"]["system_message"] = "Admission form submission not completed";
+            header("location: ".url("student-setup/personal"));
+            send_to_next_request();
+        }elseif(!user()["approved"]){
+            $_SESSION["errors"]["system_message"] = "Your admission is yet to be approved";
+            header("location: ".url("student-setup/personal"));
+            send_to_next_request();
+        }elseif(user()["is_new"] && user()["approved"]){
+            $_SESSION["system_warning"] = "Admission has been approved. Activate your dashboard to proceed";
+            header("location: ".url("student-setup/status"));
+            send_to_next_request();
+        }
+
+        $next();
+    }
+
+    function admission_is_open($next){
+        $school = school();
+
+        if(!isset($_SESSION["admin_register"]) && !$school["is_admit"]){
+            $_SESSION["system_warning"] = "School is not receiving new students";
+            send_to_next_request();
+            header("location: /");
+        }
+
         $next();
     }
