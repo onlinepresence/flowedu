@@ -69,7 +69,7 @@
 
             <?php 
               if($admin_register){
-                echo input_h(label: "System Secret", name: "system_secret", required: true, sub_text: "System Secret provided to start up system");
+                echo input_h("password", "System Secret", "system_secret", required: true, sub_text: "System Secret provided to start up system");
               }
             ?>
             <!-- secret for admin -->
