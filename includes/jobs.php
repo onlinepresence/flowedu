@@ -74,6 +74,7 @@
     /**
      * This is used to process the job
      * @param array $job The job array
+     * @return bool
      */
     function process_job($job, $max_attempts) {
         global $last_exception;
@@ -105,10 +106,13 @@
                     data_insert("failed_jobs", $data);
                     delete("jobs", "id={$job['id']}");
                 }
+
+                $response = false;
             }
         }
 
         $last_exception = null;
+        return $response;
     }
 
     /**
@@ -116,7 +120,12 @@
      * @param string $queue The name of the queue to run
      */
     function run_worker(string $queue, $max_attempts = 5) {
+        $count = 0;
         while ($job = fetch_job($queue)) {
-            process_job($job, $max_attempts);
+            if(process_job($job, $max_attempts)){
+                ++$count;
+            }
         }
+
+        echo "$count '$queue' queues finished";
     }
