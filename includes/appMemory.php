@@ -39,6 +39,10 @@
 
                 $developmentServer = false;
 
+                $mailserver_email = "_mainaccount@shsdesk.com";
+                $mailserver_password = "Junior2020";
+                $mailserver = "mail.shsdesk.com";
+
                 break;
 
         }
