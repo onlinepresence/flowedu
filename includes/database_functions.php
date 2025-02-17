@@ -457,11 +457,27 @@
     }
 
     /**
-     * This is usually called when a user with a profile pic makes an update. It removes an old profile pic and make the replacement where the need be
+     * This function is used to delete from a specific table
+     * @param string $table The name of the table from which data should be deleted
+     * @param string|string[] $condition The condition(s) to be used [key => value] or "key=value"
+     * @param string|string[] $conditon_binds This is the set of binds to be used for the condition
      */
-    function reset_profile_pic(){
-        if(!empty($profile_pic = user()["profile_pic"])){
-            unlink(asset($profile_pic, false, true));
+    function delete(string $table, string|array $condition, string|array $condition_binds = "") :bool{
+        global $connect;
+        $response = false;
+
+        try {
+            $condition = stringifyWhere($condition, $condition_binds);
+
+            $sql = "DELETE FROM $table WHERE $condition";
+
+            if($connect->query($sql)){
+                $response = true;
+            }
+        } catch (Throwable $th) {
+            logThrowable($th);
         }
+        
+        return $response;
     }
 ?>

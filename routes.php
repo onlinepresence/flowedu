@@ -7,6 +7,10 @@
         '/register' => ['file' => 'pages/create-account.php', 'middleware' => ['admission_is_open']],
         '/logout' => ['file' => 'logout.php'],
 
+        // verification of email
+        '/send-verification' => ['file' => 'pages/email/send-email-verification.php', 'middleware' => ['auth']],
+        '/verify-email/{token}' => ['file' => 'pages/email/verify-email.php', 'middleware' => ['check_school']],
+
         // admin routes
         '/admin-setup' => [
             'prefix' => '/admin-setup',

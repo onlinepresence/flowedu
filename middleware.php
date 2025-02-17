@@ -26,6 +26,10 @@
         $school = school();
 
         if(!$school){
+            // check if there is a user in the system and delete
+            if($user = fetchData("id", "users")){
+                delete("users", "id={$user['id']}");
+            }
             $_SESSION["admin_register"] = true;
             header("location: /register");
         }

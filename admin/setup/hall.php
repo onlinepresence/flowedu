@@ -63,7 +63,7 @@ ob_start();
                 <?= td(format_hall_period($hall["period"])); ?>
                 <?= td($action) ?>
             <?= tr_end(); ?>
-        <?php endforeach; else: echo td_empty("No halls have been set yet", 2); endif; ?>
+        <?php endforeach; else: echo td_empty("No halls have been set yet", 5); endif; ?>
     <?= tbody_end() ?>
 <?= table_end(); ?>
 <?php

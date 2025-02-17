@@ -1,6 +1,7 @@
 <?php 
     $serverName = $_SERVER['SERVER_NAME'];
     $serverDown = false;
+    $last_exception = null;
 
     $sqlServer = array();
 
@@ -42,13 +43,13 @@
 
         }
 
-        $phone_numbers = [
+        $phone_prefixes = [
             "027","057","026","056","024",
             "025","053","054","055","059",
             "020","050","023"
         ];
 
-        $service_providers = [
+        $provider_prefixes = [
             "airteltigo" => ["027","057","026","056"],
             "mtn" => ["024","025","053","054","055","059"],
             "vodafone" => ["020","050"],

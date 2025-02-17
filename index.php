@@ -37,7 +37,7 @@ function matchRoute($requestUri, $routes) {
             }
         } else {
             // Handle individual routes
-            $pattern = preg_replace('/\{[\w]+\}/', '([\w-]+)', $route); // Replace {param} with regex
+            $pattern = preg_replace('/\{[\w]+\}/', '([^/]+)', $route); // Replace {param} with regex
             $pattern = "#^" . $pattern . "$#";
 
             if (preg_match($pattern, $requestUri, $matches)) {

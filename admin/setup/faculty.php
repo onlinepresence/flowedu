@@ -46,7 +46,7 @@ ob_start();
                 <?= td($faculty["dean_id"] ? $faculty["lastname"].' '.$faculty["othernames"] : "Not Set"); ?>
                 <?= td($action) ?>
             <?= tr_end(); ?>
-        <?php endforeach; else: echo td_empty("No faculties have been set yet", 2); endif; ?>
+        <?php endforeach; else: echo td_empty("No faculties have been set yet", 3); endif; ?>
     <?= tbody_end() ?>
 <?= table_end(); ?>
 

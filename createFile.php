@@ -27,6 +27,14 @@ $templateContent = file_get_contents($templatePath);
 // Determine the full path to the new file
 $newFilePath = __DIR__ . '/' . $fileName;
 
+// make sure the directories have been created
+$directory_path = explode("/",$fileName);
+unset($directory_path[count($directory_path) - 1]);
+
+if(!is_dir($directory_path = implode("/", $directory_path))){
+    mkdir($directory_path, recursive: true);
+}
+
 // Create the new file and write the template content into it
 if (file_put_contents($newFilePath, $templateContent)) {
     echo "File '$fileName' created successfully!\n";

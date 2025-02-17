@@ -144,6 +144,9 @@
      * @param ?string $additional Additional message to be added
      */
     function logThrowable(Throwable $throwable, ?string $additional = null) {
+        global $last_exception;
+        $last_exception = $throwable;
+
         // Define the path to the logs directory
         $logDir = $_SERVER["DOCUMENT_ROOT"] . '/logs';
         
@@ -290,11 +293,18 @@
      * This flushes session variables expected to last a request
      */
     function flush_session(){
+        global $last_exception;
+
         if(!isset($_SESSION["message_to_next_request"])){
-            unset($_SESSION["errors"], $_SESSION["old_input"], $_SESSION["system_message"], $_SESSION["system_warning"]);
+            unset(
+                $_SESSION["errors"], $_SESSION["old_input"], $_SESSION["system_message"], $_SESSION["system_warning"],
+                $_SESSION["toast_messages"]
+            );
         }
 
         unset($_SESSION["message_to_next_request"]);
+
+        $last_exception = null;
     }
 
     /**
@@ -481,15 +491,47 @@
     }
 
     /**
-     * This retrieves the columns for the currently logged in user
+     * This is used to get a complete information on a user
+     * @param int $id The user id
+     * @param string|array $columns Specific columns to return
+     * @return array|false 
      */
-    function get_user_columns(){
-        $default = ["u.id", "user_id", "username", "email", "lastname", "othernames", "u.active"];
-        $type = $_SESSION["user_type"];
+    function get_user(int $id, $columns = null) :array|false{
+        return fetchData($columns ?? "id, username, email, type, active", "users", "id = $id");
+    }
+
+    /**
+     * gets a complete information of a user
+     * @param int $id The user id
+     * @return array|false
+     */
+    function get_user_details(int $id) :array|false{
+        $user = false;
+
+        // get the user type
+        if($type = fetchData("type", "users", "id=$id")){
+            $type = $type["type"];
+            $columns = get_user_columns($type);
+            $table = get_user_table($type);
+            $user = fetchData($columns, $table, "u.id = $id", join_type: "left");
+        }
+
+        return $user;
+    }
+
+    /**
+     * This retrieves the columns for the currently logged in user
+     * @param ?string $type The specified user type.
+     * @return array
+     */
+    function get_user_columns(?string $type = null) :array{
+        $default = ["u.id", "user_id", "username", "email", "lastname", "othernames", "email_verified_at", "u.active"];
+        $type = $type ?? $_SESSION["user_type"];
 
         switch($type){
             case "admin":
             case "hod":
+            case "owner":
             case "dean":
                 $cols = ["a.id as admin_id", "a.type", "name AS admin_type", "display_name"];
                 break;
@@ -513,9 +555,11 @@
 
     /**
      * This gets the user tables
+     * @param ?string $type The specified user type.
+     * @return array
      */
-    function get_user_table(){
-        $type = $_SESSION["user_type"];
+    function get_user_table(?string $type = null) :array{
+        $type = $type ?? $_SESSION["user_type"];
 
         switch($type){
             case "admin":
@@ -683,9 +727,16 @@
         if(!$errors){
             $data = form_data(exclude: ["system_secret", "admin_register", "password_confirm"]);
             $data["password"] = password_hash($data["password"], PASSWORD_DEFAULT);
+            $data["user_secret"] = generate_user_secret();
             $response = data_insert("users", $data);
             if($response){
                 create_user_session($type, $connect->insert_id);
+
+                // send verification email
+                if(send_verification_email() !== false){
+                    $_SESSION["system_message"] = "An email verification message has been sent to your email";
+                    send_to_next_request();
+                }
                 
                 if($admin_register == 1){
                     $next_request = "admin-setup/personal";
@@ -701,9 +752,131 @@
     }
 
     /**
+     * This creates a secret key for the user
+     */
+    function generate_user_secret(){
+        return bin2hex(random_bytes(32));
+    }
+
+    /**
+     * gets the user secret key
+     * @param int $user_id
+     * @return string|false
+     */
+    function get_user_secret(int $user_id) :string|false{
+        if($secret = fetchData("user_secret", "users", "id=$user_id")){
+            $secret = $secret["user_secret"];
+        };
+
+        return $secret;
+    }
+
+    /**
      * This gets the guardian information for a specified student
      * @return array|false;
      */
     function guardian(){
         return fetchData("id,name,relationship,address, phone_number,email", "parent_guardians", "student_id = ".user()['student_id']);
     }
+
+    /**
+     * This is usually called when a user with a profile pic makes an update. It removes an old profile pic and make the replacement where the need be
+     */
+    function reset_profile_pic(){
+        if(!empty($profile_pic = user()["profile_pic"])){
+            unlink(asset($profile_pic, false, true));
+        }
+    }
+
+    /**
+     * Used to validate if a phone number is valid
+     * @param string $phone The phone number to be checked
+     * @param ?string $provider The service provider
+     * @param int
+     */
+    function is_valid_phone_number(string $phone, ?string $provider = null) :int {
+        // Extract the first 3 digits of the phone number
+        $prefix = substr($phone, 0, 3);
+        
+        // If a provider is specified, validate it
+        if ($provider) {
+            global $provider_prefixes;
+
+            if (!isset($provider[$provider])) {
+                return -1;
+            }
+            return in_array($prefix, $provider_prefixes[$provider]);
+        }
+
+        global $phone_prefixes;
+
+        // Check if the prefix exists in the array
+        return in_array($prefix, $phone_prefixes);
+    }
+
+    /**
+     * This function is used to serialize a data
+     * @param mixed $data The data to be serialized
+     * @return string
+     */
+    function serialize_($data) :string{
+        return base64_encode(serialize($data));
+    }
+
+    /**
+     * This is used to unserialize a serialized datastring
+     * @param string $datastring The serialized datastring
+     * @param bool $json_to_array Converts a stored JSON string into an array
+     * @return mixed The unserialized data
+     */
+    function unserialize_(string $datastring, bool $json_to_array = false): mixed {
+        if(!function_exists("is_json")){
+            /**
+             * Check if a string is valid JSON
+             * @param string $string The string data
+             * @return bool
+             */
+            function is_json(string $string): bool {
+                if (!is_string($string)) {
+                    return false;
+                }
+                json_decode($string);
+                return json_last_error() === JSON_ERROR_NONE;
+            }
+        }
+
+        // Decode base64
+        $decoded = base64_decode($datastring, true);
+        if ($decoded === false) {
+            return false;
+        }
+
+        // Attempt to unserialize
+        $unserialized_data = @unserialize($decoded);
+        if ($unserialized_data === false && $decoded !== 'b:0;') { // 'b:0;' is serialized false
+            return false; // Unserialization failed
+        }
+
+        // Convert JSON string to an array if requested
+        if ($json_to_array && is_string($unserialized_data) && is_json($unserialized_data)) {
+            return json_decode($unserialized_data, true);
+        }
+
+        return $unserialized_data;
+    }
+
+    /**
+     * Get the current date and time
+     * @param string $date Custom datetime or leave at now for current date
+     * @param string $format The format to be used 
+     * @param ?string $timezone The timezone to be used
+     */
+    function now(string $date = "now", string $format = "Y-m-d H:i:s", ?string $timezone = null){
+        // set the timezone
+        $timezone = $timezone ? new DateTimeZone($timezone) : null;
+        $date = new DateTime($date, $timezone);
+        return $date->format($format);
+    }
+
+    require_once "mailer_functions.php";
+    require_once "jobs.php";

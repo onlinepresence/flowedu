@@ -145,6 +145,12 @@
                 $_SESSION["system_message"] = "Settings have been updated";
                 unset($_SESSION["admin_register"]);
                 $next_request = "/admin/dashboard";
+
+                // send activation email
+                add_job("email", create_payload("send_email", [
+                    "message" => "Your school account has been ".($_POST["ready"] == 1 ? "activated" : "deactivated"),
+                    "receipients" => user()["email"], "subject" => "School status change"
+                ]));
             }
         }else{
             $errors["system_message"] = "Submission value '$submit' not accepted";
