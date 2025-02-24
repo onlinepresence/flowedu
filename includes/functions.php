@@ -381,7 +381,7 @@
         }else{
             $columns = ["f.*"];
         }
-        return fetchData($columns, $tables, $where, 0, join_type: "left");
+        return fetchData($columns, $tables, $where, !is_null($id) ? 1 : 0, join_type: "left");
     }
 
     /**
@@ -402,7 +402,7 @@
         }else{
             $columns = ["f.*"];
         }
-        return fetchData($columns, $tables, $where, 0, join_type: "left");
+        return fetchData($columns, $tables, $where, !is_null($id) ? 1 : 0, join_type: "left");
     }
 
     /**
@@ -421,7 +421,7 @@
         }elseif($complete){
             $columns = ["p.id", "p.name", "department_id", "certificate", "cost", "d.name as department_name"];
         }
-        return fetchData($columns, $tables, $where, 0, join_type: "left");
+        return fetchData($columns, $tables, $where, !is_null($id) ? 1 : 0, join_type: "left");
     }
 
     /**
@@ -438,7 +438,7 @@
         if(!$columns){
             $columns = ["id", "name", "master", "cost", "period"];
         }
-        return fetchData($columns, $tables, $where, 0, join_type: "left");
+        return fetchData($columns, $tables, $where, !is_null($id) ? 1 : 0, join_type: "left");
     }
 
     /**
@@ -876,6 +876,13 @@
         $timezone = $timezone ? new DateTimeZone($timezone) : null;
         $date = new DateTime($date, $timezone);
         return $date->format($format);
+    }
+
+    /**
+     * This is used to generally delete an item from the database. It is basically used together with the delete item component
+     */
+    function delete_item($table, $id, $column = "id"){
+        return delete($table, "$column = $id");
     }
 
     require_once "mailer_functions.php";

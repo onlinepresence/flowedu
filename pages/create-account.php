@@ -80,7 +80,7 @@
 
             <!-- submit button -->
             <?= button(
-              "submit", $admin_register ? "Setup Account" : "Create Account", 
+              "submit", $admin_register ? "Setup Admin Account" : "Create Account", 
               "submit","create_account"
             ); ?>
           </div>

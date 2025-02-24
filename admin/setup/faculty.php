@@ -37,8 +37,8 @@ ob_start();
                 <?php 
                     $action = "
                         <div class=\"flex gap-2 items-center\">
-                            <i class=\"fas fa-pen text-blue-500 hover:text-blue-600 cursor-pointer\" title=\"Edit\"></i>
-                            <i class=\"fas fa-trash-can text-red-500 hover:text-red-600 cursor-pointer\" title=\"Delete\"></i>
+                            <i @click=\"openModal\" data-id=\"{$faculty['id']}\" data-modal-body=\"update-body\" data-show-footer=\"0\" class=\"fas action-btn fa-pen text-blue-500 hover:text-blue-600 cursor-pointer\" title=\"Edit\"></i>
+                            <i @click=\"openModal\" data-id=\"{$faculty['id']}\" data-modal-body=\"delete-body\" data-show-footer=\"1\" class=\"fas action-btn fa-trash-can text-red-500 hover:text-red-600 cursor-pointer\" title=\"Delete\"></i>
                         </div>
                     ";
                 ?>
@@ -49,6 +49,34 @@ ob_start();
         <?php endforeach; else: echo td_empty("No faculties have been set yet", 3); endif; ?>
     <?= tbody_end() ?>
 <?= table_end(); ?>
+
+<?php echo modal_start( attribute("id", "modal")); echo modal_header(); ?>
+    <!-- update section -->
+    <div id="update-body" class="hidden modal-body">
+        <?= modal_body_start(); ?>
+            <?= modal_title("Update Department Info") ?>
+        <?= modal_body_end(); ?>
+    </div>
+
+    <!-- delete section -->
+    <div id="delete-body" class="hidden modal-body">
+        <?= delete_item_component("faculty", form_action: url("admin/submit.php"), 
+            delete_text: "This will remove all associated departments and courses. Proceed to delete this faculty?") ?>
+    </div>
+<?= modal_end() ?>
+
+<?php $scripts = <<<HTML
+<script>
+    $(document).ready(function(){
+        $(".action-btn").click(function(){
+            const modal_body = $(this).attr("data-modal-body");
+            $("#modal .modal-body").addClass("hidden");
+            $("#" + modal_body).removeClass("hidden");
+        })
+    })
+</script>
+HTML;
+?>
 
 <?php
 // Capture the content and assign it to a variable

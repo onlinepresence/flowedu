@@ -15,6 +15,30 @@
     </script>
     <script src="<?= asset("js/alpine.min.js") ?>" defer></script>
     <script src="<?= asset("js/init-alpine.js") ?>"></script>
+
+     <!-- You need focus-trap.js to make the modal accessible -->
+     <script src="<?= asset("js/focus-trap.js") ?>" defer></script>
+
+     <style>
+        /* Custom scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #3490dc;
+            border-radius: 4px;
+        }
+
+        /* Hide scrollbar */
+        .scrollbar-hidden::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
   </head>
   <body class="text-gray-900 dark:text-white">
     <div

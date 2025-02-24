@@ -23,15 +23,14 @@ if($requestUri == "/shutdown"){
 function matchRoute($requestUri, $routes) {
     foreach ($routes as $route => $config) {
         if (isset($config['prefix'])) {
-            // Handle route groups
             if (str_starts_with($requestUri, $config['prefix'])) {
                 $subRoute = str_replace($config['prefix'], '', $requestUri) ?: '/';
                 foreach ($config['routes'] as $subPath => $subConfig) {
-                    $pattern = "#^" . $subPath . "$#";
-                    if (preg_match($pattern, $subRoute)) {
-                        // Merge group middleware with individual route middleware
+                    $pattern = "#^" . preg_replace('/\{[\w]+\}/', '([^/]+)', $subPath) . "$#"; // Allow more flexible param matching
+                    if (preg_match($pattern, $subRoute, $matches)) {
+                        array_shift($matches); // Remove full match
                         $subConfig['middleware'] = array_merge($config['middleware'] ?? [], $subConfig['middleware'] ?? []);
-                        return [$subConfig, []];
+                        return [$subConfig, $matches];
                     }
                 }
             }

@@ -31,6 +31,7 @@
             'middleware' => ['auth', 'check_school_status'],
             'routes' => [
                 '/dashboard' => ['file' => 'admin/dashboard.php'],
+                '/approve-student/{indexnumber}/{guardian}/{id}' => ['file' => 'admin/approve-student.php'],
             ]
         ],
 

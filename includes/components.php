@@ -344,7 +344,7 @@
         $final_text = "
             <div class=\"flex items-center text-sm\">
                 $icon
-                <div class=\"dark:text-white\">
+                <div class=\"dark:text-white text-neutral-700\">
                     <p class=\"font-semibold\">$text</p>
                     $sub_text
                 </div>
@@ -423,7 +423,7 @@
             $tags = [];
 
             foreach($tag as $tag_){
-                $tag[] = close_tag($tag_);
+                $tags[] = close_tag($tag_);
             }
 
             return implode("\n", $tags);
@@ -455,4 +455,214 @@
 
     function fieldset_end(){
         return close_tag("fieldset");
+    }
+
+    // modal functions
+    function modal_start($attr = []){
+        $class = merge_class($attr);
+        $attr = convert_attributes($attr);
+
+        return "
+            <div
+                x-show=\"isModalOpen\"
+                x-transition:enter=\"transition ease-out duration-150\"
+                x-transition:enter-start=\"opacity-0\"
+                x-transition:enter-end=\"opacity-100\"
+                x-transition:leave=\"transition ease-in duration-150\"
+                x-transition:leave-start=\"opacity-100\"
+                x-transition:leave-end=\"opacity-0\"
+                class=\"fixed inset-0 z-30 flex items-end bg-black bg-opacity-50 sm:items-center sm:justify-center\"
+                >
+                <div
+                    x-show=\"isModalOpen\"
+                    x-transition:enter=\"transition ease-out duration-150\"
+                    x-transition:enter-start=\"opacity-0 transform translate-y-1/2\"
+                    x-transition:enter-end=\"opacity-100\"
+                    x-transition:leave=\"transition ease-in duration-150\"
+                    x-transition:leave-start=\"opacity-100\"
+                    x-transition:leave-end=\"opacity-0  transform translate-y-1/2\"
+                    @click.away=\"closeModal\"
+                    @keydown.escape=\"closeModal\"
+                    class=\"w-full px-6 py-4 overflow-hidden bg-white rounded-t-lg dark:bg-gray-800 sm:rounded-lg sm:m-4 sm:max-w-xl scrollbar-hidden $class\"
+                    role=\"dialog\"
+                    $attr
+                >
+        ";
+    }
+
+    function modal_header($attributes = []){
+        $class = merge_class($attributes);
+        $attributes = convert_attributes($attributes);
+        return "
+            <header class=\"flex justify-end $class\" $attributes>
+                <button
+                    class=\"inline-flex items-center justify-center w-6 h-6 text-gray-400 transition-colors duration-150 rounded dark:hover:text-gray-200 hover: hover:text-gray-700\"
+                    aria-label=\"close\"
+                    @click=\"closeModal\"
+                >
+                    <i class=\"fas fa-close w-4 h-4\"></i>
+                </button>
+            </header>
+        ";
+    }
+
+    function modal_title($title = "", $attributes = []){
+        $class = merge_class($attributes);
+        $attributes = convert_attributes($attributes);
+
+        return "
+            <p
+                $attributes
+                class=\"mb-2 text-lg font-semibold text-gray-700 dark:text-gray-300 $class\"
+            >
+                $title
+            </p>
+        ";
+    }
+
+    function modal_body_start($attributes = []){
+        $class = merge_class($attributes);
+        $attributes = convert_attributes($attributes);
+        return "<div class=\"mt-4 mb-6 $class\" $attributes>";
+    }
+
+    function modal_body_end(){
+        return close_tag("div");
+    }
+
+    function modal_footer_start($attributes = []){
+        $class = merge_class($attributes);
+        $attributes = convert_attributes($attributes);
+
+        return "
+            <footer
+                class=\"flex flex-col items-center justify-end px-6 py-3 -mx-6 -mb-4 space-y-4 sm:space-y-0 sm:space-x-6 sm:flex-row bg-gray-50 dark:bg-gray-800 $class\"
+                $attributes
+            >
+        ";
+    }
+
+    function modal_reset_btn($text = "Cancel", $color = "gray", $text_color = "white", $attributes = []){
+        $color = strtolower($color);
+        $text_color = strtolower($text_color);
+        $class = merge_class($attributes);
+        $attributes = convert_attributes($attributes);
+        return "
+            <button
+                @click=\"closeModal\"
+                $attributes
+                class=\"w-full px-5 py-3 text-sm font-medium leading-5 text-$text_color text-$text_color-700 transition-colors duration-150 border border-$color-300 rounded-lg dark:text-$text_color-400 sm:px-4 sm:py-2 sm:w-auto active:bg-transparent hover:border-$color-500 focus:border-$color-500 active:text-$text_color-500 focus:outline-none focus:shadow-outline-$color $class\"
+            >
+                $text
+            </button>
+        ";
+    }
+
+    function modal_footer_btn($text = "", $color = "blue", $text_color = "auto", $attributes = []){
+        $color = strtolower($color);
+        $text_color = strtolower($text_color);
+        $class = merge_class($attributes);
+        $attributes = convert_attributes($attributes);
+
+        return "
+            <button
+                $attributes
+                class=\"w-full px-5 py-3 text-sm font-medium leading-5 text-$text_color transition-colors duration-150 bg-$color-600 border border-transparent rounded-lg sm:w-auto sm:px-4 sm:py-2 active:bg-$color-600 hover:bg-$color-700 focus:outline-none focus:shadow-outline-$color $class\"
+            >
+                $text
+            </button>
+        ";
+    }
+
+    function modal_footer_end(){
+        return close_tag("footer");
+    }
+
+    function modal_end(){
+        return close_tag("div, div");
+    }
+
+    /**
+     * This should be used in a modal
+     */
+    function delete_item_component($table, $column = "id", $form_action = "", $delete_text = "", $modal_title = "" ){
+        $component = "<form action=\"$form_action\" id=\"delete-item-component-form\">\n";
+        $component .= modal_body_start();
+        
+        if($modal_title){
+            $component .= modal_title($modal_title);
+        }
+
+        $component .= "
+            <p class=\"text-sm text-gray-700 dark:text-gray-400\">
+                $delete_text
+            </p>
+        ";
+
+        $component .= modal_body_end();
+        $component .= modal_footer_start();
+        $component .= modal_reset_btn("No", attributes: array_merge(
+            attribute("class", "min-w-24"),
+            attribute("type", "reset")
+        ));
+        $component .= modal_footer_btn("Yes", attributes: array_merge(
+            attribute("class", "min-w-24"),
+            attribute("type", "button"),
+            attribute("name", "submit"),
+            attribute("value", "delete-item")
+        ));
+        $component .= modal_footer_end();
+        $component .= input("hidden", value: $table, name: "delete-table");
+        $component .= input("hidden", value: $column, name: "delete-column");
+        $component .= input("hidden", name: "delete-id");
+
+        $component .= "</form>";
+
+        return $component;
+    }
+
+    /**
+     * This function will be used to insert the necessary script needed for the delete component (if used)
+     */
+    function delete_item_component_script($element){
+        $script = <<< JAVASCRIPT
+            $($element).click(function(){
+                
+            })
+        JAVASCRIPT;
+
+        return $script;
+    }
+
+    function card_container_start($cols_med = 2, $cols_xl = 4, $attributes = []){
+        $class = merge_class($attributes);
+        $attributes = convert_attributes($attributes);
+
+        return "
+            <div $attributes class=\"grid gap-6 mb-8 md:grid-cols-$cols_med xl:grid-cols-$cols_xl $class\">
+        ";
+    }
+
+    function dashboard_card_btn($text = "", $count = 0, $icon = "", $icon_color="orange", $attributes = []){
+        $class = merge_class($attributes);
+        $attributes = convert_attributes($attributes);
+        return "
+            <div $attributes class=\"flex items-center p-4 bg-white rounded-lg shadow-xs dark:bg-gray-800 $class\">
+                <div class=\"p-3 mr-4 text-$icon_color-500 bg-$icon_color-100 rounded-full dark:text-$icon_color-100 dark:bg-$icon_color-500\">
+                  <i class=\"$icon w-5 h-5\"></i>
+                </div>
+                <div>
+                  <p class=\"mb-2 text-sm font-medium text-gray-600 dark:text-gray-400\">
+                    $text
+                  </p>
+                  <p class=\"text-lg font-semibold text-gray-700 dark:text-gray-200\">
+                    $count
+                  </p>
+                </div>
+              </div>
+        ";
+    }
+
+    function card_container_end(){
+        return close_tag("div");
     }

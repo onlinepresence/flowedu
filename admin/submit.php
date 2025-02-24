@@ -58,7 +58,7 @@
             }
 
             if(empty($errors)){
-                $data = form_data("assets/uploads/school", ["school_id"]);
+                $data = form_data("uploads/school/", ["school_id"]);
                 if($school_id > 0){
                     $response = update(school(), $data, "schools", ["id"]);
                     $message = "School details have been updated";
