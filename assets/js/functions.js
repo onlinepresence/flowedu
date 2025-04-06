@@ -58,7 +58,7 @@ function JSONtoFormData(json){
  * @param {AJAXOptions} ajaxOptions
  * @return
  */
-async function ajaxCall({url, data = {}, returnType = "text", method = "GET", sendRaw = false, beforeSend = null, timeout = 0}){
+async function ajaxCall({url, data = {}, returnType = "json", method = "GET", sendRaw = false, beforeSend = null, timeout = 0}){
     let response_ = false;
     try {
         if(data instanceof FormData){
@@ -93,4 +93,33 @@ async function ajaxCall({url, data = {}, returnType = "text", method = "GET", se
     }
 
     return response_;
+}
+
+function fill_form(object, $form, filePreviewMap = {}) {
+    Object.entries(object).forEach(([key, value]) => {
+        const $field = $form.find(`[name="${key}"]`);
+
+        if ($field.length) {
+            const type = $field.attr('type');
+
+            if ($field.is('select')) {
+                $field.val(value).trigger('change');
+            } else if ($field.is(':radio') || $field.is(':checkbox')) {
+                $form.find(`[name="${key}"][value="${value}"]`).prop('checked', true);
+            } else if ($field.is('textarea') || $field.is('input')) {
+                if (type === 'file') {
+                    $field.prop('disabled', true);
+
+                    // Check if preview already exists
+                    if ($field.siblings('.file-preview-link').length === 0 && value) {
+                        const previewText = filePreviewMap[key] || "View File";
+                        const previewLink = `<a href="/assets/${value}" target="_blank" class="file-preview-link text-blue-600 underline ml-2">${previewText}</a>`;
+                        $field.parent().append(previewLink);
+                    }
+                } else {
+                    $field.val(value);
+                }
+            }
+        }
+    });
 }

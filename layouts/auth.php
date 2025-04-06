@@ -264,6 +264,7 @@
       </div>
     </div>
     <script src="<?= asset("js/jquery.min.js", false) ?>"></script>
+    <script src="<?= asset("js/functions.js", false) ?>"></script>
     <?= $scripts ?? '' ?>
   </body>
 </html>

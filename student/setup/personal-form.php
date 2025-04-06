@@ -39,6 +39,7 @@
                 ?>
             </div>
 
+            <?php if($is_student): ?>
             <!-- username -->
             <div>
                 <?php echo input(
@@ -50,6 +51,7 @@
                     placeholder("Username")
                 ); ?>
             </div>
+            <?php endif; ?>
 
             <!-- Last Name -->
             <div>

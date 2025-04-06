@@ -49,7 +49,7 @@ $unapproved_students = fetchData(
                     <?= td($student["gender"]) ?>
                     <?= td($student["program_name"]) ?>
                     <?= td($student["guardian"] ? "Provided" : "Not Provided") ?>
-                    <?= td(date("d-m-Y",strtotime($student["created_at"]))) ?>
+                    <?= td(date("M d, Y",strtotime($student["created_at"]))) ?>
                     <?= td($action) ?>
                 <?= tr_end() ?>
             <?php endforeach; else:
@@ -66,11 +66,32 @@ $unapproved_students = fetchData(
     )); echo modal_header(); ?>
         <!-- view section -->
         <div id="view-body" class="modal-body">
-            <?= modal_body_start(); ?>
+            <?= modal_body_start(
+                attribute("style", "max-width: 1024px")
+            ); ?>
                 <?= modal_title("In Progress") ?>
-                <form action="<?= url("admin/submit.php") ?>">
+                <form id="modal-form">
                     <?php require relative_path("student/setup/personal-form.php"); ?>
+                    <?= fieldset_start(array_merge(
+                        attribute("id", "guardian-form"), attribute("class", "mt-6")
+                    )) ?>
+                        <?= fieldset_legend("Guardian Information") ?>
+                        <?php require_once relative_path("/student/setup/guardian-form.php") ?>
+                    <?= fieldset_end() ?>
+
+                    <!-- Submit Button -->
+                    <div class="mt-4 w-full flex gap-4">
+                        <?= button("button", "Approve", color: "blue", attributes: attribute("class", "approve")) ?>
+                        <?= button("reset", "Cancel", color: "red", attributes: array_merge(
+                            attribute("class", "reject"), attribute("@click", "closeModal()")
+                        )) ?>
+                    </div>
                 </form>
+                <p id="modal-load-element" class="hidden text-center gap-4 mt-4 border py-6 px-4">
+                    <i class="fas fa-spinner animate-spin"></i>
+                    <span>Fetching Student details</span>
+                </p>
+                <p class="hidden text-center border py-6 px-4" id="modal-status"></p>
             <?= modal_body_end(); ?>
         </div>
     <?= modal_end() ?>
@@ -92,6 +113,48 @@ $unapproved_students = fetchData(
             }else{
                 window.location.replace("/admin/approve-student/" + index_number + "/" + guardian_status + "/" + user_id);
             }
+        })
+
+        $(".view").click(function(){
+            const student_id = $(this).data("id");
+            
+            ajaxCall({
+                url: "/admin/submit.php",
+                data: {submit: "fetch_user", id: student_id, type: "student"},
+                beforeSend: function(){
+                    // hide student form
+                    $("#modal-form, #modal-status").addClass("hidden");
+                    $("#modal-load-element").removeClass("hidden").addClass("show");
+                }
+            }).then((response) => {
+                setTimeout(() => {
+                    if(response.status){
+                        const data = response.data;
+                        fill_form(data.student, $("#student-form-grid"), {
+                            profile_pic: "View Profile Picture"
+                        });
+
+                        if(data.guardian)
+                            fill_form(data.guardian, $("#guardian-form"));
+                        
+                        $("#modal-form .approve").attr({
+                            "data-index-number": data.student.index_number,
+                            "data-guardian-status": data.guardian ? 1 : 0,
+                            "data-user-id": data.student.user_id
+                        })
+                        $("#modal-form").removeClass("hidden");
+                        $("#modal-load-element").addClass("hidden");
+                    }else{
+                        $("#modal-load-element").addClass("hidden");
+                        $("#modal-status").removeClass("hidden").html(response.errors.system_message)
+                    }
+                }, 500);              
+                
+            }).error((error) => {
+                console.log(error);
+                
+            })
+            
         })
     })
 </script>

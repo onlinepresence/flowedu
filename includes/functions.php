@@ -503,14 +503,18 @@
     /**
      * gets a complete information of a user
      * @param int $id The user id
+     * @param ?string $type The user type if specified
      * @return array|false
      */
-    function get_user_details(int $id) :array|false{
+    function get_user_details(int $id, ?string $type = null) :array|false{
         $user = false;
 
-        // get the user type
-        if($type = fetchData("type", "users", "id=$id")){
+        if(!$type && ($type = fetchData("type", "users", "id=$id"))){
             $type = $type["type"];
+        }
+
+        // get the user type
+        if($type){
             $columns = get_user_columns($type);
             $table = get_user_table($type);
             $user = fetchData($columns, $table, "u.id = $id", join_type: "left");

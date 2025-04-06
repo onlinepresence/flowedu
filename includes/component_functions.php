@@ -46,10 +46,6 @@
     }
 
     function make_attributes(...$attributes){
-        if(count($attributes) == 1){
-            return $attributes;
-        }
-
         return array_merge($attributes);
     }
 

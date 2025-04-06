@@ -663,7 +663,7 @@
         $attributes = convert_attributes($attributes);
 
         return "
-            <div $attributes class=\"grid gap-6 mb-8 md:grid-cols-$cols_med xl:grid-cols-$cols_xl $class\">
+            <div $attributes class=\"grid gap-6 mb-8 grid-cols-1 md:grid-cols-$cols_med xl:grid-cols-$cols_xl $class\">
         ";
     }
 

@@ -152,6 +152,18 @@
                     "receipients" => user()["email"], "subject" => "School status change"
                 ]));
             }
+        }elseif($submit == "fetch_user"){
+            if(empty($_GET["id"])){
+                $errors["system_message"] = "User id is not valid";
+            }else{
+                $data = get_user_details($_GET["id"], $_GET["type"] ?? null);
+                $status = !empty($data);
+
+                if(isset($_GET["type"]) && $_GET["type"] == "student"){
+                    $guardian = fetchData("name, relationship, address, phone_number, email", "parent_guardians", "student_id={$data['student_id']}");
+                    $data = ["student" => $data, "guardian" => $guardian];
+                }
+            }
         }else{
             $errors["system_message"] = "Submission value '$submit' not accepted";
         }
@@ -165,7 +177,7 @@
             "errors" => $errors,
             "old_input" => $_REQUEST,
             "status" => $status ?? false,
-            "message" => $message ?? null
+            "data" => $data ?? null
         ]);
     }elseif($errors){
         $_SESSION["errors"] = $errors;
