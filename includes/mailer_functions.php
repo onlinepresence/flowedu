@@ -8,7 +8,7 @@
      */
     function get_default_email(string $name) :string{
         // if its the local development server, use local email
-        if(str_contains($_SERVER["SERVER_NAME"], "local"))
+        if(env("APP_ENV") == "local")
             return "successinnovativehub@gmail.com";
 
         switch(strtolower($name)){
@@ -28,13 +28,13 @@
      * @param string $message The message body
      * @param string $subject The message subject
      * @param string $receipients The receipient email
-     * @param string $sender Default is from the default account
-     * @param string $name The name of the sender
+     * @param ?string $sender Default is from the default account
+     * @param ?string $name The name of the sender
      * @param string|false $reply Provide an email for replies, or set to true if replies should be sent to sender email
      * @return bool|string
      */
-    function send_email(string $message, string $subject, string|array $recipients, 
-        string $sender = null, string $name = null, string|bool $reply = false
+    function send_email(string $message, string $subject, string|array $receipients, 
+        ?string $sender = null, ?string $name = null, string|bool $reply = false
     ) :bool|string {
         global $rootPath, $mailserver_email, $mailserver_password, $mailserver;
 
@@ -56,8 +56,8 @@
             }
 
             // turn recipients to array
-            if(!is_array($recipients)){
-                $recipients = [$recipients];
+            if(!is_array($receipients)){
+                $receipients = [$receipients];
             }
 
             //Server settings
@@ -77,7 +77,7 @@
             $mail->setFrom($sender, $name ?? "");
 
             // add recipient(s)
-            foreach($recipients as $recipient){
+            foreach($receipients as $recipient){
                 if(is_array($recipient)){
                     if(!isset($recipient["email"]) && !isset($receipient["name"])){
                         throw new Exception("Recipient array should have 'name' and 'email' only");
@@ -106,18 +106,18 @@
 
     /**
      * Used to validate if a group of recipients are email addresses. Used for emailing
-     * @param string|array $recipients The recipient data
+     * @param string|array $receipients The recipient data
      * @param null|mixed $message The message to be sent if there is an error
      * @return bool true if everything is fine or false if otherwise
      */
-    function validate_email(string|array $recipients, &$message = null){
+    function validate_email(string|array $receipients, &$message = null){
         $isValid = true;
 
-        if(!is_array($recipients)){
-            $recipients = [$recipients];
+        if(!is_array($receipients)){
+            $receipients = [$receipients];
         }
 
-        foreach($recipients as $recipient){
+        foreach($receipients as $recipient){
             if(!filter_var(trim($recipient), FILTER_VALIDATE_EMAIL)){
                 $isValid = false;
                 $message = "'$recipient' is not a valid email";

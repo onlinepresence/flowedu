@@ -148,7 +148,7 @@
         $last_exception = $throwable;
 
         // Define the path to the logs directory
-        $logDir = $_SERVER["DOCUMENT_ROOT"] . '/logs';
+        $logDir = $_SERVER["DOCUMENT_ROOT"] . '/logs/'. date('F_Y');
         
         // Check if the logs directory exists, create it if it doesn't
         if (!is_dir($logDir)) {
@@ -156,7 +156,7 @@
         }
     
         // Define the log file name based on the current month and year
-        $logFile = $logDir . '/' . date('F_Y') . '.log';
+        $logFile = $logDir . '/log_' . date('d_m_Y') . '.log';
     
         // Gather error details
         $timestamp = date('Y-m-d H:i:s');
@@ -655,7 +655,7 @@
     /**
      * This gets all the nationalities
      */
-    function nationalites() {
+    function nationalities() {
         $file = 'nationalities.json';
         $oneMonth = 30 * 24 * 60 * 60; // 30 days in seconds
     

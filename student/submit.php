@@ -66,7 +66,7 @@
                     
                     $response = update(user(), ["username" => $_POST["username"]], "users", ["id"]);
                     if($response === true){
-                        $_SESSION["system_message"] = empty(user()["username"]) ? "Your account details have been submitted" : "Changes have been applied";
+                        $_SESSION["system_message"] = empty(user()["username"]) ? "Your account details have been saved" : "Changes have been applied";
                         user(true);
                     }else{
                         if(empty($_SESSION["errors"]["system_message"])){
@@ -125,6 +125,22 @@
                 }else{
                     if(!empty($_SESSION["errors"]["system_message"]))
                         $errors["system_message"] = is_string($response) ? $response : "Error occured while updating user profile";
+                }
+            }
+        }elseif($submit == "delete-account"){
+            if(empty($_POST["user_id"])){
+                $errors["system_message"] = "User was not defined or could not be accessed";
+            }elseif(!is_numeric($_POST["user_id"])){
+                $errors["system_message"] = "Invalid user provided";
+            }else{
+                $data = form_data(key_change:["user_id" => "id"], preserve: ["id"]);
+
+                if(delete("users", create_where_from_array($data))){
+                    send_to_next_request();
+                    $_SESSION["system_message"] = "Account has been deleted";
+                    $next_request = "/logout";
+                }else{
+                    $errors["system_message"] = "Registration could not be canceled";
                 }
             }
         }else{

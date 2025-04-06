@@ -197,7 +197,7 @@
     }
 
     // navigation items
-    function auth_nav($text = "", $link = "", $icon = "", $active = false){
+    function auth_nav($text = "", $link = "", $icon = "", $active = false, $attributes = []){
         $link = $active ? "javascript:void()" : url($link);
         $class = $active ? 
             "text-gray-800 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-100" : 

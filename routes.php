@@ -6,6 +6,7 @@
         '/shutdown' => ['file' => 'shutdown.php', 'middleware' => ['check_school']],
         '/register' => ['file' => 'pages/create-account.php', 'middleware' => ['admission_is_open']],
         '/logout' => ['file' => 'logout.php'],
+        '/env-generator' => ['file' => 'pages/generate_env.php'],
 
         // verification of email
         '/send-verification' => ['file' => 'pages/email/send-email-verification.php', 'middleware' => ['auth']],
@@ -41,7 +42,8 @@
             'routes' => [
                 '/personal' => ['file' => 'student/setup/personal.php'],
                 '/status' => ['file' => 'student/setup/activate.php'],
-                '/guardian' => ['file' => 'student/setup/guardian.php']
+                '/guardian' => ['file' => 'student/setup/guardian.php'],
+                '/delete' => ['file' => 'student/setup/delete-account.php']
             ]
         ],
 

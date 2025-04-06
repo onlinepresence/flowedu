@@ -51,6 +51,8 @@
                     <?= user() ? "GO TO DASHBOARD" : "LOGIN TO YOUR ACCOUNT" ?>
                 </a>
             </div>
+            <?php elseif($status == "no_user"): ?>
+                <p class="text-gray-700 mb-4"><a href="<?= url("/register") ?>" class="hover:underline-offset-2 underline">Signup</a> to to create a new account</p>
             <?php else: ?>
                 <p class="text-gray-700 mb-4"><a href="<?= url("/") ?>" class="hover:underline-offset-2 underline">Login</a> to your account to resend the verification link</p>
             <?php endif; ?>

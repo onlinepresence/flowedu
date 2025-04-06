@@ -457,6 +457,22 @@
     }
 
     /**
+     * This is used to create a where condition from an key=>value pair
+     * @param $array The array to be processed
+     * @param string $join The value that joins them
+     * @return array
+     */
+    function create_where_from_array($array, string $join = "="){
+        $response = [];
+        foreach($array as $key => $value){
+            $value = is_numeric($value) ? $value : "'$value'";
+            $response[] = "$key $join $value";
+        }
+
+        return $response;
+    }
+
+    /**
      * This function is used to delete from a specific table
      * @param string $table The name of the table from which data should be deleted
      * @param string|string[] $condition The condition(s) to be used [key => value] or "key=value"

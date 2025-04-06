@@ -15,6 +15,11 @@
                 "text" => "Admission Status",
                 "link" => "/student-setup/status",
                 "icon" => "fas ".(user()["approved"] ? "fa-user-check" : (is_null(user()["is_new"]) ? "fa-user-pen" : "fa-user-clock"))
+            ],
+            "delete-account" => [
+                "text" => "Cancel Registration",
+                "link" => "/student-setup/delete",
+                "icon" => "fas fa-trash-can"
             ]
         ];
     }else{

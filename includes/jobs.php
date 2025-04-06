@@ -1,4 +1,30 @@
 <?php
+
+    /**
+     * This is specifically used for the cron worker only
+     * @param string $message The message to be displayed
+     */
+    function log_cron_message($message) {
+        global $rootPath;
+
+        // Define log directory path by month and year
+        $logDir = $rootPath . '/logs/cron/' . date('m_Y');
+
+        // Create the directory if it doesn't exist
+        if (!is_dir($logDir)) {
+            mkdir($logDir, 0775, true);
+        }
+
+        // Define log file path (per day or task to keep files small)
+        $logFile = $logDir . '/worker_' . date('Y-m-d') . '.log';
+
+        // Create a formatted message
+        $timestamp = date('Y-m-d H:i:s');
+        $logEntry = "[$timestamp] $message" . PHP_EOL;
+
+        // Append to log file
+        file_put_contents($logFile, $logEntry, FILE_APPEND);
+    }
     /**
      * This is used to add a new job to the jobs table
      * @param string $queue The type of queue this job belongs to
@@ -127,5 +153,7 @@
             }
         }
 
-        echo "$count '$queue' queues finished";
+        if($count){
+            log_cron_message("$count '$queue' queues finished");
+        }
     }

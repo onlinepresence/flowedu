@@ -98,7 +98,7 @@
             <?php echo select(
                 "nationality",
                 "Nationality",
-                nationalites(),
+                nationalities(),
                 true,
                 value: $is_student ? ($user["nationality"] ?? 'ghanaian') : "",
                 required: true
@@ -244,6 +244,14 @@
                     input(label: "Cost Period", attributes: array_merge(
                         attribute("readonly"), attribute("id", "hall_period"), placeholder("Cost Period")
                     ));
+                ?>
+            </div>
+
+            <div>
+                <?= 
+                    select("current_year", "Program Year", [
+                        100,200,300,400
+                    ], required: true, value: $is_student ? $user["current_year"] ?? "" : "")
                 ?>
             </div>
             <?php endif; ?>

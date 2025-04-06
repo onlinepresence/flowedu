@@ -1,5 +1,5 @@
 <?php
-    if($requestUri != "/shutdown")
+    if(!in_array($requestUri, ["/shutdown", "/env-generator"]))
         include_once "includes/session.php";
 
     function auth($next) {

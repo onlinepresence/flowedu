@@ -45,6 +45,14 @@
         return $attributes["class"] ?? "";
     }
 
+    function make_attributes(...$attributes){
+        if(count($attributes) == 1){
+            return $attributes;
+        }
+
+        return array_merge($attributes);
+    }
+
     function process_options_list($options){
         $options_ = [];
         foreach($options as $option){

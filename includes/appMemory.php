@@ -1,6 +1,14 @@
 <?php 
-    $serverName = $_SERVER['SERVER_NAME'];
-    $serverDown = false;
+    // redirect to generate env if no env has been created
+    if(empty($_ENV)){
+        require_once "load_env.php";
+
+        if(empty($_ENV))
+            header("location: /env-generator");
+    }
+
+    $serverName = $_SERVER['SERVER_NAME'] ?? env("APP_ENV");
+    $serverDown = env("SERVER_DOWN") == "true";
     $last_exception = null;
 
     $sqlServer = array();
@@ -8,44 +16,21 @@
     //determine development server and live server to determine how error codes are shown
     $developmentServer = null;
 
-    if($serverDown === false){        
-        switch($serverName){
-            case "localhost":
-            case "college-school.local":
-            case "www.college-school.local":
-                $sqlServer = [
-                    "host" => "localhost",
-                    "hostpassword" => "",
-                    "hostname" => "root",
-                    "db" => "student-system"
-                ];
+    if($serverDown === false){
+        // database connection
+        $sqlServer =   [
+            "host" => env('DB_HOST'),
+            "hostpassword" => env("DB_PASSWORD"),
+            "hostname" => env("DB_USERNAME"),
+            "db" => env("DB_NAME")
+        ];
 
-                $developmentServer = true;
+        $developmentServer = env("APP_ENV") == "local";
 
-                // mail server configuration
-                $mailserver_email = "successinnovativehub@gmail.com";
-                $mailserver_password = "wzap xjim dvpv bhfe";
-                $mailserver = "smtp.gmail.com";
-
-                break;
-            case "college.shsdesk.com":
-            case "www.college.shsdesk.com":
-                $sqlServer = [
-                    "host" => "localhost",
-                    "hostpassword" => "Password@2020",
-                    "hostname" => "shsdeskc_matrixme",
-                    "db" => "shsdeskc_student_system"
-                ];
-
-                $developmentServer = false;
-
-                $mailserver_email = "_mainaccount@shsdesk.com";
-                $mailserver_password = "Junior2020";
-                $mailserver = "mail.shsdesk.com";
-
-                break;
-
-        }
+        // mail server configuration
+        $mailserver_email = env("MAIL_USERNAME");
+        $mailserver_password = env("MAIL_PASSWORD");
+        $mailserver = env("MAIL_HOST");
 
         $phone_prefixes = [
             "027","057","026","056","024",

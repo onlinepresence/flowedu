@@ -15,7 +15,7 @@
             <?php 
                 foreach($options as $name => $option){
                     if(!isset($option["allowed"]) || (isset($option["allowed"]) && in_array($_SESSION["user_type"], $option["allowed"])))
-                        echo auth_nav($option["text"], $option["link"], $option["icon"], is_current($option["link"]));
+                        echo auth_nav($option["text"], $option["link"], $option["icon"], is_current($option["link"]), $option['attributes'] ?? []);
                 }
             ?>
         </ul>
