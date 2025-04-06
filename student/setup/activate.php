@@ -21,7 +21,7 @@ ob_start();
         <?php elseif(!user()['approved']) : ?>
             Admission details have been submitted, awaiting approval from admins
         <?php else: ?>
-            Congratulations <?= user()['lastname'] ?>, your admission has been approved
+            Congratulations <?= user()['lastname'] ?>, your account has been approved
         <?php endif; ?>
     </p>
     <?php if(!is_null(user()['approved'])): ?>
