@@ -10,7 +10,12 @@
 
     <?= fieldset_start(); ?>
         <?= fieldset_legend("Student Information") ?>
-
+        <?php if($is_student): ?>
+            <?= information_bar(
+                "Your profile picture should be minimum of minimum size 300 x 400 (7:9 ratio), and should have a red solid background. If your image does not meet this standard, it shall be rejected",
+                attributes: attribute("class", "mb-4 text-sm rounded-sm")
+                ) ?>
+        <?php endif; ?>
         <div class="grid grid-cols-1 sm:grid-cols-2 <?= $is_student? "lg:grid-cols-3" : "" ?> gap-6">
             <!-- index number -->
             <div>

@@ -9,6 +9,8 @@
         $_SESSION["old_input"] = $_REQUEST;
 
         if($submit == "create_student"){
+            require_once "$rootPath/includes/image_validation.php";
+
             if(empty($_POST["user_id"])){
                 $errors["system_message"] = "User could not be defined or is invalid";
             }elseif(!is_numeric($_POST["user_id"])){
@@ -53,6 +55,11 @@
                 $errors["phone_number"] = "Phone number is required";
             }if(empty(user()["username"]) && empty($_FILES["profile_pic"]["name"])){
                 $errors["profile_pic"] = "Profile picture is required";
+            }
+
+            $validate_profile = validate_passport_photo($_FILES["profile_pic"]["tmp_name"]);
+            if(!$validate_profile["status"]){
+                $errors["profile_pic"] = $validate_profile["message"];
             }
             
             if(!$errors){

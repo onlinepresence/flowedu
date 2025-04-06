@@ -386,6 +386,30 @@
         ";
     }
 
+    function information_bar($text = "", $type = "", $can_hide = false, $attributes = []){
+        $colors = [
+            "success" => "green",
+            "error" => " red",
+            "warning" => "yellow"
+        ];
+
+        $color = $colors[$type] ?? "neutral";
+        $attr = convert_attributes($attributes);
+        $class_ = merge_class($attributes);
+        $alpine = $can_hide ? "x-data=\"{ show: true }\" x-show=\"show\" @click=\"show = false\"" : "";
+
+        return "
+            <div $alpine 
+                class=\"border-b border-$color-300 bg-$color-200 px-4 py-2 text-$color-900 $class_\" 
+                $attr
+            >
+                <p class=\"text-center font-medium\">
+                    $text
+                </p>
+            </div>
+        ";
+    }
+
     function thead_start(){
        return "<thead>\n\t<tr class=\"text-xs font-semibold tracking-wide text-left text-gray-500 uppercase border-b dark:border-gray-700 bg-gray-50 dark:text-gray-400 dark:bg-gray-800\">";
     }
