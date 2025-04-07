@@ -529,7 +529,7 @@
      * @return array
      */
     function get_user_columns(?string $type = null) :array{
-        $default = ["u.id", "user_id", "username", "email", "ghana_card", "lastname", "othernames", "email_verified_at", "u.active"];
+        $default = ["u.id", "user_id", "username", "email", "lastname", "othernames", "email_verified_at", "u.active"];
         $type = $type ?? $_SESSION["user_type"];
 
         switch($type){
@@ -537,18 +537,18 @@
             case "hod":
             case "owner":
             case "dean":
-                $cols = ["a.id as admin_id", "a.type", "name AS admin_type", "display_name"];
+                $cols = ["a.id as admin_id", "a.type", "ghana_card", "name AS admin_type", "display_name"];
                 break;
             case "student":
                 $cols = [
                     "s.id AS student_id", "index_number", "department_id", "program_id", "profile_pic",
-                    "date_of_birth", "gender", "nationality", "religion", "current_year",
+                    "date_of_birth", "gender", "nationality", "ghana_card", "religion", "current_year",
                     "contact_address", "phone_number", "admission_date", "graduated",
                     "allergy", "insurance_number", "hall_id", "is_new", "approved"
                 ];
                 break;
             case "teacher":
-                $cols = ["t.id AS teacher_id"];
+                $cols = ["t.id AS teacher_id", "ghana_card"];
                 break;
             default:
                 $cols = [];
