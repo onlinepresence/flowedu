@@ -11,11 +11,15 @@
         <a class="ml-6 text-lg font-bold text-gray-800 dark:text-gray-200" href="#"><?= $portal_title ?? "My Portal" ?></a>
         
         <!-- menu items -->
-        <ul class="mt-6">
+        <ul class="mt-6" x-data="{current_menu:''}" x-cloack>
             <?php 
                 foreach($options as $name => $option){
                     if(!isset($option["allowed"]) || (isset($option["allowed"]) && in_array($_SESSION["user_type"], $option["allowed"])))
-                        echo auth_nav($option["text"], $option["link"], $option["icon"], is_current($option["link"]), $option['attributes'] ?? []);
+                        if(isset($option["group"])){
+                            echo auth_nav_group_link($option["text"], $name,  $option["icon"], $option["items"]);
+                        }else{
+                            echo auth_nav($option["text"], $option["link"], $option["icon"], is_current($option["link"]), $option['attributes'] ?? []);
+                        }
                 }
             ?>
         </ul>

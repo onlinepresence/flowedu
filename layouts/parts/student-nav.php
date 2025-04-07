@@ -29,5 +29,56 @@
                 "link" => "/student/dashboard",
                 "icon" => "fas fa-compass"
             ],
+            "profile" => [
+                "text" => "My Profile",
+                "link" => "/student/profile",
+                "icon" => "fas fa-user"
+            ],
+
+            "academic" => [
+                "text" => "Academic",
+                "icon" => "fas fa-book",
+                "group" => true,
+                "items" => [
+                    ["text" => "My Courses", "url" => "/student/courses"],
+                    ["text" => "My Timetable", "url" => "/student/timetable"],
+                    ["text" => "My Results", "url" => "/student/results"],
+                    ["text" => "My Transcript", "url" => "/student/transcript"]
+                ]
+            ],
+
+            "fees" => [
+                "text" => "Fees & Payments",
+                "icon" => "fas fa-wallet",
+                "group" => true,
+                "items" => [
+                    ["text" => "Fee Details", "url" => "/student/fees"],
+                    ["text" => "Payment History", "url" => "/student/fees/history"]
+                ]
+            ],
+
+            "attendance" => [
+                "text" => "Attendance",
+                "icon" => "fas fa-calendar-check",
+                "link" => "/student/attendance"
+            ],
+
+            "medical" => [
+                "text" => "Medical Info",
+                "icon" => "fas fa-notes-medical",
+                "link" => "/student/medical"
+            ],
+
+            "discipline" => [
+                "text" => "Disciplinary Records",
+                "icon" => "fas fa-exclamation-triangle",
+                "link" => "/student/discipline"
+            ],
+
+            "alerts" => [
+                "text" => "Job Alerts",
+                "icon" => "fas fa-bell",
+                "link" => "/student/job-alerts"
+            ],
         ];
     }
