@@ -672,7 +672,7 @@
         $attributes = convert_attributes($attributes);
         return "
             <div $attributes class=\"flex items-center p-4 bg-white rounded-lg shadow-xs dark:bg-gray-800 $class\">
-                <div class=\"p-3 mr-4 text-$icon_color-500 bg-$icon_color-100 rounded-full dark:text-$icon_color-100 dark:bg-$icon_color-500\">
+                <div class=\"p-3 text-center mr-4 text-$icon_color-500 bg-$icon_color-100 rounded-full dark:text-$icon_color-100 dark:bg-$icon_color-500\">
                   <i class=\"$icon w-5 h-5\"></i>
                 </div>
                 <div>

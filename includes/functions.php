@@ -891,3 +891,4 @@
 
     require_once "mailer_functions.php";
     require_once "jobs.php";
+    require_once "student_function.php";
