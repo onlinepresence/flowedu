@@ -1,6 +1,7 @@
 <?php
 require_once "includes/functions.php";
 require_once "includes/components.php";
+session_start();
 
 $envPath = $_SERVER["DOCUMENT_ROOT"].'/.env'; // Adjust path as needed relative to this file
 $envValues = [];
@@ -62,9 +63,18 @@ ob_start();
 
         <div class="flex gap-4 max-w-sm">
             <?= button('submit', 'Save .env'); ?>
-            <?php if (file_exists($envPath)) {echo button('button', 'Go to Login', attributes:
-                attribute("onclick", "location.href='/'")
-            );} ?>
+            <?php if (file_exists($envPath)) {
+                    if(!is_null(user())){
+                        echo button('button', 'Go to Dashboard', attributes:
+                            attribute("onclick", "location.replace('/admin/dashboard')")
+                        );
+                    }else{
+                        echo button('button', 'Go to Login', attributes:
+                            attribute("onclick", "location.href='/'")
+                        );
+                    }
+                }
+            ?>
         </div>
     </form>
 </div>

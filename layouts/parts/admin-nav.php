@@ -135,7 +135,7 @@
                     ["text" => "User Accounts", "url" => "/admin/settings/users"],
                     ["text" => "School Profile", "url" => "/admin/settings/school"],
                     ["text" => "Backup & Restore", "url" => "/admin/settings/backup"],
-                    ["text" => ".env Editor", "url" => "/admin/settings/env"]
+                    ["text" => "System Variables", "url" => "/env-generator"]
                 ]
             ]
 

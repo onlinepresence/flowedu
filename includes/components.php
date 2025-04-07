@@ -227,8 +227,8 @@
     function auth_nav_group_link($text = "", $menu_name = "1", $icon = "", $items = []){
         $nav = "
             <li class=\"relative px-6 py-3\">
-                <button
-                    class=\"inline-flex items-center justify-between w-full text-sm font-semibold transition-colors duration-150 hover:text-gray-800 dark:hover:text-gray-200\"
+                <div
+                    class=\"inline-flex cursor-pointer items-center justify-between w-full text-sm font-semibold transition-colors duration-150 hover:text-gray-800 dark:hover:text-gray-200\"
                     @click=\"current_menu == '$menu_name' ? current_menu = '':current_menu='$menu_name'\"
                     aria-haspopup=\"true\"
                 >
@@ -248,7 +248,7 @@
                         clip-rule=\"evenodd\"
                         ></path>
                     </svg>
-                </button>
+                </div>
 
                 <template x-if=\"current_menu == '$menu_name'\">
                     <ul
