@@ -64,6 +64,17 @@ ob_start();
             ); ?>
             <?= input("hidden",name:"type", value: $_SESSION["admin_register"] ? 1 : ($user["type"] ?? 2)) ?>
         </div>
+
+        <div>
+            <?php echo input(
+                "text",
+                "Ghana Card Number",
+                "ghana_card",
+                $user["ghana_card"] ?? '',
+                true,
+                array_merge(placeholder("GHA-XXXXXXXXX-X"), attribute("minlength", 6), attribute("required"))
+            ); ?>
+        </div>
     </div>
 
     <!-- Submit Button -->

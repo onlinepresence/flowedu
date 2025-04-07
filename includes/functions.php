@@ -529,7 +529,7 @@
      * @return array
      */
     function get_user_columns(?string $type = null) :array{
-        $default = ["u.id", "user_id", "username", "email", "lastname", "othernames", "email_verified_at", "u.active"];
+        $default = ["u.id", "user_id", "username", "email", "ghana_card", "lastname", "othernames", "email_verified_at", "u.active"];
         $type = $type ?? $_SESSION["user_type"];
 
         switch($type){
@@ -887,6 +887,16 @@
      */
     function delete_item($table, $id, $column = "id"){
         return delete($table, "$column = $id");
+    }
+
+    /**
+     * This is used to make sure the ghana card number provided is valid
+     */
+    function is_valid_ghana_card_number($number) {
+        // Pattern: GHA- followed by 9 digits, then a dash, then 1 digit
+        $pattern = '/^GHA-\d{9}-\d{1}$/';
+    
+        return preg_match($pattern, $number) === 1;
     }
 
     require_once "mailer_functions.php";

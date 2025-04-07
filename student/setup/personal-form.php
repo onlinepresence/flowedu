@@ -163,6 +163,17 @@
             </div>
 
             <div>
+                <?php echo input(
+                    "text",
+                    "Ghana Card Number",
+                    "ghana_card",
+                    $is_student ? ($user["ghana_card"] ?? '') : "",
+                    true,
+                    array_merge(placeholder("GHA-XXXXXXXXX-X"), attribute("minlength", 6))
+                ); ?>
+            </div>
+
+            <div>
                 <?= 
                     textarea("allergy", "Allergies", $is_student ? (user()["allergy"] ?? '') : "", 
                     attributes: placeholder("Severe peanut allergy. Allergic to corn meals"));

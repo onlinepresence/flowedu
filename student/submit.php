@@ -33,6 +33,10 @@
                 $errors["insurance_number"] = "Your insurance number is required";
             }elseif(fetchData("insurance_number", "students", "insurance_number='{$_POST['insurance_number']}' AND user_id != {$_POST['user_id']}")){
                 $errors["insurance_number"] = "Insurance number already exists";
+            }if(empty($_POST["ghana_card"])){
+                $errors["ghana_card"] = "Ghana card number is required";
+            }elseif(!is_valid_ghana_card_number($_POST["ghana_card"])){
+                $errors["ghana_card"] = "Invalid Ghana card provided";
             }if(empty($_POST["program_id"])){
                 $errors["program_id"] = "Program is required";
             }elseif(!is_numeric($_POST["program_id"])){

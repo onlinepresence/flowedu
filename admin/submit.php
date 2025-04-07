@@ -27,6 +27,10 @@
                 $errors["othernames"] = "Othername(s) is required";
             }if(empty($type)){
                 $errors["system_message"] = "Admin type could not be detected";
+            }if(empty($_POST["ghana_card"])){
+                $errors["ghana_card"] = "Ghana card number is required";
+            }elseif(!is_valid_ghana_card_number($_POST["ghana_card"])){
+                $errors["ghana_card"] = "Invalid Ghana card provided";
             }
 
             if(!$errors){
