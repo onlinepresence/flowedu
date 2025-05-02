@@ -43,7 +43,18 @@
                     ["text" => "My Courses", "url" => "/student/courses"],
                     ["text" => "My Timetable", "url" => "/student/timetable"],
                     ["text" => "My Results", "url" => "/student/results"],
+                    ["text" => "Clearance Request", "url" => "/student/clearance"],
                     ["text" => "My Transcript", "url" => "/student/transcript"]
+                ]
+            ],
+
+            "evaluation" => [
+                "text" => "Evaluation",
+                "icon" => "fas fa-ruler-combined",
+                "group" => true,
+                "items" => [
+                    ["text" => "Course Evaluation", "url" => "/student/evaluation/courses"],
+                    ["text" => "Lecturer Evaluation", "url" => "/student/evaluation/lecturer"],
                 ]
             ],
 
@@ -53,7 +64,8 @@
                 "group" => true,
                 "items" => [
                     ["text" => "Fee Details", "url" => "/student/fees"],
-                    ["text" => "Payment History", "url" => "/student/fees/history"]
+                    ["text" => "Payment History", "url" => "/student/fees/history"],
+                    ["text" => "My Allowances", "url" => "/student/fees/allowance"]
                 ]
             ],
 
