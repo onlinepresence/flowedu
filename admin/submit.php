@@ -75,26 +75,6 @@
                     $_SESSION["system_message"] = $message;
                 }
             }
-        }elseif($submit == "create_program"){
-            if(empty($_POST["name"])){
-                $errors["name"] = "Name of program is required";
-            }if(empty($_POST["cost"])){
-                $errors["cost"] = "Cost fee of program is required";
-            }if(empty($_POST["certificate"])){
-                $errors["certificate"] = "Program certificate of completion is required";
-            }
-            if(empty($_POST["department_id"])){
-                $errors["department_id"] = "No department has been selected";
-            }elseif(!is_numeric($_POST["department_id"])){
-                $errors["department_id"] = "Chosen department is invalid";
-            }
-
-            if(!$errors){
-                $data = form_data();
-                if(data_insert("programs", $data)){
-                    $_SESSION["system_message"] = "Program '{$_POST['name']}' has been added";
-                }
-            }
         }elseif($submit == "create_hall"){
             if(empty($_POST["name"])){
                 $errors["name"] = "Name of hall is required";
@@ -236,6 +216,55 @@
 
                 if(update($department, $data, "departments", ["id"])){
                     $_SESSION["system_message"] = "Department '{$department['name']}' has been updated";
+                }
+            }
+        }
+
+        // program management
+        elseif($submit == "create_program"){
+            if(empty($_POST["name"])){
+                $errors["name"] = "Name of program is required";
+            }if(empty($_POST["cost"])){
+                $errors["cost"] = "Cost fee of program is required";
+            }if(empty($_POST["certificate"])){
+                $errors["certificate"] = "Program certificate of completion is required";
+            }
+            if(empty($_POST["department_id"])){
+                $errors["department_id"] = "No department has been selected";
+            }elseif(!is_numeric($_POST["department_id"])){
+                $errors["department_id"] = "Chosen department is invalid";
+            }
+
+            if(!$errors){
+                $data = form_data(exclude: ["program_id"]);
+                if(data_insert("programs", $data)){
+                    $_SESSION["system_message"] = "Program '{$_POST['name']}' has been added";
+                }
+            }
+        }elseif($submit == "update_program"){
+            $program_id = $_POST["program_id"] ?? null;
+            $name = $_POST["name"] ?? null;
+            $cost = $_POST["cost"] ?? null;
+            $department_id = $_POST["department_id"] ?? null;
+
+            if(empty($program_id)){
+                $errors["program_id"] = "Program id is not valid";
+            }if(empty($name)){
+                $errors["name"] = "Name of program is required";
+            }if(empty($cost)){
+                $errors["cost"] = "Cost fee of program is required";
+            }if(empty($department_id)){
+                $errors["department_id"] = "No department has been selected";
+            }elseif(!is_numeric($department_id)){
+                $errors["department_id"] = "Chosen department is invalid";
+            }
+
+            if(!$errors){
+                $data = form_data(key_change: ["program_id" => "id"]);
+                $program = programs($program_id);
+
+                if(update($program, $data, "programs", ["id"])){
+                    $_SESSION["system_message"] = "Program '{$program['name']}' has been updated";
                 }
             }
         }

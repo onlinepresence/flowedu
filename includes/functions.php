@@ -956,6 +956,14 @@
                 $message["success"] = "Faculty has been deleted";
                 $message["error"] = "An error occured while deleting the faculty";
                 break;
+            case "departments":
+                $message["success"] = "Department has been deleted";
+                $message["error"] = "An error occured while deleting the department";
+                break;
+            case "courses":
+                $message["success"] = "Course has been deleted";
+                $message["error"] = "An error occurred while deleting the course";
+                break;
         }
 
         return $message;
