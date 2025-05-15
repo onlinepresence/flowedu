@@ -44,6 +44,8 @@
                 '/faculty' => ['file' => 'admin/setup/faculty.php'],
                 '/department' => ['file' => 'admin/setup/department.php'],
                 '/program' => ['file' => 'admin/setup/program.php'],
+                '/course' => ['file' => 'admin/pages/course.php'],
+                '/sessions' => ['file' => 'admin/pages/session.php'],
             ]
         ],
 
