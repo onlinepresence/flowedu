@@ -84,7 +84,7 @@
         ";
     }
 
-    function select($name = "", $text = "", $options = [], $nullable = false, $multiple = false, $required = false, $value = "", $attributes = []){
+    function select($name = "", $text = "", $options = [], $nullable = false, $multiple = false, $keys = [], $required = false, $value = "", $attributes = []){
         $attr = convert_attributes($attributes);
         $asterisks = $required ? "*" : "";
         $required = required($required);
@@ -93,6 +93,7 @@
         $options_ = [];
         $error = $_SESSION["errors"][$name] ?? "";
         $class_ = merge_class($attributes);
+        $keys = empty($keys) ? select_keys() : $keys;
 
         if($nullable){
             $options_[] = create_select_option($nullable === true ? "Select an option" : $nullable);
@@ -107,10 +108,10 @@
                 $attr_ = [];
                 if(is_array($text_)){
                     $attr_ = $text_["attr"] ?? [];
-                    $text_ = $text_["text"];
+                    $text_ = $text_[$keys["text"]];
                 }
 
-                $options_[] = create_select_option($text_, $key, $key == $value ? array_merge($attr_, attribute("selected")) : $attr_);
+                $options_[] = create_select_option($text_, $keys["value"], $key == $value ? array_merge($attr_, attribute("selected")) : $attr_);
 
             }
         }
@@ -444,8 +445,10 @@
         return close_tag("tbody");
     }
 
-    function form_body_start(){
-        return "<div class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6\">";
+    function form_body_start($attributes = []){
+        $attr = convert_attributes($attributes);
+        $class = merge_class($attributes);
+        return "<div $attr class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 $class\">";
     }
 
     function form_body_end(){
@@ -588,6 +591,7 @@
         $attributes = convert_attributes($attributes);
         return "
             <button
+                type=\"button\"
                 @click=\"closeModal\"
                 $attributes
                 class=\"w-full px-5 py-3 text-sm font-medium leading-5 text-$text_color text-$text_color-700 transition-colors duration-150 border border-$color-300 rounded-lg dark:text-$text_color-400 sm:px-4 sm:py-2 sm:w-auto active:bg-transparent hover:border-$color-500 focus:border-$color-500 active:text-$text_color-500 focus:outline-none focus:shadow-outline-$color $class\"
@@ -625,7 +629,7 @@
      * This should be used in a modal
      */
     function delete_item_component($table, $column = "id", $form_action = "", $delete_text = "", $modal_title = "" ){
-        $component = "<form action=\"$form_action\" id=\"delete-item-component-form\">\n";
+        $component = "<form action=\"$form_action\" method=\"POST\" id=\"delete-item-component-form\">\n";
         $component .= modal_body_start();
         
         if($modal_title){
@@ -642,7 +646,7 @@
         $component .= modal_footer_start();
         $component .= modal_reset_btn("No", attributes: array_merge(
             attribute("class", "min-w-24"),
-            attribute("type", "reset")
+            attribute("type", "button")
         ));
         $component .= modal_footer_btn("Yes", attributes: array_merge(
             attribute("class", "min-w-24"),
@@ -654,6 +658,7 @@
         $component .= input("hidden", value: $table, name: "delete-table");
         $component .= input("hidden", value: $column, name: "delete-column");
         $component .= input("hidden", name: "delete-id");
+        $component .= input("hidden", name: "submit", value: "delete-item");
 
         $component .= "</form>";
 
@@ -663,13 +668,37 @@
     /**
      * This function will be used to insert the necessary script needed for the delete component (if used)
      */
-    function delete_item_component_script($element){
-        $script = <<< JAVASCRIPT
-            $($element).click(function(){
-                
-            })
-        JAVASCRIPT;
+    function delete_item_component_script($element = ".action-delete") {
+        $script = <<<JAVASCRIPT
+            const main = \$('$element');
+            main.click(function() {
+                const id = $(this).data("id");
+                $("#delete-item-component-form input[name='delete-id']").val(id);
+            });
 
+            /*$("#delete-item-component-form").submit(function(e){
+                e.preventDefault();
+                const id = $(this).find("input[name='delete-id']").val();
+                const table = $(this).find("input[name='delete-table']").val();
+                const column = $(this).find("input[name='delete-column']").val();
+                const item_value = $(this).find("input[name='item-value']").val();
+
+                $.ajaxCall({
+                    url: $(this).attr("action"),
+                    type: "POST",
+                    data: {
+                        id: id,
+                        table: table,
+                        column: column,
+                        item_value: item_value,
+                        submit: "delete-item"
+                    }
+                }).then((response) => {
+
+                });
+            });*/
+        JAVASCRIPT;
+    
         return $script;
     }
 

@@ -75,20 +75,6 @@
                     $_SESSION["system_message"] = $message;
                 }
             }
-        }elseif($submit == "create_faculty"){
-            $name = $_POST["name"] ?? null;
-
-            if(empty($name)){
-                $errors["name"] = "Faculty name is required";
-            }
-
-            if(empty($errors)){
-                $data = form_data();
-
-                if(data_insert("faculties", $data)){
-                    $_SESSION["system_message"] = "Faculty '$name' has been added";
-                }
-            }
         }elseif($submit == "create_department"){
             $name = $_POST["name"] ?? null;
             $faculty_id = $_POST["faculty_id"] ?? null;
@@ -168,7 +154,52 @@
                     $data = ["student" => $data, "guardian" => $guardian];
                 }
             }
-        }else{
+        }
+        
+        // faculty related items
+        elseif($submit == "create_faculty"){
+            $name = $_POST["name"] ?? null;
+
+            if(empty($name)){
+                $errors["name"] = "Faculty name is required";
+            }
+
+            if(empty($errors)){
+                $data = form_data();
+
+                if(data_insert("faculties", $data)){
+                    $_SESSION["system_message"] = "Faculty '$name' has been added";
+                }
+            }
+        }elseif($submit == "update_faculty"){
+            $faculty_id = $_POST["faculty_id"] ?? null;
+            $name = $_POST["name"] ?? null;
+            $dean_id = $_POST["dean_id"] ?? null;
+
+            if(empty($faculty_id)){
+                $errors["faculty_id"] = "Faculty id is not valid";
+            }if(empty($name)){
+                $errors["name"] = "Faculty name is required";
+            }if(!empty($dean_id) && !is_numeric($dean_id)){
+                $errors["dean_id"] = "Invalid faculty dean provided";
+            }
+
+            if(!$errors){
+                $data = form_data(key_change: ["faculty_id" => "id"], exclude: empty($dean_id) ? ["dean_id"] : []);
+                $faculty = faculties($faculty_id);
+
+                if(update($faculty, $data, "faculties", ["id"])){
+                    $_SESSION["system_message"] = "Faculty '{$faculty['name']}' has been updated";
+                }
+            }
+        }
+
+        // delete an item
+        elseif($submit == "delete-item"){
+            delete_item();
+        }
+
+        else{
             $errors["system_message"] = "Submission value '$submit' not accepted";
         }
     }else{

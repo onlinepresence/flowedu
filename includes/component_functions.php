@@ -45,6 +45,13 @@
         return $attributes["class"] ?? "";
     }
 
+    function select_keys($value = "id", $text = "text"){
+        return [
+            "value" => $value,
+            "text" => $text
+        ];
+    }
+
     function make_attributes(...$attributes){
         return array_merge($attributes);
     }

@@ -36,6 +36,15 @@
             ]
         ],
 
+        // admin academic routes
+        '/admin/academic' => [
+            'prefix' => '/admin/academic',
+            'middleware' => ['auth', 'check_school_status'],
+            'routes' => [
+                '/faculty' => ['file' => 'admin/setup/faculty.php']
+            ]
+        ],
+
         '/student-setup' => [
             'prefix' => '/student-setup',
             'middleware' => ['auth', 'check_school_status'],

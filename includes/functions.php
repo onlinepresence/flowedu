@@ -442,6 +442,25 @@
     }
 
     /**
+     * This gets a list of all the deans that have been added to the system
+     * @param ?int $user_id The user id. Leave as null if you want all records
+     * @param bool $complete Joins necessary tables
+     * @param array $columns
+     * @return array
+     */
+    function deans($user_id = null, $complete = false, $columns = []){
+        $where = $user_id ? "user_id = $user_id" : [];
+        $where = array_merge($where, ["type = 4"]);
+        $tables = "admins";
+        
+        if(!$columns){
+            $columns = ["id", "user_id", "lastname", "othernames"];
+        }
+
+        return fetchData($columns, $tables, $where, !is_null($user_id) ? 1 : 0, "AND", "left");
+    }
+
+    /**
      * Used to format the hall period
      * @param ?string $period The period from the db
      * @return string
@@ -883,10 +902,66 @@
     }
 
     /**
+     * This is used to get a message to be shown to the user upon deletion
+     * @param string $table The name of the table
+     * @return array Returns [succces => string, error => string]
+     */
+    function delete_message(string $table) :array{
+        $message = [
+            "success" => "Item has been deleted",
+            "error" => "Failed to delete item from '$table'"
+        ];
+
+        switch($table){
+            case "admins":
+                $message["success"] = "Admin has been deleted";
+                $message["error"] = "An error occured while deleting the admin";
+                break;
+            case "students":
+                $message["success"] = "Student has been deleted";
+                $message["error"] = "An error occured while deleting the student";
+                break;
+            case "teachers":
+                $message["success"] = "Teacher has been deleted";
+                $message["error"] = "An error occured while deleting the teacher";
+                break;
+            case "halls":
+                $message["success"] = "Hall has been deleted";
+                $message["error"] = "An error occured while deleting the hall";
+                break;
+            case "programs":
+                $message["success"] = "Program has been deleted";
+                $message["error"] = "An error occured while deleting the program";
+                break;
+            case "faculties":
+                $message["success"] = "Faculty has been deleted";
+                $message["error"] = "An error occured while deleting the faculty";
+                break;
+        }
+
+        return $message;
+    }
+
+    /**
      * This is used to generally delete an item from the database. It is basically used together with the delete item component
      */
-    function delete_item($table, $id, $column = "id"){
-        return delete($table, "$column = $id");
+    function delete_item(){
+        global $errors;
+
+        $id = $_POST["delete-id"] ?? null;
+        $table = $_POST["delete-table"] ?? null;
+        $column = $_POST["delete-column"] ?? "id";
+        $message = delete_message($table);
+
+        if (empty($id) || empty($table)) {
+            $errors["system_message"] = "Invalid data provided for deletion";
+        } else {      
+            if (delete($table, "$column = $id")) {
+                $_SESSION["system_message"] = $message["success"];
+            } else {
+                $errors["system_message"] = $message["error"];
+            }
+        }
     }
 
     /**
