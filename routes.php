@@ -33,6 +33,7 @@
             'routes' => [
                 '/dashboard' => ['file' => 'admin/dashboard.php'],
                 '/approve-student/{indexnumber}/{guardian}/{id}' => ['file' => 'admin/approve-student.php'],
+                '/students' => ['file' => 'admin/pages/students/index.php'],
             ]
         ],
 
@@ -46,6 +47,14 @@
                 '/program' => ['file' => 'admin/setup/program.php'],
                 '/course' => ['file' => 'admin/pages/course.php'],
                 '/sessions' => ['file' => 'admin/pages/session.php'],
+            ]
+        ],
+
+        '/admin/students' => [
+            'prefix' => '/admin/student',
+            'middleware' => ['auth', 'check_school_status'],
+            'routes' => [
+                // '/' => ['file' => 'admin/pages/students/index.php'],
             ]
         ],
 
