@@ -106,12 +106,13 @@
 
             foreach($options as $key => $text_){
                 $attr_ = [];
+                $value_ = $text_[$keys["value"]] ?? $key;
                 if(is_array($text_)){
                     $attr_ = $text_["attr"] ?? [];
                     $text_ = $text_[$keys["text"]];
                 }
 
-                $options_[] = create_select_option($text_, $keys["value"], $key == $value ? array_merge($attr_, attribute("selected")) : $attr_);
+                $options_[] = create_select_option($text_, $value_, $value_ == $value ? array_merge($attr_, attribute("selected")) : $attr_);
 
             }
         }

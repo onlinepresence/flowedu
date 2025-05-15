@@ -377,7 +377,7 @@
         if(!$complete && !$columns){
             $columns = ["id", "name", "faculty_id", "hod"];
         }elseif($complete){
-            $columns = ["d.id", "d.name", "hod", "faculty_id", "d.name AS faculty_name", "lastname", "othernames"];
+            $columns = ["d.id", "d.name", "hod", "faculty_id", "f.name AS faculty_name", "lastname", "othernames"];
         }else{
             $columns = ["f.*"];
         }
@@ -451,6 +451,25 @@
     function deans($user_id = null, $complete = false, $columns = []){
         $where = $user_id ? "user_id = $user_id" : [];
         $where = array_merge($where, ["type = 4"]);
+        $tables = "admins";
+        
+        if(!$columns){
+            $columns = ["id", "user_id", "lastname", "othernames"];
+        }
+
+        return fetchData($columns, $tables, $where, !is_null($user_id) ? 1 : 0, "AND", "left");
+    }
+
+    /**
+     * This gets a list of all the hods that have been added to the system
+     * @param ?int $user_id The user id. Leave as null if you want all records
+     * @param bool $complete Joins necessary tables
+     * @param array $columns
+     * @return array
+     */
+    function department_heads($user_id = null, $complete = false, $columns = []){
+        $where = $user_id ? "user_id = $user_id" : [];
+        $where = array_merge($where, ["type = 3"]);
         $tables = "admins";
         
         if(!$columns){

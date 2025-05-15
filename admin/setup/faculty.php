@@ -17,7 +17,7 @@ ob_start();
         <!-- show if there are deans available -->
         <?php if($deans = deans(columns: ["user_id as id, CONCAT(lastname, ' ', othernames) as name"], complete: true)): ?>
             <?= select(
-                "dean_id", "Dean", $deans, required: true, keys: select_keys("id", "name"), 
+                "dean_id", "Faculty Dean", $deans, keys: select_keys("id", "name"), 
                 nullable: "Select A Faculty Dean",
                 attributes: array_merge(
                     placeholder("Select Dean"), attribute("class", "w-full"))

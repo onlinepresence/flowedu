@@ -41,7 +41,8 @@
             'prefix' => '/admin/academic',
             'middleware' => ['auth', 'check_school_status'],
             'routes' => [
-                '/faculty' => ['file' => 'admin/setup/faculty.php']
+                '/faculty' => ['file' => 'admin/setup/faculty.php'],
+                '/department' => ['file' => 'admin/setup/department.php'],
             ]
         ],
 

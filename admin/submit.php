@@ -75,22 +75,6 @@
                     $_SESSION["system_message"] = $message;
                 }
             }
-        }elseif($submit == "create_department"){
-            $name = $_POST["name"] ?? null;
-            $faculty_id = $_POST["faculty_id"] ?? null;
-    
-            if(empty($name)){
-                $errors["name"] = "Name of department not provided";
-            }if(!empty($faculty_id) && !is_numeric($faculty_id)){
-                $errors["faculty_id"] = "Faculty provided is invalid or incorrect";
-            }
-    
-            if(empty($errors)){
-                $data = form_data(exclude: empty($faculty_id) ? ["faculty_id"] : []);
-                if(data_insert("departments", $data)){
-                    $_SESSION["system_message"] = "Department '$name' has been added";
-                }
-            }
         }elseif($submit == "create_program"){
             if(empty($_POST["name"])){
                 $errors["name"] = "Name of program is required";
@@ -190,6 +174,68 @@
 
                 if(update($faculty, $data, "faculties", ["id"])){
                     $_SESSION["system_message"] = "Faculty '{$faculty['name']}' has been updated";
+                }
+            }
+        }
+
+        // department related items
+        elseif($submit == "create_department"){
+            $name = $_POST["name"] ?? null;
+            $faculty_id = $_POST["faculty_id"] ?? null;
+            $hod = $_POST["hod"] ?? null;
+    
+            if(empty($name)){
+                $errors["name"] = "Name of department not provided";
+            }if(!empty($faculty_id) && !is_numeric($faculty_id)){
+                $errors["faculty_id"] = "Faculty provided is invalid or incorrect";
+            }if(!empty($hod) && !is_numeric($hod)){
+                $errors["hod"] = "Head of Department provided is invalid or incorrect";
+            }
+    
+            if(empty($errors)){
+                $exclude = [];
+
+                if(empty($faculty_id)){
+                    $exclude[] = "faculty_id";
+                }
+                
+                if(empty($hod)){
+                    $exclude[] = "hod";
+                }
+
+                $data = form_data(exclude: $exclude);
+                if(data_insert("departments", $data)){
+                    $_SESSION["system_message"] = "Department '$name' has been added";
+                }
+            }
+        }elseif($submit == "update_department"){
+            $department_id = $_POST["department_id"] ?? null;
+            $name = $_POST["name"] ?? null;
+            $faculty_id = $_POST["faculty_id"] ?? null;
+
+            if(empty($department_id)){
+                $errors["department_id"] = "Department id is not valid";
+            }if(empty($name)){
+                $errors["name"] = "Name of department not provided";
+            }if(!empty($faculty_id) && !is_numeric($faculty_id)){
+                $_SESSION["system_message"] = "Faculty provided is invalid or incorrect";
+            }
+
+            if(!$errors){
+                $exclude = [];
+
+                if(empty($faculty_id)){
+                    $exclude[] = "faculty_id";
+                }
+                
+                if(empty($hod)){
+                    $exclude[] = "hod";
+                }
+                $data = form_data(key_change: ["department_id" => "id"], exclude: $exclude);
+                $department = departments($department_id);
+
+                if(update($department, $data, "departments", ["id"])){
+                    $_SESSION["system_message"] = "Department '{$department['name']}' has been updated";
                 }
             }
         }
