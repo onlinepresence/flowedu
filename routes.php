@@ -71,9 +71,10 @@
 
         '/student' => [
             'prefix' => '/student',
-            'middleware' => ['auth', 'check_school_status'],
+            'middleware' => ['auth', 'check_school_status', 'student_ready'],
             'routes' => [
-                '/dashboard' => ['file' => 'student/dashboard.php', 'middleware' => ['student_ready']],
+                '/dashboard' => ['file' => 'student/dashboard.php'],
+                '/profile' => ['file' => 'student/profile.php'],
             ]
         ],
 

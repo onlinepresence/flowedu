@@ -347,7 +347,7 @@
     function form_data(string|array|null $upload_dir = null, array $exclude = [], array $key_change = [], array $preserve = []) {
         global $errors;
         $data = [];
-        $excludedKeys = array_merge(["submit", "request_type"], $exclude); // Default + user-specified keys
+        $excludedKeys = array_merge(["submit", "request_type", "response_type"], $exclude); // Default + user-specified keys
         $folder_location = $upload_dir && is_string($upload_dir) ? asset($upload_dir, false, $upload_dir) : null;
 
         // Ensure the main upload directory exists

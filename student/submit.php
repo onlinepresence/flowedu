@@ -154,6 +154,42 @@
                     $errors["system_message"] = "Registration could not be canceled";
                 }
             }
+        }elseif($submit == "change_picture"){
+            require_once "$rootPath/includes/image_validation.php";
+
+            $validate_profile = validate_passport_photo($_FILES["profile_pic"]["tmp_name"]);
+            if(!$validate_profile["status"]){
+                $errors["profile_pic"] = $message = $validate_profile["message"];
+            }
+
+            if(empty($errors)){
+                $data = form_data("students/profiles/", ['username', 'prev_profile_pic']);
+                $response = update(user(), $data, "students", ["user_id"]);
+                if($response){
+                    // remove old picture
+                    if(!empty($data["profile_pic"]))
+                        reset_profile_pic();
+
+                    $_SESSION["system_message"] = empty(user()["username"]) ? "Your account details have been saved" : "Changes have been applied";
+                    user(true);
+                    $message = "Profile Picture has been updated";
+                    
+                    $response = update(user(), ["username" => $_POST["username"]], "users", ["id"]);
+                    if($response === true){
+                        $_SESSION["system_message"] = empty(user()["username"]) ? "Your account details have been saved" : "Changes have been applied";
+                        user(true);
+                    }else{
+                        if(empty($_SESSION["errors"]["system_message"])){
+                            $errors["system_message"] = is_string($response) ? $response : "User update could not be parsed";
+                        }else{
+                            $errors["system_message"] = $_SESSION["errors"]["system_message"];
+                        }
+                    }
+                }else{
+                    // remove stored file
+                    unlink(asset($data["profile_pic"], false, true));
+                }
+            }
         }else{
             $errors["system_message"] = "Submission value '$submit' not accepted";
         }

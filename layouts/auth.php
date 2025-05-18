@@ -7,12 +7,8 @@
     <link rel="stylesheet" href="<?= asset("fontawesome/css/fontawesome.min.css") ?>">
     <link rel="stylesheet" href="<?= asset("fontawesome/css/all.min.css") ?>">
     <link rel="stylesheet" href="<?= asset("css/tailwind.output.css") ?>">
-    <script src="<?= asset("js/tailwind.js") ?>"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class', // Ensures dark mode is applied via a class
-      };
-    </script>
+    <link rel="stylesheet" href="<?= asset("css/app.css") ?>">
+    
     <script src="<?= asset("js/alpine.min.js") ?>" defer></script>
     <script src="<?= asset("js/init-alpine.js") ?>"></script>
 
