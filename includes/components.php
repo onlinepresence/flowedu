@@ -1063,3 +1063,22 @@
             </h3>
         ";
     }
+
+    /**
+     * Creates a placeholder element for empty/not found states
+     * @param string $text Main message to display
+     * @param string $subtext Optional secondary text
+     * @param string $icon Optional icon class (e.g. "fas fa-search")
+     * @return string HTML element for placeholder state
+     */
+    function placeholder_element($text = "Not Found", $subtext = "", $icon = "fas fa-search") {
+        return "
+            <div class=\"flex flex-col items-center justify-center p-6 my-4 text-center border rounded-lg border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800\">
+                <i class=\"text-4xl mb-4 text-gray-400 dark:text-gray-600 $icon\"></i>
+                <h3 class=\"mb-2 text-lg font-semibold text-gray-700 dark:text-gray-300\">
+                    $text
+                </h3>
+                " . ($subtext ? "<p class=\"text-sm text-gray-600 dark:text-gray-400\">$subtext</p>" : "") . "
+            </div>
+        ";
+    }

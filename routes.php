@@ -75,6 +75,10 @@
             'routes' => [
                 '/dashboard' => ['file' => 'student/dashboard.php'],
                 '/profile' => ['file' => 'student/profile.php'],
+                '/evaluation' => ['file' => 'student/pages/evaluation.php'],
+                '/allowance' => ['file' => 'student/pages/fees/allowance.php'],
+                '/fees' => ['file' => 'student/pages/fees/index.php'],
+                '/payment-history' => ['file' => 'student/pages/fees/history.php']
             ]
         ],
 
