@@ -6,7 +6,7 @@
 
     <!-- guardian relationship -->
         <div>
-        <?= select("relationship", "Relationship", ["Father", "Mother", "Guardian"], true, required: $is_student, value: $guardian["relationship"] ?? ''); ?>
+        <?= select("relationship", "Relationship", ["Father", "Mother", "Uncle", "Aunt", "Sibling", "Other"], true, required: $is_student, value: $guardian["relationship"] ?? ''); ?>
         </div>
 
         <!-- guardian address -->

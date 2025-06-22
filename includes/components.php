@@ -1,7 +1,16 @@
 <?php
     require_once "component_functions.php";
 
-    // component elements
+    /**
+     * Creates an input field with label and error handling
+     * @param string $type Input type (text, password, etc)
+     * @param string $label Label text
+     * @param string $name Input name attribute
+     * @param string $value Input value
+     * @param bool $required Whether field is required
+     * @param array $attributes Additional HTML attributes
+     * @return string HTML input element
+     */
     function input($type = "text", $label = "", $name = "", $value = "", $required = false, $attributes = []){
         if($type == "hidden"){
             return hidden_input($name, $value);
@@ -29,6 +38,11 @@
         return $input;
     }
 
+    /**
+     * Creates an error message span element
+     * @param string $text Error message text
+     * @return string HTML span element with error styling
+     */
     function error_span($text){
         return "
                 <span class=\"text-xs text-red-600 dark:text-red-400\">
@@ -37,10 +51,27 @@
             ";
     }
 
+    /**
+     * Creates a hidden input field
+     * @param string $name Input name attribute
+     * @param string $value Input value
+     * @return string HTML hidden input element
+     */
     function hidden_input($name = "", $value = ""){
         return "<input type=\"hidden\" name=\"$name\" value=\"$value\" \>";
     }
 
+    /**
+     * Creates an input field with label, help text and error handling
+     * @param string $type Input type
+     * @param string $label Label text
+     * @param string $name Input name
+     * @param string $value Input value
+     * @param bool $required Whether field is required
+     * @param string $sub_text Help text below input
+     * @param array $attributes Additional HTML attributes
+     * @return string HTML input element with label and help text
+     */
     function input_h($type = "text", $label = "", $name = "", $value = "", $required = false, $sub_text = "", $attributes = []){
         $attr = convert_attributes($attributes);
         $asterisks = $required ? "*" : "";
@@ -65,6 +96,15 @@
             return $input;
     }
 
+    /**
+     * Creates a checkbox input with label
+     * @param string $name Checkbox name
+     * @param string $value Checkbox value
+     * @param string $text Label text
+     * @param bool $required Whether field is required
+     * @param array $attributes Additional HTML attributes
+     * @return string HTML checkbox element with label
+     */
     function checkbox($name = "", $value = "", $text = "", $required = false, $attributes = []){
         $asterisks = $required ? "*" : "";
         $attr = convert_attributes($attributes);
@@ -84,6 +124,19 @@
         ";
     }
 
+    /**
+     * Creates a select dropdown with options
+     * @param string $name Select name
+     * @param string $text Label text
+     * @param array $options Array of options
+     * @param bool|string $nullable Whether to add a null option
+     * @param bool $multiple Allow multiple selections
+     * @param array $keys Custom keys for option values/text
+     * @param bool $required Whether field is required
+     * @param string $value Selected value
+     * @param array $attributes Additional HTML attributes
+     * @return string HTML select element
+     */
     function select($name = "", $text = "", $options = [], $nullable = false, $multiple = false, $keys = [], $required = false, $value = "", $attributes = []){
         $attr = convert_attributes($attributes);
         $asterisks = $required ? "*" : "";
@@ -137,6 +190,16 @@
         ";
     }
 
+    /**
+     * Creates a button element
+     * @param string $type Button type
+     * @param string $text Button text
+     * @param string $name Button name
+     * @param string $value Button value
+     * @param string $color Button color theme
+     * @param array $attributes Additional HTML attributes
+     * @return string HTML button element
+     */
     function button($type = "", $text = "", $name = "", $value = "", $color = "", $attributes = []){
         $attr = convert_attributes($attributes);
         $color = empty($color) ? "blue" : $color;
@@ -150,6 +213,15 @@
         ";
     }
 
+    /**
+     * Creates a textarea input with label
+     * @param string $name Textarea name
+     * @param string $text Label text
+     * @param string $value Textarea content
+     * @param bool $required Whether field is required
+     * @param array $attributes Additional HTML attributes
+     * @return string HTML textarea element
+     */
     function textarea($name="", $text="", $value="", $required = false, $attributes = []){
         $attr = convert_attributes($attributes);
         $required = required($required);
@@ -167,28 +239,60 @@
         ";
     }
 
+    /**
+     * Creates a placeholder attribute array
+     * @param string $text Placeholder text
+     * @return array Attribute array
+     */
     function placeholder($text = ""){
         return attribute("placeholder", $text);
     }
 
+    /**
+     * Creates an attribute array
+     * @param string $attribute Attribute name
+     * @param string $value Attribute value
+     * @return array Attribute array
+     */
     function attribute($attribute, $value = ""){
         return [$attribute => $value];
     }
 
+    /**
+     * Creates a data attribute array
+     * @param string $attr Data attribute name
+     * @param string $value Attribute value
+     * @return array Data attribute array
+     */
     function data_attr($attr = "", $value = ""){
         return attribute("data-$attr", $value);
     }
 
+    /**
+     * Creates a header text (empty function)
+     * @param string $text Header text
+     */
     function header_text($text = ""){
 
     }
 
+    /**
+     * Creates a page header
+     * @param string $title Header title
+     * @return string HTML header element
+     */
     function page_header($title){
         return "
             <h1 class=\"text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-6\">$title</h1>
         ";
     }
 
+    /**
+     * Creates a form message element
+     * @param string $message Message text
+     * @param string $color Message color theme
+     * @return string HTML paragraph element with message
+     */
     function form_message($message = "", $color = ""){
         $color = empty($color) ? "neutral" : "color";
         return "
@@ -198,7 +302,15 @@
         ";
     }
 
-    // navigation items
+    /**
+     * Creates an authentication navigation item
+     * @param string $text Link text
+     * @param string $link URL
+     * @param string $icon Icon class
+     * @param bool $active Whether item is active
+     * @param array $attributes Additional HTML attributes
+     * @return string HTML list item element
+     */
     function auth_nav($text = "", $link = "", $icon = "", $active = false, $attributes = []){
         $link = $active ? "javascript:void()" : url($link);
         $class = $active ? 
@@ -226,6 +338,14 @@
         ";
     }
 
+    /**
+     * Creates a navigation group with dropdown
+     * @param string $text Group title
+     * @param string $menu_name Menu identifier
+     * @param string $icon Icon class
+     * @param array $items Submenu items
+     * @return string HTML navigation group element
+     */
     function auth_nav_group_link($text = "", $menu_name = "1", $icon = "", $items = []){
         $nav = "
             <li class=\"relative px-6 py-3\">
@@ -277,6 +397,13 @@
         return $nav;
     }
 
+    /**
+     * Creates a submenu navigation item
+     * @param string $text Item text
+     * @param string $url Item URL
+     * @param bool $active Whether item is active
+     * @return string HTML list item element
+     */
     function nav_submenu_item($text = "", $url = "", $active = false){
         $class = $active ? 
             "text-gray-800 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-100" : 
@@ -298,6 +425,11 @@
         ";
     }
 
+    /**
+     * Starts a table element
+     * @param array $attributes Additional HTML attributes
+     * @return string Opening HTML table tags
+     */
     function table_start($attributes = []){
         $attr = convert_attributes($attributes);
         $class_ = merge_class($attributes);
@@ -308,14 +440,28 @@
         ";
     }
     
+    /**
+     * Starts a table row
+     * @return string Opening HTML tr tag with styling
+     */
     function tr_start(){
         return "<tr class=\"text-xs font-semibold tracking-wide text-left text-gray-500 uppercase border-b dark:border-gray-700 bg-gray-50 dark:text-gray-400 dark:bg-gray-800\">";
     }
 
+    /**
+     * Ends a table row
+     * @return string Closing HTML tr tag
+     */
     function tr_end(){
         return close_tag("tr");
     }
 
+    /**
+     * Creates an empty table cell spanning multiple columns
+     * @param string $text Cell text
+     * @param int $col_count Number of columns to span
+     * @return string HTML td element
+     */
     function td_empty($text, $col_count){
         return td($text, attributes: 
             array_merge(attribute("class", "text-center"),
@@ -323,6 +469,12 @@
         );
     }
 
+    /**
+     * Creates a table header cell
+     * @param string $text Header text
+     * @param array $attributes Additional HTML attributes
+     * @return string HTML th element
+     */
     function th($text = "", $attributes = []){
         $attr = convert_attributes($attributes);
         $class_ = merge_class($attributes);
@@ -330,6 +482,14 @@
         return "<th class=\"px-4 py-3 $class_\" $attr>$text</th>";
     }
 
+    /**
+     * Creates a table data cell
+     * @param string $text Cell text
+     * @param string $icon Icon URL
+     * @param string $sub_text Secondary text
+     * @param array $attributes Additional HTML attributes
+     * @return string HTML td element
+     */
     function td($text = "", $icon = '', $sub_text = "", $attributes = []){
         $attr = convert_attributes($attributes);
         $class_ = merge_class($attributes);
@@ -373,10 +533,22 @@
                 </td>";
     }
 
+    /**
+     * Ends a table element
+     * 
+     * @return string Closing HTML table tags
+     */
     function table_end(){
         return close_tag("table, div, div");
     }
 
+    /**
+     * Creates an alert message
+     * @param string $text Alert text
+     * @param string $type Alert type (success/error/warning)
+     * @param string $icon Custom icon class
+     * @return string HTML alert element
+     */
     function alert($text = "", $type = "", $icon = ""){
         $icons = [
             "success" => ["icon" => "fas fa-check", "color" => "green"],
@@ -403,6 +575,14 @@
         ";
     }
 
+    /**
+     * Creates an information bar
+     * @param string $text Bar text
+     * @param string $type Bar type
+     * @param bool $can_hide Whether bar can be hidden
+     * @param array $attributes Additional HTML attributes
+     * @return string HTML information bar element
+     */
     function information_bar($text = "", $type = "", $can_hide = false, $attributes = []){
         $colors = [
             "success" => "green",
@@ -427,14 +607,27 @@
         ";
     }
 
+    /**
+     * Starts a table header section
+     * @return string Opening HTML thead tags
+     */
     function thead_start(){
        return "<thead>\n\t<tr class=\"text-xs font-semibold tracking-wide text-left text-gray-500 uppercase border-b dark:border-gray-700 bg-gray-50 dark:text-gray-400 dark:bg-gray-800\">";
     }
 
+    /**
+     * Ends a table header section
+     * @return string Closing HTML thead tags
+     */
     function thead_end(){
         return close_tag("tr, thead");
     }
 
+    /**
+     * Starts a table body section
+     * @param array $attributes Additional HTML attributes
+     * @return string Opening HTML tbody tag
+     */
     function tbody_start($attributes = []){
         $attr = convert_attributes($attributes);
         $class_ = merge_class($attributes);
@@ -442,20 +635,38 @@
         return "<tbody class=\"bg-white divide-y dark:divide-gray-700 dark:bg-gray-800 $class_\" $attr>";
     }
 
+    /**
+     * Ends a table body section
+     * @return string Closing HTML tbody tag
+     */
     function tbody_end(){
         return close_tag("tbody");
     }
 
+    /**
+     * Starts a form body section
+     * @param array $attributes Additional HTML attributes
+     * @return string Opening HTML div tag
+     */
     function form_body_start($attributes = []){
         $attr = convert_attributes($attributes);
         $class = merge_class($attributes);
         return "<div $attr class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 $class\">";
     }
 
+    /**
+     * Ends a form body section
+     * @return string Closing HTML div tag
+     */
     function form_body_end(){
         return close_tag("div");
     }
 
+    /**
+     * Closes HTML tags
+     * @param string|array $tag Tag(s) to close
+     * @return string Closing HTML tag(s)
+     */
     function close_tag($tag){
         if(is_array($tag) || str_contains($tag, ",")){
             if(str_contains($tag, ",")){
@@ -474,6 +685,10 @@
         return "</$tag>";
     }
 
+    /**
+     * Displays system messages
+     * @return string HTML alert element for system message
+     */
     function system_message(){
         if(isset($_SESSION["errors"]["system_message"])){
             return alert($_SESSION["errors"]["system_message"], "error");
@@ -484,23 +699,42 @@
         }
     }
 
+    /**
+     * Starts a fieldset element
+     * @param array $attributes Additional HTML attributes
+     * @return string Opening HTML fieldset tag
+     */
     function fieldset_start($attributes = []){
         $attr = convert_attributes($attributes);
         $class = merge_class($attributes);
         return "<fieldset class=\"border border-gray-300 p-4 rounded-lg $class\" $attr>";
     }
 
+    /**
+     * Creates a fieldset legend
+     * @param string $text Legend text
+     * @param array $attributes Additional HTML attributes
+     * @return string HTML legend element
+     */
     function fieldset_legend($text = "", $attributes = []){
         $attr = convert_attributes($attributes);
         $class = merge_class($attributes);
         return "<legend class=\"px-2 font-semibold text-gray-700 dark:text-white $class\" $attr>$text</legend>";
     }
 
+    /**
+     * Ends a fieldset element
+     * @return string Closing HTML fieldset tag
+     */
     function fieldset_end(){
         return close_tag("fieldset");
     }
 
-    // modal functions
+    /**
+     * Starts a modal dialog
+     * @param array $attr Additional HTML attributes
+     * @return string Opening HTML modal structure
+     */
     function modal_start($attr = []){
         $class = merge_class($attr);
         $attr = convert_attributes($attr);
@@ -533,6 +767,11 @@
         ";
     }
 
+     /**
+     * Creates a modal header with close button
+     * @param array $attributes Additional HTML attributes
+     * @return string HTML modal header element
+     */
     function modal_header($attributes = []){
         $class = merge_class($attributes);
         $attributes = convert_attributes($attributes);
@@ -549,6 +788,12 @@
         ";
     }
 
+    /**
+     * Creates a modal title
+     * @param string $title Title text
+     * @param array $attributes Additional HTML attributes  
+     * @return string HTML title element
+     */
     function modal_title($title = "", $attributes = []){
         $class = merge_class($attributes);
         $attributes = convert_attributes($attributes);
@@ -563,16 +808,30 @@
         ";
     }
 
+    /**
+     * Starts a modal body section
+     * @param array $attributes Additional HTML attributes
+     * @return string Opening HTML modal body tag
+     */
     function modal_body_start($attributes = []){
         $class = merge_class($attributes);
         $attributes = convert_attributes($attributes);
         return "<div class=\"mt-4 mb-6 $class\" $attributes>";
     }
 
+    /**
+     * Ends a modal body section
+     * @return string Closing HTML div tag
+     */
     function modal_body_end(){
         return close_tag("div");
     }
 
+    /**
+     * Starts a modal footer section
+     * @param array $attributes Additional HTML attributes
+     * @return string Opening HTML modal footer tag
+     */
     function modal_footer_start($attributes = []){
         $class = merge_class($attributes);
         $attributes = convert_attributes($attributes);
@@ -585,6 +844,14 @@
         ";
     }
 
+    /**
+     * Creates a modal reset/cancel button
+     * @param string $text Button text
+     * @param string $color Button color theme
+     * @param string $text_color Text color
+     * @param array $attributes Additional HTML attributes
+     * @return string HTML button element
+     */
     function modal_reset_btn($text = "Cancel", $color = "gray", $text_color = "white", $attributes = []){
         $color = strtolower($color);
         $text_color = strtolower($text_color);
@@ -602,6 +869,14 @@
         ";
     }
 
+    /**
+     * Creates a modal footer button
+     * @param string $text Button text
+     * @param string $color Button color theme
+     * @param string $text_color Text color
+     * @param array $attributes Additional HTML attributes
+     * @return string HTML button element
+     */
     function modal_footer_btn($text = "", $color = "blue", $text_color = "auto", $attributes = []){
         $color = strtolower($color);
         $text_color = strtolower($text_color);
@@ -618,16 +893,30 @@
         ";
     }
 
+    /**
+     * Ends a modal footer section
+     * @return string Closing HTML footer tag
+     */
     function modal_footer_end(){
         return close_tag("footer");
     }
 
+    /**
+     * Ends a modal element
+     * @return string Closing HTML div tags
+     */
     function modal_end(){
         return close_tag("div, div");
     }
 
     /**
-     * This should be used in a modal
+     * Creates a delete item modal component
+     * @param string $table Database table name
+     * @param string $column Column identifier
+     * @param string $form_action Form submission URL
+     * @param string $delete_text Confirmation text
+     * @param string $modal_title Modal title
+     * @return string HTML delete modal component
      */
     function delete_item_component($table, $column = "id", $form_action = "", $delete_text = "", $modal_title = "" ){
         $component = "<form action=\"$form_action\" method=\"POST\" id=\"delete-item-component-form\">\n";
@@ -667,7 +956,9 @@
     }
 
     /**
-     * This function will be used to insert the necessary script needed for the delete component (if used)
+     * Provides JavaScript for delete item functionality
+     * @param string $element CSS selector for delete trigger
+     * @return string JavaScript code
      */
     function delete_item_component_script($element = ".action-delete") {
         $script = <<<JAVASCRIPT
@@ -703,6 +994,13 @@
         return $script;
     }
 
+    /**
+     * Starts a card container grid
+     * @param int $cols_med Number of columns for medium screens
+     * @param int $cols_xl Number of columns for large screens
+     * @param array $attributes Additional HTML attributes
+     * @return string Opening HTML grid container
+     */
     function card_container_start($cols_med = 2, $cols_xl = 4, $attributes = []){
         $class = merge_class($attributes);
         $attributes = convert_attributes($attributes);
@@ -712,6 +1010,15 @@
         ";
     }
 
+    /**
+     * Creates a dashboard card button
+     * @param string $text Card text
+     * @param int $count Numeric value to display
+     * @param string $icon Icon class
+     * @param string $icon_color Icon color theme
+     * @param array $attributes Additional HTML attributes
+     * @return string HTML card button element
+     */
     function dashboard_card_btn($text = "", $count = 0, $icon = "", $icon_color="orange", $attributes = []){
         $class = merge_class($attributes);
         $attributes = convert_attributes($attributes);
@@ -732,6 +1039,10 @@
         ";
     }
 
+    /**
+     * Ends a card container
+     * @return string Closing HTML div tag
+     */
     function card_container_end(){
         return close_tag("div");
     }

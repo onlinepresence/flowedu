@@ -7,42 +7,101 @@ $title = 'My Profile'; // Set the page title
 ob_start();
 ?>
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <!-- Profile Picture Section -->
-        <div class="relative col-span-1 p-6 bg-white rounded-lg shadow-md h-max dark:bg-gray-800">
-            <div class="relative w-32 h-32 m-auto overflow-hidden rounded-full">
-                <img id="profile-pic" src="<?= asset(user()['profile_pic']) ?>" class="object-cover w-full h-full cursor-pointer" alt="Profile Picture" onclick="$('#file-input').click()">
-                <input type="file" id="file-input" class="hidden" accept="image/*">
-            </div>
-            <div class="absolute flex-col items-center hidden gap-1 text-center top-6 right-10 lg:right-14" id="save-button-container">
-                <button id="save-button" class="px-2 py-1 text-white bg-blue-500 rounded hover:bg-blue-600" title="Save">
-                    <i class="fas fa-save"></i>
-                </button>
-                <button id="cancel-edit" type="button" class="px-2 py-1 text-white bg-red-500 rounded hover:bg-red-600" title="Cancel">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
+        <div class="flex flex-col gap-2 md:gap-3 lg:gap-6 col-span-1">
+            <!-- Profile Picture Section -->
+            <div class="relative p-6 bg-white rounded-lg shadow-md h-max dark:bg-gray-800">
+                <div class="relative w-32 h-32 m-auto overflow-hidden rounded-full">
+                    <img id="profile-pic" src="<?= asset(user()['profile_pic']) ?>" class="object-cover w-full h-full cursor-pointer" alt="Profile Picture" onclick="$('#file-input').click()">
+                    <input type="file" id="file-input" class="hidden" accept="image/*">
+                </div>
+                <div class="absolute flex-col items-center hidden gap-1 text-center top-6 right-10 lg:right-14" id="save-button-container">
+                    <button id="save-button" class="px-2 py-1 text-white bg-blue-500 rounded hover:bg-blue-600" title="Save">
+                        <i class="fas fa-save"></i>
+                    </button>
+                    <button id="cancel-edit" type="button" class="px-2 py-1 text-white bg-red-500 rounded hover:bg-red-600" title="Cancel">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
 
-            <!-- other user information -->
-            <div class="mt-6 text-center">
-                <h3 class="text-xl font-semibold text-gray-800 dark:text-white">
-                    <?= user()['lastname'] . ' ' . user()['othernames'] ?>
-                </h3>
-                
-                <div class="text-gray-600 dark:text-gray-300">
-                    <p class="">
-                        <span class="font-medium">
-                            <?= get_program(user()['program_id'], "name"); ?> | 
-                            <?= user()['current_year'] ?>
-                        </span>
-                    </p>
-                    <p class="mt-2">
-                        <span class="font-medium">
-                            <i class="fas fa-bed mr-2"></i> <?= get_hall(user()['hall_id'], "name"); ?>
-                        </span>
-                    </p>
+                <!-- other user information -->
+                <div class="mt-6 text-center">
+                    <h3 class="text-xl font-semibold text-gray-800 dark:text-white">
+                        <?= user()['lastname'] . ' ' . user()['othernames'] ?>
+                    </h3>
+                    
+                    <div class="text-gray-600 dark:text-gray-300">
+                        <p class="">
+                            <span class="font-medium">
+                                <?= get_program(user()['program_id'], "name"); ?> | 
+                                <?= user()['current_year'] ?>
+                            </span>
+                        </p>
+                        <p class="mt-2">
+                            <span class="font-medium">
+                                <i class="fas fa-bed mr-2"></i> <?= get_hall(user()['hall_id'], "name"); ?>
+                            </span>
+                        </p>
+                    </div>
                 </div>
             </div>
+
+            <!-- Guardian Information Section -->
+            <div class="p-6 bg-white rounded-lg shadow-md h-max dark:bg-gray-800">
+                <?php $guardian = guardian(); ?>
+                <form action="<?= url("student/submit.php") ?>" method="post">
+                    <div class="grid gap-2 md:gap-3 lg:gap-4">
+                        <!-- Guardian Information Fieldset -->
+                        <?= fieldset_start(attributes: attribute("class", "grid gap-4")) ?>
+                        <?= fieldset_legend("Guardian Information") ?>
+
+                            <?php echo input("hidden", "", "id", $guardian['id'] ?? 0); ?>
+                            <?php echo input("hidden", "", "student_id", user()['student_id']); ?>
+                            
+                            <!-- Guardian Name -->
+                            <?= input("text", "Guardian Name", "name", required: true, value: $guardian['name'] ?? '', attributes: array_merge(
+                                placeholder("Enter Guardian's Full Name"), 
+                                attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"))
+                            ); ?>
+
+                            <!-- Guardian Relationship -->
+                            <?= select(
+                                "relationship",
+                                "Relationship",
+                                ["Father", "Mother", "Uncle", "Aunt", "Sibling", "Other"],
+                                true,
+                                value: $guardian['relationship'] ?? '',
+                                required: true
+                            ); ?>
+
+                            <!-- Guardian Phone -->
+                            <?= input("tel", "Guardian Phone", "phone_number", required: true, value: $guardian['phone_number'] ?? '', attributes: array_merge(
+                                placeholder("Enter Guardian's Phone Number"),
+                                attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"))
+                            ); ?>
+
+                            <!-- Guardian Email -->
+                            <?= input("email", "Guardian Email", "email", required: false, value: $guardian['email'] ?? '', attributes: array_merge(
+                                placeholder("Enter Guardian's Email"),
+                                attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"))
+                            ); ?>
+
+                            <!-- Guardian Address -->
+                            <?= textarea("address", "Guardian Address", $guardian['address'] ?? '', required: true, attributes: array_merge(
+                                placeholder("Enter Guardian's Address"),
+                                attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"))
+                            ); ?>
+
+                        <?= fieldset_end() ?>
+
+                        <!-- Submit Button -->
+                        <div class="mt-4">
+                            <?= button("submit", "Update Guardian Info", "submit", "save_guardian", "blue") ?>
+                        </div>
+                    </div>
+                </form>
+            </div>
         </div>
+        
 
         <!-- Profile Form Section -->
         <div class="col-span-1 p-6 bg-white rounded-lg shadow-md dark:bg-gray-800 lg:col-span-2">
