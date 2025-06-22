@@ -7,7 +7,7 @@ $title = 'My Profile'; // Set the page title
 ob_start();
 ?>
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div class="flex flex-col gap-2 md:gap-3 lg:gap-6 col-span-1">
+        <div class="flex flex-col gap-6 lg:gap-8 col-span-1">
             <!-- Profile Picture Section -->
             <div class="relative p-6 bg-white rounded-lg shadow-md h-max dark:bg-gray-800">
                 <div class="relative w-32 h-32 m-auto overflow-hidden rounded-full">
@@ -48,50 +48,45 @@ ob_start();
             <!-- Guardian Information Section -->
             <div class="p-6 bg-white rounded-lg shadow-md h-max dark:bg-gray-800">
                 <?php $guardian = guardian(); ?>
+                <?= h3("Guardian Information") ?>
                 <form action="<?= url("student/submit.php") ?>" method="post">
                     <div class="grid gap-2 md:gap-3 lg:gap-4">
-                        <!-- Guardian Information Fieldset -->
-                        <?= fieldset_start(attributes: attribute("class", "grid gap-4")) ?>
-                        <?= fieldset_legend("Guardian Information") ?>
+                    <?php echo input("hidden", "", "id", $guardian['id'] ?? 0); ?>
+                    <?php echo input("hidden", "", "student_id", user()['student_id']); ?>
 
-                            <?php echo input("hidden", "", "id", $guardian['id'] ?? 0); ?>
-                            <?php echo input("hidden", "", "student_id", user()['student_id']); ?>
-                            
-                            <!-- Guardian Name -->
-                            <?= input("text", "Guardian Name", "name", required: true, value: $guardian['name'] ?? '', attributes: array_merge(
-                                placeholder("Enter Guardian's Full Name"), 
-                                attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"))
-                            ); ?>
+                    <!-- Guardian Name -->
+                    <?= input("text", "Guardian Name", "name", required: true, value: $guardian['name'] ?? '', attributes: array_merge(
+                        placeholder("Enter Guardian's Full Name"), 
+                        attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"))
+                    ); ?>
 
-                            <!-- Guardian Relationship -->
-                            <?= select(
-                                "relationship",
-                                "Relationship",
-                                ["Father", "Mother", "Uncle", "Aunt", "Sibling", "Other"],
-                                true,
-                                value: $guardian['relationship'] ?? '',
-                                required: true
-                            ); ?>
+                    <!-- Guardian Relationship -->
+                    <?= select(
+                        "relationship",
+                        "Relationship",
+                        ["Father", "Mother", "Uncle", "Aunt", "Sibling", "Other"],
+                        true,
+                        value: $guardian['relationship'] ?? '',
+                        required: true
+                    ); ?>
 
-                            <!-- Guardian Phone -->
-                            <?= input("tel", "Guardian Phone", "phone_number", required: true, value: $guardian['phone_number'] ?? '', attributes: array_merge(
-                                placeholder("Enter Guardian's Phone Number"),
-                                attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"))
-                            ); ?>
+                    <!-- Guardian Phone -->
+                    <?= input("tel", "Guardian Phone", "phone_number", required: true, value: $guardian['phone_number'] ?? '', attributes: array_merge(
+                        placeholder("Enter Guardian's Phone Number"),
+                        attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"))
+                    ); ?>
 
-                            <!-- Guardian Email -->
-                            <?= input("email", "Guardian Email", "email", required: false, value: $guardian['email'] ?? '', attributes: array_merge(
-                                placeholder("Enter Guardian's Email"),
-                                attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"))
-                            ); ?>
+                    <!-- Guardian Email -->
+                    <?= input("email", "Guardian Email", "email", required: false, value: $guardian['email'] ?? '', attributes: array_merge(
+                        placeholder("Enter Guardian's Email"),
+                        attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"))
+                    ); ?>
 
-                            <!-- Guardian Address -->
-                            <?= textarea("address", "Guardian Address", $guardian['address'] ?? '', required: true, attributes: array_merge(
-                                placeholder("Enter Guardian's Address"),
-                                attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"))
-                            ); ?>
-
-                        <?= fieldset_end() ?>
+                    <!-- Guardian Address -->
+                    <?= textarea("address", "Guardian Address", $guardian['address'] ?? '', required: true, attributes: array_merge(
+                        placeholder("Enter Guardian's Address"),
+                        attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"))
+                    ); ?>
 
                         <!-- Submit Button -->
                         <div class="mt-4">

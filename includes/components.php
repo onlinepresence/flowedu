@@ -1046,3 +1046,20 @@
     function card_container_end(){
         return close_tag("div");
     }
+
+    /**
+     * Creates a heading level 3 element with styling
+     * @param string $text Heading text
+     * @param array $attributes Additional HTML attributes
+     * @return string HTML h3 element
+     */
+    function h3($text = "", $attributes = []) {
+        $attr = convert_attributes($attributes);
+        $class_ = merge_class($attributes);
+        
+        return "
+            <h3 class=\"text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4 $class_\" $attr>
+                $text
+            </h3>
+        ";
+    }

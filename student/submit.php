@@ -89,7 +89,7 @@
             
             if(!$errors){
                 $data = form_data("students/profiles/", ['username', 'prev_profile_pic']);
-                $response = user()["username"] ? update(user(), $data, "students", ["user_id"]) : data_insert("students", array_merge($data, ["admission_index" => $data["index_number"]]));
+                $response = user()["username"] || $submit == "update_student" ? update(user(), $data, "students", ["user_id"]) : data_insert("students", array_merge($data, ["admission_index" => $data["index_number"]]));
 
                 if($response){
                     // remove old picture
