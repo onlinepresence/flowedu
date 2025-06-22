@@ -8,20 +8,46 @@ ob_start();
 ?>
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <!-- Profile Picture Section -->
-        <div class="col-span-1 p-6 bg-white rounded-lg shadow-md dark:bg-gray-800">
+        <div class="relative col-span-1 p-6 bg-white rounded-lg shadow-md h-max dark:bg-gray-800">
             <div class="relative w-32 h-32 m-auto overflow-hidden rounded-full">
                 <img id="profile-pic" src="<?= asset(user()['profile_pic']) ?>" class="object-cover w-full h-full cursor-pointer" alt="Profile Picture" onclick="$('#file-input').click()">
                 <input type="file" id="file-input" class="hidden" accept="image/*">
             </div>
-            <div class="mt-6 text-center" id="save-button-container" style="display: none;">
-                <button id="save-button" class="px-4 py-2 text-white bg-blue-500 rounded hover:bg-blue-600">Save</button>
-                <button id="cancel-edit" type="button" class="px-4 py-2 text-white bg-red-500 rounded hover:bg-red-600">Cancel</button>
+            <div class="absolute flex-col items-center hidden gap-1 text-center top-6 right-10 lg:right-14" id="save-button-container">
+                <button id="save-button" class="px-2 py-1 text-white bg-blue-500 rounded hover:bg-blue-600" title="Save">
+                    <i class="fas fa-save"></i>
+                </button>
+                <button id="cancel-edit" type="button" class="px-2 py-1 text-white bg-red-500 rounded hover:bg-red-600" title="Cancel">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- other user information -->
+            <div class="mt-6 text-center">
+                <h3 class="text-xl font-semibold text-gray-800 dark:text-white">
+                    <?= user()['lastname'] . ' ' . user()['othernames'] ?>
+                </h3>
+                
+                <div class="text-gray-600 dark:text-gray-300">
+                    <p class="">
+                        <span class="font-medium">
+                            <?= get_program(user()['program_id'], "name"); ?> | 
+                            <?= user()['current_year'] ?>
+                        </span>
+                    </p>
+                    <p class="mt-2">
+                        <span class="font-medium">
+                            <i class="fas fa-bed mr-2"></i> <?= get_hall(user()['hall_id'], "name"); ?>
+                        </span>
+                    </p>
+                </div>
             </div>
         </div>
 
         <!-- Profile Form Section -->
         <div class="col-span-1 p-6 bg-white rounded-lg shadow-md dark:bg-gray-800 lg:col-span-2">
-            <form action=""></form>
+            <form action="<?= url("student/submit.php") ?>" method="post">
+                <?= input("hidden", name:"user_id", value: user()["user_id"]) ?>
                 <div class="grid gap-2 md:gap-3 lg:gap-4">
                     <!-- Personal Information Fieldset -->
                     <?= fieldset_start(attributes: attribute("class", "grid gap-4 md:grid-cols-2")) ?>
@@ -49,9 +75,35 @@ ob_start();
 
                         <!-- Gender -->
                         <?= select(
-                            "gender", "Gender", [["value" => "male", "text" => "Male"], ["value" => "female", "text" => "Female"]], 
+                            text:"Gender", options:[["value" => "male", "text" => "Male"], ["value" => "female", "text" => "Female"]], 
                             required: true, value: user()['gender'], keys: select_keys("value", "text"), 
-                            attributes: array_merge(attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"))
+                            attributes: array_merge(
+                                attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"),
+                                attribute("disabled")
+                            )
+                        ); ?>
+
+                    <?= fieldset_end() ?>
+
+                    <!-- Academic information fieldset -->
+                    <?= fieldset_start(attributes: attribute("class", "grid gap-4 md:grid-cols-2")) ?>
+                    <?= fieldset_legend("Academic Information") ?>
+
+                        <!-- Current Year -->
+                        <?= 
+                            select("current_year", "Program Year", [
+                                100,200,300,400
+                            ], required: true, value: user()["current_year"], attributes: attribute("disabled"));
+                        ?>
+
+                        <!-- Enrolment Year -->
+                        <?= input("text", "Enrolment Year", "enroled_at", required: true, value: user()['enroled_at'] ?? enrolment_year(user()["current_year"]), attributes: array_merge(
+                            placeholder("Enter Enrolment Year"), attribute("readonly"))
+                        ); ?>
+
+                        <!-- Expected Completion Year -->
+                        <?= input("text", "Expected Completion Year", "completes_at", required: true, value: user()['completes_at'] ?? completion_year(user()["current_year"]), attributes: array_merge(
+                            placeholder("Enter Expected Completion Year"), attribute("readonly"))
                         ); ?>
 
                     <?= fieldset_end() ?>
@@ -61,8 +113,11 @@ ob_start();
                     <?= fieldset_legend("Contact Information") ?>
 
                         <!-- Email -->
-                        <?= input("email", "Email", "email", required: true, value: user()['email'], attributes: array_merge(
-                            placeholder("Enter Email"), attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"))
+                        <?= input("email", "Email", value: user()['email'], attributes: array_merge(
+                            placeholder("Enter Email"), array_merge(
+                                attribute("readonly"),
+                                attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500")
+                            ))
                         ); ?>
 
                         <!-- Phone Number -->
@@ -80,6 +135,18 @@ ob_start();
                     <!-- Additional Information Fieldset -->
                     <?= fieldset_start(attributes: attribute("class", "grid gap-4 md:grid-cols-2")) ?>
                     <?= fieldset_legend("Additional Information") ?>
+                        <!-- Ghana Card -->
+                        <div>
+                            <?php echo input_h(
+                                "text",
+                                "Ghana Card Number",
+                                "ghana_card",
+                                user()["ghana_card"] ?? '',
+                                true,
+                                "Include all dashes",
+                                array_merge(placeholder("GHA-XXXXXXXXX-X"), attribute("minlength", 6), attribute("required"))
+                            ); ?>
+                        </div>
 
                         <!-- Nationality -->
                         <?= select(
@@ -101,8 +168,29 @@ ob_start();
                         ); ?>
 
                         <!-- Insurance Number -->
-                        <?= input("text", "Insurance Number", "insurance_number", required: false, value: user()['insurance_number'], attributes: array_merge(
+                        <?= input_h("text", "Insurance Number", "insurance_number", sub_text: "Valid NHIS or Ghana Card", required: false, value: user()['insurance_number'], attributes: array_merge(
                             placeholder("Enter Insurance Number"), attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"))
+                        ); ?>
+
+                    <?= fieldset_end() ?>
+
+                    <!-- ezwitch details -->
+                    <?= fieldset_start(attributes: attribute("class", "grid gap-4 md:grid-cols-2")) ?>
+                    <?= fieldset_legend("Finance Information") ?>
+
+                        <!-- Nationality -->
+                        <?= select(
+                            "account_bank",
+                            "Account Bank",
+                            ["Fidelity", "Access Bank", "Ghana Commercial Bank", "Zenith", "Others"],
+                            true,
+                            value: user()['account_bank'] ?? "",
+                            required: true
+                        ); ?>
+
+                        <!-- Account Number -->
+                        <?= input("text", "E-zwitch Account", "account_number", required: true, value: user()['account_number'] ?? "", attributes: array_merge(
+                            placeholder("Enter Account Number"), attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"))
                         ); ?>
 
                     <?= fieldset_end() ?>
@@ -110,7 +198,7 @@ ob_start();
 
                 <!-- Submit Button -->
                 <div class="mt-4 sm:w-48">
-                    <?= button("submit", "Save Changes", "submit", "update_student", "blue", attribute("disabled")) ?>
+                    <?= button("submit", "Save Changes", "submit", "update_student", "blue") ?>
                 </div>
             </form>
         </div>
@@ -126,7 +214,7 @@ ob_start();
             const reader = new FileReader();
             reader.onload = function (e) {
                 $('#profile-pic').attr('src', e.target.result);
-                $('#save-button-container').show();
+                $('#save-button-container').removeClass("hidden").addClass("flex");
             };
             reader.readAsDataURL(file);
             }
@@ -157,7 +245,7 @@ ob_start();
 
         $("#cancel-edit").click(function () {
             $("#profile-pic").attr("src", original_path);
-            $('#save-button-container').hide();
+            $('#save-button-container').addClass("hidden").removeClass("flex");
             $('#file-input').val(''); // Clear the file input
         });
     });

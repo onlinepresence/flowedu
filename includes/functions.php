@@ -413,15 +413,33 @@
      * @return array|false
      */
     function programs($id = null, $complete = false, $columns = []){
-        $where = $id ? "id = $id" : [];
+        $where = [];
         $tables = $complete ? ["join" => "programs departments", "on" => "department_id id", "alias" => "p d"] : "programs";
         
+        if($complete && $id && $columns){
+            $where = "p.id = $id";
+        }elseif($id){
+            $where = "id = $id";
+        }
+
         if(!$complete && !$columns){
             $columns = ["id", "name", "department_id", "certificate", "cost"];
-        }elseif($complete){
+        }elseif($complete && !$columns){
             $columns = ["p.id", "p.name", "department_id", "certificate", "cost", "d.name as department_name"];
+        }else{
+            $columns = formatColumns($columns, [["programs" => "p"]]);
         }
         return fetchData($columns, $tables, $where, !is_null($id) ? 1 : 0, join_type: "left");
+    }
+
+    /**
+     * This is basically used to get just one program. Works with programs() function
+     * @param $id The program id
+     * @param string $column The name of the column to be fetched
+     */
+    function get_program($id, $column = null){
+        $program = programs($id, true, [$column]);
+        return $column ? $program[$column] : $program;
     }
 
     /**
@@ -431,14 +449,26 @@
      * @param string|array $columns Specific columns to be displayed
      * @return array|false
      */
-    function halls($id = null, $complete = false, $columns = []){
+    function halls($id = null, $columns = []){
         $where = $id ? "id = $id" : [];
         $tables = "halls";
         
         if(!$columns){
             $columns = ["id", "name", "master", "cost", "period"];
         }
+        
         return fetchData($columns, $tables, $where, !is_null($id) ? 1 : 0, join_type: "left");
+    }
+
+    /**
+     * This is basically used to get just one hall. Works with halls() function
+     * @param int $id The hall id
+     * @param ?string $column The name of the column to be fetched
+     * @return mixed
+     */
+    function get_hall(int $id, ?string $column = null){
+        $hall = halls($id, [$column]);
+        return $column ? $hall[$column] : $hall;
     }
 
     /**
@@ -581,8 +611,8 @@
                 $cols = [
                     "s.id AS student_id", "index_number", "department_id", "program_id", "profile_pic",
                     "date_of_birth", "gender", "nationality", "ghana_card", "religion", "current_year",
-                    "contact_address", "phone_number", "admission_date", "graduated",
-                    "allergy", "insurance_number", "hall_id", "is_new", "approved"
+                    "contact_address", "phone_number", "admission_date", "graduated", "account_bank",
+                    "account_number", "allergy", "insurance_number", "hall_id", "is_new", "approved"
                 ];
                 break;
             case "teacher":

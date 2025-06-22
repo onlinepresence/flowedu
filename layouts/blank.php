@@ -53,7 +53,7 @@
           >
             <!-- Mobile hamburger -->
             <button
-              class="p-1 -ml-1 mr-5 rounded-md md:hidden focus:outline-none focus:shadow-outline-purple"
+              class="p-1 mr-5 -ml-1 rounded-md lg:hidden focus:outline-none focus:shadow-outline-purple"
               @click="toggleSideMenu"
               aria-label="Menu"
             >
@@ -85,10 +85,10 @@
                   aria-label="Toggle color mode"
                 >
                   <template x-if="!dark">
-                    <i class="h-5 w-5 fas fa-moon"></i>
+                    <i class="w-5 h-5 fas fa-moon"></i>
                   </template>
                   <template x-if="dark">
-                    <i class="h-5 w-5 fas fa-sun"></i>
+                    <i class="w-5 h-5 fas fa-sun"></i>
                   </template>
                 </button>
               </li>
@@ -102,7 +102,7 @@
                   aria-label="Notifications"
                   aria-haspopup="true"
                 >
-                    <i class="h-5 w-5 fas fa-bell"></i>
+                    <i class="w-5 h-5 fas fa-bell"></i>
                     <!-- Notification badge -->
                     <span
                         aria-hidden="true"
@@ -150,7 +150,7 @@
               <!-- Profile menu -->
               <li class="relative">
                 <button
-                  class="align-middle rounded-full focus:shadow-outline-purple focus:outline-none"
+                  class="flex align-center justfy-center rounded-full focus:shadow-outline-purple focus:outline-none"
                   @click="toggleProfileMenu"
                   @keydown.escape="closeProfileMenu"
                   aria-label="Account"
@@ -164,7 +164,7 @@
                     aria-hidden="true"
                   />
                   <?php else: ?>
-                    <i class="w-8 object-cover h-8 fas fa-user"></i>
+                    <i class="object-cover w-8 h-8 fas fa-user"></i>
                   <?php endif; ?>
                 </button>
                 <template x-if="isProfileMenuOpen">
@@ -252,8 +252,8 @@
         </header>
         <main class="h-full pb-16 overflow-y-auto">
           <!-- Remove everything INSIDE this div to a really blank page -->
-          <div class="container px-6 mx-auto grid">
-            <div class="container mx-auto space-y-4 px-4 py-6">
+          <div class="container grid px-6 mx-auto">
+            <div class="container px-4 py-6 mx-auto space-y-4">
                 <?= page_header($title); ?>
                 <?= system_message(); ?>
                 <?= $content ?? "" ?>

@@ -5,7 +5,7 @@
 ?>
 <!-- Desktop sidebar -->
 <aside
-    class="z-20 hidden w-64 overflow-y-auto bg-white dark:bg-gray-800 md:block flex-shrink-0 scrollbar-hidden"
+    class="z-20 flex-shrink-0 hidden w-64 overflow-y-auto bg-white dark:bg-gray-800 lg:block scrollbar-hidden"
 >
     <div class="py-4 text-gray-500 dark:text-gray-400">
         <a class="ml-6 text-lg font-bold text-gray-800 dark:text-gray-200" href="#"><?= $portal_title ?? "My Portal" ?></a>
@@ -46,10 +46,10 @@
     x-transition:leave="transition ease-in-out duration-150"
     x-transition:leave-start="opacity-100"
     x-transition:leave-end="opacity-0"
-    class="fixed inset-0 z-10 flex items-end bg-black bg-opacity-50 sm:items-center sm:justify-center"
+    class="fixed inset-0 z-10 flex items-end bg-black bg-opacity-50 md:items-center md:justify-center"
 ></div>
 <aside
-    class="fixed inset-y-0 z-20 flex-shrink-0 w-64 mt-16 overflow-y-auto bg-white dark:bg-gray-800 md:hidden"
+    class="fixed inset-y-0 z-20 flex-shrink-0 w-64 mt-16 overflow-y-auto bg-white dark:bg-gray-800 lg:hidden"
     x-show="isSideMenuOpen"
     x-transition:enter="transition ease-in-out duration-150"
     x-transition:enter-start="opacity-0 transform -translate-x-20"
@@ -65,11 +65,15 @@
             <?= $portal_title ?? "My Portal" ?>
         </a>
 
-        <ul class="mt-6">
+        <ul class="mt-6" x-data="{current_menu:''}">
             <?php 
                 foreach($options as $name => $option){
                     if(!isset($option["allowed"]) || (isset($option["allowed"]) && in_array($_SESSION["user_type"], $option["allowed"])))
-                        echo auth_nav($option["text"], $option["link"], $option["icon"], is_current($option["link"]));
+                        if(isset($option["group"])){
+                            echo auth_nav_group_link($option["text"], $name,  $option["icon"], $option["items"]);
+                        }else{
+                            echo auth_nav($option["text"], $option["link"], $option["icon"], is_current($option["link"]), $option['attributes'] ?? []);
+                        }
                 }
             ?>
         </ul>

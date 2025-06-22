@@ -12,6 +12,19 @@
     }
 
     /**
+     * This provides an exit after a dumped data
+     * @param mixed $data The data to be checked
+     */
+    function dd(...$data){
+        echo "<pre>";
+        foreach ($data as $item) {
+            var_dump($item);
+        }
+        echo "</pre>";
+        exit;
+    }
+
+    /**
      * Used to stringify the column
      * @param string|string[] $column This is the column to be stringified
      * @return string the stringified column
@@ -264,6 +277,68 @@
         // Default to string (covers varchar, text, char, etc.)
         return 's';
     }
+
+/**
+ * Format column names by prepending table names or aliases based on table structure
+ * @param array $columns List of columns to format
+ * @param array $tables Array of tables with optional aliases
+ * @return array Formatted column names
+ */
+function formatColumns(array $columns, array $tables): array {
+    global $connect;
+    $formatted_columns = [];
+    $table_columns = [];
+    $table_count = count($tables);
+    
+    // Get all column names for each table
+    foreach ($tables as $key => $value) {
+        $table_name = is_array($value) ? key($value) : $value;
+        $alias = is_array($value) ? current($value) : null;
+        
+        $query = "SHOW COLUMNS FROM $table_name";
+        $result = $connect->query($query);
+        
+        if ($result) {
+            $table_columns[$table_name] = [
+                'columns' => array_map(fn($row) => $row['Field'], $result->fetch_all(MYSQLI_ASSOC)),
+                'alias' => $alias
+            ];
+        }
+    }
+
+    // Process each column
+    foreach ($columns as $column) {
+        // Skip if column already has table/alias prefix
+        if (strpos($column, '.') !== false) {
+            $formatted_columns[] = $column;
+            continue;
+        }
+
+        $found = false;
+        foreach ($table_columns as $table_name => $info) {
+            if (in_array($column, $info['columns'])) {
+                if ($table_count > 1) {
+                    // Multiple tables - prepend alias or table name
+                    $prefix = $info['alias'] ?? $table_name;
+                    $formatted_columns[] = "$prefix.$column";
+                } else {
+                    // Single table - keep column name as is
+                    $prefix = $info['alias']."." ?? "";
+                    $formatted_columns[] = $prefix.$column;
+                }
+                $found = true;
+                break;
+            }
+        }
+
+        // If column wasn't found in any table, keep it unchanged
+        if (!$found) {
+            $formatted_columns[] = $column;
+        }
+    }
+
+    return $formatted_columns;
+}
 
     /**
      * Get the column type from the database

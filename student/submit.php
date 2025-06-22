@@ -8,8 +8,9 @@
         $next_request = null;
         $_SESSION["old_input"] = $_REQUEST;
 
-        if($submit == "create_student"){
-            require_once "$rootPath/includes/image_validation.php";
+        if($submit == "create_student" || $submit == "update_student"){
+            if($submit == "create_student")
+                require_once "$rootPath/includes/image_validation.php";
 
             if(empty($_POST["user_id"])){
                 $errors["system_message"] = "User could not be defined or is invalid";
@@ -23,10 +24,6 @@
                 $errors["othernames"] = "Please provide your othername(s)";
             }if(empty($_POST["date_of_birth"])){
                 $errors["date_of_birth"] = "Date of birth is required";
-            }if(empty($_POST["gender"])){
-                $errors["gender"] = "Gender is required";
-            }if(!in_array($_POST["gender"], ["male", "female"])){
-                $errors["gender"] = "Gender provided is invalid";
             }if(empty($_POST["nationality"])){
                 $errors["nationality"] = "Nationality is required";
             }if(empty($_POST["insurance_number"])){
@@ -37,33 +34,57 @@
                 $errors["ghana_card"] = "Ghana card number is required";
             }elseif(!is_valid_ghana_card_number($_POST["ghana_card"])){
                 $errors["ghana_card"] = "Invalid Ghana card provided";
-            }if(empty($_POST["program_id"])){
-                $errors["program_id"] = "Program is required";
-            }elseif(!is_numeric($_POST["program_id"])){
-                $errors["program_id"] = "Invalid program has been provided";
-            }elseif(empty($_POST["department_id"])){
-                $errors["program_id"] = "Program department could not be identified";
-            }elseif(!is_numeric($_POST["department_id"])){
-                $errors["program_id"] = "Program department is invalid";
-            }if(empty($_POST["hall_id"])){
-                $errors["hall_id"] = "Hall is required";
-            }elseif(!is_numeric($_POST["hall_id"])){
-                $errors["hall_id"] = "Invalid hall has been selected";
-            }if(empty($_POST["username"])){
-                $errors["username"] = "Username is required";
-            }elseif(fetchData("username", "users", "username='{$_POST['username']}' AND id != {$_POST['user_id']}")){
-                $errors["username"] = "Username already exists";
             }if(empty($_POST["contact_address"])){
                 $errors["contact_address"] = "Contact address is required";
             }if(empty($_POST["phone_number"])){
                 $errors["phone_number"] = "Phone number is required";
-            }if(empty(user()["username"]) && empty($_FILES["profile_pic"]["name"])){
-                $errors["profile_pic"] = "Profile picture is required";
             }
+            
+            // other creation account validations
+            if($submit == "create_student"){
+                if(empty($_POST["program_id"])){
+                    $errors["program_id"] = "Program is required";
+                }elseif(!is_numeric($_POST["program_id"])){
+                    $errors["program_id"] = "Invalid program has been provided";
+                }elseif(empty($_POST["department_id"])){
+                    $errors["program_id"] = "Program department could not be identified";
+                }elseif(!is_numeric($_POST["department_id"])){
+                    $errors["program_id"] = "Program department is invalid";
+                }if(empty($_POST["hall_id"])){
+                    $errors["hall_id"] = "Hall is required";
+                }elseif(!is_numeric($_POST["hall_id"])){
+                    $errors["hall_id"] = "Invalid hall has been selected";
+                }if(empty($_POST["username"])){
+                    $errors["username"] = "Username is required";
+                }elseif(fetchData("username", "users", "username='{$_POST['username']}' AND id != {$_POST['user_id']}")){
+                    $errors["username"] = "Username already exists";
+                }
 
-            $validate_profile = validate_passport_photo($_FILES["profile_pic"]["tmp_name"]);
-            if(!$validate_profile["status"]){
-                $errors["profile_pic"] = $validate_profile["message"];
+                if(empty(user()["username"]) && empty($_FILES["profile_pic"]["name"])){
+                    $errors["profile_pic"] = "Profile picture is required";
+                }if(empty($_POST["gender"])){
+                    $errors["gender"] = "Gender is required";
+                }elseif(!in_array($_POST["gender"], ["male", "female"])){
+                    $errors["gender"] = "Gender provided is invalid";
+                }
+
+                $validate_profile = validate_passport_photo($_FILES["profile_pic"]["tmp_name"]);
+                if(!$validate_profile["status"]){
+                    $errors["profile_pic"] = $validate_profile["message"];
+                }
+            }elseif($submit == "update_student"){
+                // verify account numbers
+                if(!empty($_POST["account_number"]) && empty($_POST["account_bank"])){
+                    $errors["account_bank"] = "Please select the bank of your e-zwitch account";
+                }elseif(!empty($_POST["account_number"])){
+                    if(fetchData(
+                        "id", "students", 
+                        ["account_number = '{$_POST['account_number']}'", "user_id != ".user()['user_id']],
+                        where_binds: "AND"
+                    )){
+                        $errors["account_number"] = "This account number has already been picked";
+                    }
+                }
             }
             
             if(!$errors){
@@ -72,8 +93,10 @@
 
                 if($response){
                     // remove old picture
-                    if(!empty($data["profile_pic"]))
-                        reset_profile_pic();
+                    if($submit == "create_student"){
+                        if(!empty($data["profile_pic"]))
+                            reset_profile_pic();
+                    }                    
                     
                     $response = update(user(), ["username" => $_POST["username"]], "users", ["id"]);
                     if($response === true){
@@ -197,7 +220,7 @@
         $errors["system_message"] = "No submission provided";
     }
 
-    if($_REQUEST["response_type"] == "json"){
+    if(isset($_REQUEST["response_type"]) && $_REQUEST["response_type"] == "json"){
         header("Content-type: application/json");
         echo json_encode([
             "errors" => $errors,

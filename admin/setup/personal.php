@@ -66,12 +66,13 @@ ob_start();
         </div>
 
         <div>
-            <?php echo input(
+            <?php echo input_h(
                 "text",
                 "Ghana Card Number",
                 "ghana_card",
                 $user["ghana_card"] ?? '',
                 true,
+                "Include all dashes",
                 array_merge(placeholder("GHA-XXXXXXXXX-X"), attribute("minlength", 6), attribute("required"))
             ); ?>
         </div>
