@@ -602,6 +602,36 @@ function create_course_code(int $program_id, int $year, int $semester): string|f
         return fetchData($columns, $tables, $where, !is_null($user_id) ? 1 : 0, "AND", "left");
     }
 
+/**
+ * This gets all or specified admins in the system
+ * @param int $id The id of the admin
+ * @param bool $complete joins necessary tables
+ * @param string|array $columns Specific columns to be displayed
+ * @return array|false
+ */
+function admins($id = null, $complete = false, $columns = []){
+    $where = ["at.name = 'admin'"];
+
+    if($id){
+        $where[] = ["a.id = $id"];    
+    }
+    
+    $tables = [
+        ["join" => "admins admin_types", "on" => "type id", "alias" => "a at"],
+        ["join" => "users admins", "on" => "id user_id", "alias" => "u a"]
+    ];
+    
+    if(!$complete && !$columns){
+        $columns = ["a.id", "user_id", "a.type", "lastname", "othernames", "ghana_card", "email"];
+    }elseif($complete){
+        $columns = ["a.id", "user_id", "a.type", "lastname", "othernames", "ghana_card", "at.name AS admin_type", "at.display_name", "email", "username"];
+    }else{
+        $columns = ["a.*, email, username"];
+    }
+    
+    return fetchData($columns, $tables, $where, !is_null($id) ? 1 : 0, join_type: "left");
+}
+
     /**
      * This gets a list of all the hods that have been added to the system
      * @param ?int $user_id The user id. Leave as null if you want all records

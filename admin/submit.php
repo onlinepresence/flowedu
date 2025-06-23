@@ -46,6 +46,48 @@
                     }
                 }
             }
+        }elseif($submit == "add_user"){
+            $email = $_POST["email"] ?? null;
+            $type = $_POST["type"] ?? null;
+            $password = $_POST["password"] ?? null;
+
+            if(empty($email)){
+                $errors["email"] = "Email is required";
+            }elseif(fetchData("id", "users", ["email = '$email'"])){
+                $errors["email"] = "Email already exists";
+            }
+
+            if(empty($type)){
+                $errors["type"] = "User type is required";
+            }
+
+            if(empty($password)){
+                $errors["password"] = "Password is required";
+            }
+
+            if(!$errors){
+                $data = [
+                    "email" => $email,
+                    "type" => in_array($type, [2,3,4]) ? "admin" : "type",
+                    "password" => password_hash($password, PASSWORD_DEFAULT),
+                    "user_secret" => generate_user_secret()
+                ];
+
+                if(data_insert("users", $data)){
+                    // add user to table
+                    if($data["type"] == "admin"){
+                        data_insert("admins", [
+                            "user_id" => $connect->insert_id,
+                            "type" => $type
+                        ]);
+                    }
+
+                    $_SESSION["system_message"] = ucfirst($data["type"])." account has been added";
+                }else{
+                    $errors["system_message"] = "User account could not be added";
+                }
+            }
+
         }elseif($submit == "setup_school"){
             $school_id = $_POST["school_id"] ?? null;
             $name = $_POST["name"] ?? null;

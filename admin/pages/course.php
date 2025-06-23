@@ -165,3 +165,4 @@ $content = ob_get_clean();
 
 // Include the layout, which will render the content dynamically
 require relative_path('layouts/auth.php');
+
