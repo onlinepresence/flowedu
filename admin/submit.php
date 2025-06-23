@@ -81,7 +81,8 @@
                             "type" => $type
                         ]);
                     }
-
+                    
+                    send_account_created_email($email);
                     $_SESSION["system_message"] = ucfirst($data["type"])." account has been added";
                 }else{
                     $errors["system_message"] = "User account could not be added";
