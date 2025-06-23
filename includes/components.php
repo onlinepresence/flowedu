@@ -191,6 +191,75 @@
     }
 
     /**
+     * Creates a select dropdown with options and help text
+     * @param string $name Select name
+     * @param string $text Label text
+     * @param array $options Array of options
+     * @param string $sub_text Help text below select
+     * @param bool|string $nullable Whether to add a null option
+     * @param bool $multiple Allow multiple selections
+     * @param array $keys Custom keys for option values/text
+     * @param bool $required Whether field is required
+     * @param string $value Selected value
+     * @param array $attributes Additional HTML attributes
+     * @return string HTML select element with help text
+     */
+    function select_h($name = "", $text = "", $options = [], $sub_text = "", $nullable = false, $multiple = false, $keys = [], $required = false, $value = "", $attributes = []){
+        $attr = convert_attributes($attributes);
+        $asterisks = $required ? "*" : "";
+        $required = required($required);
+        $value = old($name, $value);
+        $multiple = $multiple ? "multiple" : "";
+        $options_ = [];
+        $error = $_SESSION["errors"][$name] ?? "";
+        $class_ = merge_class($attributes);
+        $keys = empty($keys) ? select_keys() : $keys;
+
+        if($nullable){
+            $options_[] = create_select_option($nullable === true ? "Select an option" : $nullable);
+        }
+
+        if($options){
+            if(array_is_list($options)){
+                $options = process_options_list($options);
+            }
+
+            foreach($options as $key => $text_){
+                $attr_ = [];
+                $value_ = $text_[$keys["value"]] ?? $key;
+                if(is_array($text_)){
+                    $attr_ = $text_["attr"] ?? [];
+                    $text_ = $text_[$keys["text"]];
+                }
+
+                $options_[] = create_select_option($text_, $value_, $value_ == $value ? array_merge($attr_, attribute("selected")) : $attr_);
+            }
+        }
+
+        $options = implode("\n", $options_);
+
+        return "
+            <label class=\"block text-sm\">
+                <span class=\"text-gray-700 dark:text-gray-400\">
+                  $text $asterisks
+                </span>
+                <select
+                  name=\"$name\" value=\"$value\"
+                  class=\"block w-full mt-1 text-sm dark:text-gray-300 dark:border-gray-600 dark:bg-gray-700 form-multiselect focus:border-purple-400 focus:outline-none focus:shadow-outline-purple dark:focus:shadow-outline-gray $class_\"
+                  $multiple
+                  $attr
+                >
+                  $options
+                </select>
+                <span class=\"text-xs text-gray-600 dark:text-gray-400\">
+                  $sub_text
+                </span>
+                ".($error ? error_span($error) : '')."
+              </label>
+        ";
+    }
+
+    /**
      * Creates a button element
      * @param string $type Button type
      * @param string $text Button text
@@ -442,10 +511,12 @@
     
     /**
      * Starts a table row
+     * @param array $attributes Additional HTML attributes
      * @return string Opening HTML tr tag with styling
      */
-    function tr_start(){
-        return "<tr class=\"text-xs font-semibold tracking-wide text-left text-gray-500 uppercase border-b dark:border-gray-700 bg-gray-50 dark:text-gray-400 dark:bg-gray-800\">";
+    function tr_start($attributes = []){
+        $attr = convert_attributes($attributes);
+        return "<tr class=\"text-xs font-semibold tracking-wide text-left text-gray-500 uppercase border-b dark:border-gray-700 bg-gray-50 dark:text-gray-400 dark:bg-gray-800\" $attr>";
     }
 
     /**

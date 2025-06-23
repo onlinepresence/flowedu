@@ -461,6 +461,118 @@
     }
 
     /**
+     * This gets all or specified courses in the system
+     * @param int $id The id of the course
+     * @param bool $complete joins necessary tables
+     * @param string|array $columns Specific columns to be displayed
+     * @return array|false
+     */
+    function courses($id = null, $complete = false, $columns = []){
+        $where = [];
+        $tables = $complete ? ["join" => "courses programs", "on" => "program_id id", "alias" => "c p"] : "courses";
+        
+        if($complete && $id && $columns){
+            $where = "c.id = $id";
+        }elseif($id){
+            $where = "id = $id";
+        }
+
+        if(!$complete && !$columns){
+            $columns = ["id", "code", "name", "program_id"];
+        }elseif($complete && !$columns){
+            $columns = ["c.id", "c.name", "code", "program_id", "p.name as program_name"];
+        }else{
+            $columns = formatColumns($columns, [["courses" => "c"]]);
+        }
+        return fetchData($columns, $tables, $where, !is_null($id) ? 1 : 0, join_type: "left");
+    }
+
+    /**
+     * This is basically used to get just one course. Works with courses() function
+     * @param int $id The course id
+     * @param ?string $column The name of the column to be fetched
+     * @return mixed
+     */
+    function get_course(int $id, ?string $column = null){
+        $course = courses($id, true, [$column]);
+        return $column ? $course[$column] : $course;
+    }
+
+/**
+ * Shortens a word/phrase into a code of at least 3 characters
+ * @param string $text The text to be shortened
+ * @return string
+ */
+function shorten_to_code(string $text): string {
+    // Remove any non-alphabetic characters
+    $text = preg_replace('/[^a-zA-Z\s]/', '', $text);
+    
+    $words = explode(' ', strtoupper($text));
+    $words = array_filter($words); // Remove empty elements
+    $word_count = count($words);
+    
+    if ($word_count == 1) {
+        // For single word, take first 3 characters minimum
+        return substr($words[0], 0, max(3, min(4, strlen($words[0]))));
+    } else if ($word_count == 2) {
+        // For 2 words, take first char of first word and first 2 chars of second
+        return substr($words[0], 0, 1) . substr($words[1], 0, 2);
+    } else {
+        // For 3+ words, take first letter of each word (up to 4 words)
+        $code = '';
+        $words = array_values($words); // Reindex array after filtering
+        for ($i = 0; $i < min(4, $word_count); $i++) {
+            $code .= substr($words[$i], 0, 1);
+        }
+        return $code;
+    }
+}
+
+/**
+ * Creates a course code based on program, year and semester
+ * @param int $program_id The program ID
+ * @param int $year The course year
+ * @param int $semester The semester number
+ * @return string|false
+ */
+function create_course_code(int $program_id, int $year, int $semester): string|false {
+    // Get program name and existing courses for this semester
+    $program = fetchData(
+        ["p.name", "COUNT(c.id) as course_count"],
+        ["join" => "programs courses", "on" => "id program_id", "alias" => "p c"],
+        "p.id = $program_id",
+        join_type: "left", 
+        group_by: "p.id"
+    );
+
+    if (!$program) {
+        return false;
+    }
+
+    // Create program code from name
+    $program_code = shorten_to_code($program["name"]);
+    
+    // Calculate level (100, 200, 300, 400)
+    if(in_array($year, [1, 2, 3, 4])){
+        $level = $year * 100;
+    }elseif(!in_array($year, [100,200,300,400])){
+        return false;
+    }
+    
+    // Calculate sequence number based on existing courses
+    $count = ($program["course_count"] ?? 0);
+    
+    // For first semester, use odd numbers (101, 103, etc)
+    // For second semester, use even numbers (100, 102, etc)
+    $course_number = $semester == 1 
+        ? $level + 1 + ($count * 2)  // First semester: 101, 103, 105...
+        : $level + ($count * 2);      // Second semester: 100, 102, 104...
+    
+    // Combine program code and course number
+    return sprintf("%s %d", $program_code, $course_number);
+}
+
+    /**
      * This is basically used to get just one hall. Works with halls() function
      * @param int $id The hall id
      * @param ?string $column The name of the column to be fetched

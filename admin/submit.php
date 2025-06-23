@@ -269,6 +269,76 @@
             }
         }
 
+        // course management
+        elseif($submit == "create_course"){
+            if(empty($_POST["name"])){
+                $errors["name"] = "Name of course is required";
+            }if(empty($_POST["course_semester"])){
+                $errors["course_semester"] = "Course Semester is required";
+            }elseif(!is_numeric($_POST["course_semester"])){
+                $errors["course_semester"] = "Invalid course semster value";
+            }if(empty($_POST["program_id"])){
+                $errors["program_id"] = "No program has been selected";
+            }elseif(!is_numeric($_POST["program_id"])){
+                $errors["program_id"] = "Chosen program is invalid";
+            }if(empty($_POST["year_level"])){
+                $errors["year_level"] = "Year level is required";
+            }elseif(!is_numeric($_POST["year_level"])){
+                $errors["year_level"] = "Invalid year level value";
+            }
+
+            if(empty($_POST["code"])){
+                $_REQUEST["code"] = create_course_code($_POST["program_id"], $_POST["year_level"], $_POST["course_semester"]);
+
+                if($_REQUEST["code"] === false){
+                    $errors["system_message"] = "Code could not be generated";
+                }
+            }
+
+            if(!$errors){
+                $data = form_data(exclude: ["course_id"]);
+                if(data_insert("courses", $data)){
+                    $_SESSION["system_message"] = "Course '{$_POST['name']}' has been added";
+                }
+            }
+        }elseif($submit == "update_course"){
+            $course_id = $_POST["course_id"] ?? null;
+            $name = $_POST["name"] ?? null;
+            $code = $_POST["code"] ?? null;
+            $course_semester = $_POST["course_semester"] ?? null;
+            $year_level = $_POST["year_level"] ?? null;
+            $program_id = $_POST["program_id"] ?? null;
+
+            if(empty($course_id)){
+                $errors["course_id"] = "Course id is not valid";
+            }if(empty($name)){
+                $errors["name"] = "Name of course is required";
+            }if(empty($code)){
+                $errors["code"] = "Course code is required";
+            }if(empty($course_semester)){
+                $errors["course_semester"] = "Course Semester is required";
+            }elseif(!is_numeric($course_semester)){
+                $errors["course_semester"] = "Invalid course semster value";
+            }if(empty($year_level)){
+                $errors["year_level"] = "Year level is required";
+            }elseif(!is_numeric($year_level)){
+                $errors["year_level"] = "Invalid year level value";
+            }if(empty($program_id)){
+                $errors["program_id"] = "No program has been selected";
+            }elseif(!is_numeric($program_id)){
+                $errors["program_id"] = "Chosen program is invalid";
+            }
+
+            if(!$errors){
+                $data = form_data(exclude: ["name", "code"], key_change: ["course_id" => "id"]);
+                $course = courses($course_id);
+
+                if(update($course, $data, "courses", ["id"])){
+                    $_SESSION["system_message"] = "Course '{$course['name']}' has been updated";
+                }
+            }
+        }
+
         // delete an item
         elseif($submit == "delete-item"){
             delete_item();
