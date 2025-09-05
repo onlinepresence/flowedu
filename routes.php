@@ -29,7 +29,7 @@
 
         '/admin' => [
             'prefix' => '/admin',
-            'middleware' => ['auth', 'check_school_status'],
+            'middleware' => ['auth', 'valid_admin', 'check_school_status'],
             'routes' => [
                 '/dashboard' => ['file' => 'admin/dashboard.php'],
                 '/approve-student/{indexnumber}/{guardian}/{id}' => ['file' => 'admin/approve-student.php'],
@@ -41,7 +41,7 @@
         // admin academic routes
         '/admin/academic' => [
             'prefix' => '/admin/academic',
-            'middleware' => ['auth', 'check_school_status'],
+            'middleware' => ['auth', 'valid_admin', 'check_school_status'],
             'routes' => [
                 '/faculty' => ['file' => 'admin/setup/faculty.php'],
                 '/department' => ['file' => 'admin/setup/department.php'],
@@ -53,7 +53,7 @@
 
         '/admin/students' => [
             'prefix' => '/admin/student',
-            'middleware' => ['auth', 'check_school_status'],
+            'middleware' => ['auth', 'valid_admin', 'check_school_status'],
             'routes' => [
                 // '/' => ['file' => 'admin/pages/students/index.php'],
             ]

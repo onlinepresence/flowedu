@@ -44,6 +44,11 @@
                         $_SESSION["system_message"] = "Admin account updated";
                         user(true);     // reflect new changes
                     }
+
+                    if($type == 2){
+                        $next_request = "admin/dashboard";
+                        send_verification_email();
+                    }
                 }
             }
         }elseif($submit == "add_user"){

@@ -8,8 +8,8 @@ $user = user();
 ob_start();
 ?>
 <!-- Personal Information Form -->
-<form action="<?= url("admin/submit.php") ?>" method="POST" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+<form action="<?= url("admin/submit.php") ?>" method="POST" class="p-6 bg-white rounded-lg shadow-md dark:bg-gray-800">
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <!-- Hidden User ID -->
         <?php echo input("hidden", "", "user_id", $_SESSION['user_id'], true); ?>
 
@@ -62,7 +62,7 @@ ob_start();
                 value: $_SESSION["user_type"],
                 attributes:["placeholder" => "Select admin type", "disabled" => "disabled"]
             ); ?>
-            <?= input("hidden",name:"type", value: $_SESSION["admin_register"] ? 1 : ($user["type"] ?? 2)) ?>
+            <?= input("hidden",name:"type", value: isset($_SESSION["admin_register"]) ? 1 : ($user["type"] ?? 2)) ?>
         </div>
 
         <div>
