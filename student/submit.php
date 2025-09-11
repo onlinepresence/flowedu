@@ -68,10 +68,10 @@
                     $errors["gender"] = "Gender provided is invalid";
                 }
 
-                $validate_profile = validate_passport_photo($_FILES["profile_pic"]["tmp_name"]);
+                /*$validate_profile = validate_passport_photo($_FILES["profile_pic"]["tmp_name"]);
                 if(!$validate_profile["status"]){
                     $errors["profile_pic"] = $validate_profile["message"];
-                }
+                }*/
             }elseif($submit == "update_student"){
                 // verify account numbers
                 if(!empty($_POST["account_number"]) && empty($_POST["account_bank"])){
