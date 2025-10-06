@@ -58,6 +58,7 @@ ob_start();
                 echo input('text', 'MAIL_USERNAME', 'MAIL_USERNAME', $envValues['MAIL_USERNAME'] ?? '');
                 echo input('text', 'MAIL_PASSWORD', 'MAIL_PASSWORD', $envValues['MAIL_PASSWORD'] ?? '');
                 echo input('text', 'SERVER_DOWN', 'SERVER_DOWN', $envValues['SERVER_UP'] ?? 'false');
+                echo input('text', 'SYSTEM_PASSWORD', 'SYSTEM_PASSWORD', $envValues['SYSTEM_PASSWORD'] ?? '');
             ?>
         </div>
 

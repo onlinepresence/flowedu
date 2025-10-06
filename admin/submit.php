@@ -66,14 +66,19 @@
                 $errors["type"] = "User type is required";
             }
 
-            if(empty($password)){
-                $errors["password"] = "Password is required";
+            if (empty($password)) {
+                if ($type == "teacher") {
+                    // Generate a random secure password
+                    $password = generate_random_password(10);
+                } else {
+                    $errors["password"] = "Password is required";
+                }
             }
 
             if(!$errors){
                 $data = [
                     "email" => $email,
-                    "type" => in_array($type, [2,3,4]) ? "admin" : "type",
+                    "type" => in_array($type, [2,3,4]) ? "admin" : $type,
                     "password" => password_hash($password, PASSWORD_DEFAULT),
                     "user_secret" => generate_user_secret()
                 ];
@@ -85,9 +90,17 @@
                             "user_id" => $connect->insert_id,
                             "type" => $type
                         ]);
+                    }elseif($data['type'] == "teacher"){
+                        data_insert("teachers", [
+                            "user_id" => $connect->insert_id
+                        ]);
                     }
+
+                    $details = [
+                        "email" => $email, "password" => $password
+                    ];
                     
-                    send_account_created_email($email);
+                    send_account_created_email($email, $details ?? null);
                     $_SESSION["system_message"] = ucfirst($data["type"])." account has been added";
                 }else{
                     $errors["system_message"] = "User account could not be added";

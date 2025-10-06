@@ -20,7 +20,7 @@
         [$width, $height, $type] = getimagesize($imagePath);
 
         // Check size
-        if (!is_image_size_acceptable($width, $height, $minWidth, $minHeight)) {
+        if ($skipRatioSize && !is_image_size_acceptable($width, $height, $minWidth, $minHeight)) {
             return ['status' => false, 'message' => "Image too small. Minimum required size is {$minWidth}x{$minHeight} pixels."];
         }
 
@@ -75,41 +75,46 @@
      * @param int $tolerance Tolerance level for color matching (default is 50).
      * @return bool True if the background color matches, false otherwise.
      */
-    function is_background_color_match($imagePath, $targetColor = [255, 0, 0], $tolerance = 50)
-    {
+    function is_background_color_match($imagePath, $targetColor = [255, 0, 0], $tolerance = 120){
         $image = imagecreatefromstring(file_get_contents($imagePath));
-        $width = imagesx($image);
+        if (!$image) {
+            return false;
+        }
+
+        $width  = imagesx($image);
         $height = imagesy($image);
 
-        $sampleSize = 20; // pixels to sample around edges
-        $totalSamples = 0;
-        $matchingSamples = 0;
+        $samples = [];
 
-        // Sample pixels from edges only (top, bottom, left, right)
+        // --- Sample top and bottom edges
         for ($x = 0; $x < $width; $x++) {
             foreach ([0, $height - 1] as $y) {
-                $rgb = getRGBAt($image, $x, $y);
-                if (is_color_close($rgb, $targetColor, $tolerance)) {
-                    $matchingSamples++;
-                }
-                $totalSamples++;
+                $samples[] = getRGBAt($image, $x, $y);
             }
         }
 
+        // --- Sample left and right edges
         for ($y = 0; $y < $height; $y++) {
             foreach ([0, $width - 1] as $x) {
-                $rgb = getRGBAt($image, $x, $y);
-                if (is_color_close($rgb, $targetColor, $tolerance)) {
-                    $matchingSamples++;
-                }
-                $totalSamples++;
+                $samples[] = getRGBAt($image, $x, $y);
             }
         }
 
         imagedestroy($image);
 
-        // At least 80% of the edge should match the target color
-        return ($totalSamples > 0) && (($matchingSamples / $totalSamples) >= 0.8);
+        if (empty($samples)) {
+            return false;
+        }
+
+        // --- Compute average color of sampled edge pixels
+        $avgColor = [
+            array_sum(array_column($samples, 0)) / count($samples),
+            array_sum(array_column($samples, 1)) / count($samples),
+            array_sum(array_column($samples, 2)) / count($samples),
+        ];
+
+        // --- Check closeness with Euclidean distance
+        return is_color_close_euclidean($avgColor, $targetColor, $tolerance);
     }
 
     /**

@@ -35,6 +35,7 @@
                 '/approve-student/{indexnumber}/{guardian}/{id}' => ['file' => 'admin/approve-student.php'],
                 '/students' => ['file' => 'admin/pages/students/index.php'],
                 '/staff' => ['file' => 'admin/pages/staff/index.php'],
+                '/staff/teachers' => ['file' => 'admin/pages/staff/teachers.php'],
             ]
         ],
 

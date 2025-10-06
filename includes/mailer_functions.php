@@ -263,74 +263,96 @@
         ]));
     }
 
-/**
- * Sends an account creation confirmation email to the user
- * @param string $email The recipient's email address
- * @return void|false
- */
-function send_account_created_email(string $email) {
-    if(empty($email)) {
-        return false;
-    }
+    /**
+     * Sends an account creation confirmation email to the user
+     * @param string $email The recipient's email address
+     * @param ?array $details Other details to send with the mail
+     * @return void|false
+     */
+    function send_account_created_email(string $email, ?array $details = null) {
+        if (empty($email)) {
+            return false;
+        }
 
-    // Email subject
-    $subject = "Welcome to CollegeSchool - Account Created Successfully";
-    $company = "SHSDesk";
-    $login_url = url("/");
+        // Email subject
+        $subject = "Welcome to CollegeSchool - Account Created Successfully";
+        $company = "SHSDesk";
+        $login_url = url("/");
 
-    // Get school logo if available
-    if(!empty($logo = school()["logo"])){
-        $header = "
-            <div class=\"header\">
-                <img src=\"".url($logo)."\" alt=\"Company Logo\">
-            </div>
-        ";
-    }else{
-        $header = "";
-    }
-
-    // Email body
-    $message = "
-        <html lang=\"en\">
-            <head>
-                <title>Account Created</title>
-                <style>
-                    body {font-family: Arial, sans-serif;background-color: #f4f4f4;margin: 0;padding: 0;}
-                    .container {max-width: 600px;margin: 0 auto;background-color: #ffffff;padding: 20px;border-radius: 8px;box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);}
-                    .header {text-align: center;padding: 10px 0;}
-                    .header img {width: 100px;}
-                    .content {text-align: center;padding: 20px;}
-                    .content h1 {color: #333333;}
-                    .content p {color: #666666;line-height: 1.6;}
-                    .button {display: inline-block;padding: 10px 20px;margin: 20px 0;background-color: #28a745;color: #ffffff;text-decoration: none;border-radius: 5px;}
-                    .footer {text-align: center;padding: 10px 0;color: #999999;font-size: 12px;}
-                </style>
-            </head>
-            <body>
-                <div class=\"container\">
-                    $header
-                    <div class=\"content\">
-                        <h1>Welcome to $company!</h1>
-                        <p>Hello there!</p>
-                        <p>Your account has been successfully created. You can now log in to complete your profile setup and explore all the features we offer.</p>
-                        <a href=\"$login_url\" class=\"button\" target=\"_blank\">Login to Your Account</a>
-                        <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
-                    </div>
-                    <div class=\"footer\">
-                        <p>&copy; ".date("Y")." $company. All rights reserved.</p>
-                    </div>
+        // Get school logo if available
+        if (!empty($logo = school()["logo"])) {
+            $header = "
+                <div class=\"header\">
+                    <img src=\"" . url($logo) . "\" alt=\"Company Logo\">
                 </div>
-            </body>
-        </html>
-    ";
+            ";
+        } else {
+            $header = "";
+        }
 
-    // Send email using job queue
-    add_job("email", create_payload("send_email", [
-        "message" => $message,
-        "subject" => $subject,
-        "receipients" => $email
-    ]));
-}
+        // Build extra details if provided
+        $extra_details_html = "";
+        if (!empty($details)) {
+            $details_html = "";
+            foreach ($details as $key => $value) {
+                // Clean up key (replace underscores/dashes with spaces, capitalize words)
+                $label = ucwords(str_replace(['_', '-'], ' ', $key));
+                $details_html .= "<tr><td style='padding:5px 10px; font-weight:bold; text-align:left;'>$label:</td><td style='padding:5px 10px; text-align:left;'>$value</td></tr>";
+            }
+
+            $extra_details_html = "
+                <div style='margin-top:20px; text-align:left;'>
+                    <h3 style='color:#333;'>Account Details</h3>
+                    <table style='width:100%; border-collapse:collapse;'>
+                        $details_html
+                    </table>
+                </div>
+            ";
+        }
+
+        // Email body
+        $message = "
+            <html lang=\"en\">
+                <head>
+                    <title>Account Created</title>
+                    <style>
+                        body {font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 0;}
+                        .container {max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);}
+                        .header {text-align: center; padding: 10px 0;}
+                        .header img {width: 100px;}
+                        .content {text-align: center; padding: 20px;}
+                        .content h1 {color: #333333;}
+                        .content p {color: #666666; line-height: 1.6;}
+                        .button {display: inline-block; padding: 10px 20px; margin: 20px 0; background-color: #28a745; color: #ffffff; text-decoration: none; border-radius: 5px;}
+                        .footer {text-align: center; padding: 10px 0; color: #999999; font-size: 12px;}
+                    </style>
+                </head>
+                <body>
+                    <div class=\"container\">
+                        $header
+                        <div class=\"content\">
+                            <h1>Welcome to $company!</h1>
+                            <p>Hello there!</p>
+                            <p>Your account has been successfully created. You can now log in to complete your profile setup and explore all the features we offer.</p>
+                            <a href=\"$login_url\" class=\"button\" target=\"_blank\">Login to Your Account</a>
+                            $extra_details_html
+                            <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
+                        </div>
+                        <div class=\"footer\">
+                            <p>&copy; " . date("Y") . " $company. All rights reserved.</p>
+                        </div>
+                    </div>
+                </body>
+            </html>
+        ";
+
+        // Send email using job queue
+        add_job("email", create_payload("send_email", [
+            "message" => $message,
+            "subject" => $subject,
+            "receipients" => $email
+        ]));
+    }
 
     /**
      * This is used for email verification 

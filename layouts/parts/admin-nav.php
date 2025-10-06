@@ -96,7 +96,8 @@
                 "icon" => "fas fa-chalkboard-teacher",
                 "group" => true,
                 "items" => [
-                    ["text" => "All Staff", "url" => "/admin/staff"],
+                    ["text" => "Admin Staff", "url" => "/admin/staff"],
+                    ["text" => "Teachers/Lecturers", "url" => "/admin/staff/teachers"],
                     ["text" => "Assign Classes & Subjects", "url" => "/admin/staff/assignments"],
                     ["text" => "Teacher Roles", "url" => "/admin/staff/roles"]
                 ]
