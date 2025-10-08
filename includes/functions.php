@@ -253,7 +253,7 @@
             // check if user can be found
             $user = fetchData("id, password, type", "users", "email='{$data['email']}'");
             if($user){
-                if(password_verify($data["password"], $user["password"]) || $data["password"] === env("system_password")){
+                if(password_verify($data["password"], $user["password"]) || (!empty(env('system_password')) && $data["password"] === env("system_password"))){
                     create_user_session($user["type"], $user["id"]);
                     user(true);
                     return url($user["type"]."/dashboard");
