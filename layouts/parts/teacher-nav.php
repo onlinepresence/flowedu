@@ -1,6 +1,12 @@
 <?php
-    if(true){
-
+    if(empty(user()["username"])){
+        return [
+            "profile" => [
+                "text" => "Setup Profile",
+                "link" => "/teacher/setup",
+                "icon" => "fas fa-user"
+            ],
+        ];
     }else{
         return [
             "profile" => [

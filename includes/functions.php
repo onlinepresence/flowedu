@@ -778,11 +778,17 @@ function create_course_code(int $program_id, int $year, int $semester): string|f
                     "s.id AS student_id", "index_number", "department_id", "program_id", "profile_pic",
                     "date_of_birth", "gender", "nationality", "ghana_card", "religion", "current_year",
                     "contact_address", "phone_number", "admission_date", "graduated", "account_bank",
-                    "account_number", "allergy", "insurance_number", "hall_id", "is_new", "approved"
+                    "account_number", "allergy", "insurance_number", "hall_id", "is_new", "approved",
+                    "s.created_at", "s.updated_at"
                 ];
                 break;
             case "teacher":
-                $cols = ["t.id AS teacher_id", "ghana_card"];
+                $cols = [
+                    "t.id AS teacher_id", "t.phone_number",
+                    "t.address", "t.ghana_card", "t.profile_pic", "t.cv", "t.id_document",
+                    "t.certificate_document", "t.department_id", "t.qualifications", "t.password_reset_required", 
+                    "t.created_at", "t.updated_at"
+                ];
                 break;
             default:
                 $cols = [];

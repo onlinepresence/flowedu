@@ -107,3 +107,15 @@
 
         $next();
     }
+
+    function valid_teacher($next){
+        $user = user();
+
+        if(empty($user["username"])){
+            $_SESSION["errors"]["system_message"] = "Complete your user profile to proceed";
+            send_to_next_request();
+            header("location: /teacher/setup");
+        }
+
+        $next();
+    }
