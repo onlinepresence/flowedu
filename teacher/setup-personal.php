@@ -39,6 +39,11 @@ ob_start();
                             <?php if(!$isProfilePage): ?>
                                 <?= hidden_input("new_user", "1") ?>
                             <?php endif; ?>
+
+                            <!-- Password helper text -->
+                            <div class="sm:col-span-2 lg:col-span-3">
+                                <?= password_hint_component() ?>
+                            </div>
                         </div>
 
                         <div class="mt-4 sm:w-48">
@@ -50,56 +55,56 @@ ob_start();
 
             <?php if($isProfilePage || (!$hasUsername && !$requiresReset)): ?>
                 <!-- change details -->
-                <div id="view-details">
+                <div id="view-details" class="space-y-6">
                     <!-- PERSONAL INFORMATION -->
                     <?= fieldset_start(); ?>
                         <?= fieldset_legend("Personal Information"); ?>
 
-                        <?= information_bar(
+                        <!-- <?= information_bar(
                             "Please ensure your profile picture has a solid background (preferably blue or red), minimum size 300 x 400 pixels (7:9 ratio).",
                             attributes: attribute("class", "mb-4 text-sm rounded-sm")
-                        ); ?>
+                        ); ?> -->
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                             
                             <!-- Profile Picture -->
                             <div>
                                 <?php
-                                    $sub_text = user()["profile_pic"] 
-                                        ? "<a href=\"".asset(user()['profile_pic'])."\" target=\"_blank\">View Profile Picture</a>" 
+                                    $sub_text = $teacher["profile_pic"] 
+                                        ? "<a href=\"".asset($teacher['profile_pic'], false)."\" target=\"_blank\">View Profile Picture</a>" 
                                         : "";
-                                    echo input_h("file", "Profile Picture", "profile_pic", required: empty(user()["profile_pic"]), 
+                                    echo input_h("file", "Profile Picture", "profile_pic", required: empty($teacher["profile_pic"]), 
                                         sub_text: $sub_text, attributes: attribute("accept", "image/*"));
                                 ?>
                             </div>
 
                             <!-- Last Name -->
                             <div>
-                                <?= input("text", "Last Name", "lastname", user()["lastname"] ?? "", true, placeholder("Enter your last name")); ?>
+                                <?= input("text", "Last Name", "lastname", $teacher["lastname"] ?? "", true, placeholder("Enter your last name")); ?>
                             </div>
 
                             <!-- Other Names -->
                             <div>
-                                <?= input("text", "Other Names", "othernames", user()["othernames"] ?? "", true, placeholder("Enter your other names")); ?>
+                                <?= input("text", "Other Names", "othernames", $teacher["othernames"] ?? "", true, placeholder("Enter your other names")); ?>
                             </div>
 
                             <!-- Gender -->
-                            <?= select("gender", "Gender", ["male" => "Male", "female" => "Female"], true, value: user()["gender"] ?? ""); ?>
+                            <?= select("gender", "Gender", ["male" => "Male", "female" => "Female"], true, value: $teacher["gender"] ?? ""); ?>
 
                             <!-- Date of Birth -->
-                            <?= input("date", "Date of Birth", "date_of_birth", user()["date_of_birth"] ?? "", true); ?>
+                            <?= input("date", "Date of Birth", "date_of_birth", $teacher["date_of_birth"] ?? "", true); ?>
 
                             <!-- Nationality -->
-                            <?= select("nationality", "Nationality", nationalities(), true, value: user()["nationality"] ?? "ghanaian"); ?>
+                            <?= select("nationality", "Nationality", nationalities(), true, value: $teacher["nationality"] ?? "ghanaian"); ?>
 
                             <!-- Ghana Card -->
-                            <?= input("text", "Ghana Card Number", "ghana_card", user()["ghana_card"] ?? "", true, placeholder("GHA-XXXXXXXXX-X")); ?>
+                            <?= input("text", "Ghana Card Number", "ghana_card", $teacher["ghana_card"] ?? "", true, placeholder("GHA-XXXXXXXXX-X")); ?>
 
                             <!-- Contact Address -->
-                            <?= input("text", "Contact Address", "contact_address", user()["contact_address"] ?? "", true, placeholder("House No. / GPS Address / Street, City, Region")); ?>
+                            <?= input("text", "Contact Address", "contact_address", $teacher["contact_address"] ?? "", true, placeholder("House No. / GPS Address / Street, City, Region")); ?>
 
                             <!-- Phone -->
-                            <?= input("tel", "Phone Number", "phone_number", user()["phone_number"] ?? "", true, placeholder("e.g., 0241234567")); ?>
+                            <?= input("tel", "Phone Number", "phone_number", $teacher["phone_number"] ?? "", true, placeholder("e.g., 0241234567")); ?>
 
                         </div>
                     <?= fieldset_end(); ?>
@@ -111,7 +116,7 @@ ob_start();
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 
                             <!-- Staff ID -->
-                            <?= input("text", "Staff ID", "staff_id", user()["staff_id"] ?? "", true, placeholder("Enter staff ID")); ?>
+                            <?= input("text", "Staff ID", "staff_id", $teacher["staff_id"] ?? "", true, placeholder("Enter staff ID")); ?>
 
                             <!-- Department -->
                             <?php 
@@ -120,7 +125,7 @@ ob_start();
                                 foreach($departments as $dept){
                                     $dept_opts[$dept["id"]] = $dept["name"];
                                 }
-                                echo select("department_id", "Department", $dept_opts, true, value: user()["department_id"] ?? "");
+                                echo select("department_id", "Department", $dept_opts, true, value: $teacher["department_id"] ?? "");
                             ?>
 
                             <!-- Rank -->
@@ -130,7 +135,7 @@ ob_start();
                                 "Senior Lecturer" => "Senior Lecturer",
                                 "Associate Professor" => "Associate Professor",
                                 "Professor" => "Professor"
-                            ], true, value: user()["rank"] ?? ""); ?>
+                            ], true, value: $teacher["rank"] ?? ""); ?>
 
                             <!-- Highest Qualification -->
                             <?= select("qualification", "Highest Qualification", [
@@ -140,20 +145,20 @@ ob_start();
                                 "B.Ed" => "B.Ed",
                                 "BSc" => "BSc",
                                 "Other" => "Other"
-                            ], true, value: user()["qualification"] ?? ""); ?>
+                            ], true, value: $teacher["qualification"] ?? ""); ?>
 
                             <!-- Field of Specialization -->
-                            <?= input("text", "Field of Specialization", "specialization", user()["specialization"] ?? "", true, placeholder("e.g., Mathematics, Computer Science, English Language")); ?>
+                            <?= input("text", "Field of Specialization", "specialization", $teacher["specialization"] ?? "", true, placeholder("e.g., Mathematics, Computer Science, English Language")); ?>
 
                             <!-- Employment Type -->
                             <?= select("employment_type", "Employment Type", [
                                 "Full-time" => "Full-time",
                                 "Part-time" => "Part-time",
                                 "Visiting" => "Visiting"
-                            ], true, value: user()["employment_type"] ?? "Full-time"); ?>
+                            ], true, value: $teacher["employment_type"] ?? "Full-time"); ?>
 
                             <!-- Years of Experience -->
-                            <?= input("number", "Years of Experience", "years_experience", user()["years_experience"] ?? "", true, attribute("min", 0)); ?>
+                            <?= input("number", "Years of Experience", "years_experience", $teacher["years_experience"] ?? "", true, attribute("min", 0)); ?>
                         </div>
                     <?= fieldset_end(); ?>
 
@@ -162,11 +167,11 @@ ob_start();
                         <?= fieldset_legend("Academic Documents"); ?>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            <?= input_h("file", "Curriculum Vitae (CV)", "cv", required: empty(user()["cv"]), attributes: attribute("accept", ".pdf,.doc,.docx")); ?>
+                            <?= input_h("file", "Curriculum Vitae (CV)", "cv", required: empty($teacher["cv"]), attributes: attribute("accept", ".pdf,.doc,.docx")); ?>
 
-                            <?= input_h("file", "Highest Certificate", "certificate", required: empty(user()["certificate"]), attributes: attribute("accept", ".pdf,.jpg,.png")); ?>
+                            <?= input_h("file", "Highest Certificate", "certificate", required: empty($teacher["certificate"]), attributes: attribute("accept", ".pdf,.jpg,.png")); ?>
 
-                            <?= input_h("file", "Staff ID or National ID", "id_document", required: empty(user()["id_document"]), attributes: attribute("accept", ".pdf,.jpg,.png")); ?>
+                            <?= input_h("file", "Staff ID or National ID", "id_document", required: empty($teacher["id_document"]), attributes: attribute("accept", ".pdf,.jpg,.png")); ?>
                         </div>
                     <?= fieldset_end(); ?>
 
@@ -175,11 +180,11 @@ ob_start();
                         <?= fieldset_legend("Additional Information"); ?>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            <?= input("text", "Emergency Contact Name", "emergency_name", user()["emergency_name"] ?? "", false, placeholder("Name of person to contact in emergency")); ?>
+                            <?= input("text", "Emergency Contact Name", "emergency_name", $teacher["emergency_name"] ?? "", false, placeholder("Name of person to contact in emergency")); ?>
 
-                            <?= input("tel", "Emergency Contact Number", "emergency_phone", user()["emergency_phone"] ?? "", false, placeholder("024xxxxxxx")); ?>
+                            <?= input("tel", "Emergency Contact Number", "emergency_phone", $teacher["emergency_phone"] ?? "", false, placeholder("024xxxxxxx")); ?>
 
-                            <?= textarea("research_interests", "Research Interests / Short Bio", user()["research_interests"] ?? "", attributes: placeholder("e.g., Artificial Intelligence, Educational Psychology, etc.")); ?>
+                            <?= textarea("research_interests", "Research Interests / Short Bio", $teacher["research_interests"] ?? "", attributes: placeholder("e.g., Artificial Intelligence, Educational Psychology, etc.")); ?>
                         </div>
                     <?= fieldset_end(); ?>
 
@@ -187,7 +192,7 @@ ob_start();
                     <div class="mt-4 sm:w-48">
                         <?= button(
                             "submit",
-                            empty($teacher()["username"]) ? "Submit Lecturer Details" : "Save Changes",
+                            empty($teacher["username"]) ? "Submit Lecturer Details" : "Save Changes",
                             "submit",
                             "save_teacher",
                             "blue",

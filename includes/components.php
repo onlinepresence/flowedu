@@ -21,7 +21,7 @@
         $asterisks = $required ? "*" : "";
         $required = required($required);
         $error = $_SESSION["errors"][$name] ?? "";
-        $value = old($name, $value);
+        $value = $type != "password" ? old($name, $value) : "";
 
         $input = "
             <label class=\"block text-sm\">
@@ -77,7 +77,7 @@
         $asterisks = $required ? "*" : "";
         $required = required($required);
         $error = $_SESSION["errors"][$name] ?? "";
-        $value = old($name, $value);
+        $value = $type != "password" ? old($name, $value) : "";
         
         $input = "
             <label class=\"block text-sm\">
@@ -1153,3 +1153,61 @@
             </div>
         ";
     }
+
+    /**
+     * Creates a password hint component
+     * @param array $attributes Additional HTML attributes
+     * @return string HTML password hint element
+     */
+    function password_hint_component($attributes = []) {
+        $message = '
+        <p>
+            Use at least <span class="font-medium text-gray-800 dark:text-gray-100">8 characters</span>, including a
+            <span class="font-medium text-gray-800 dark:text-gray-100">number</span> and a
+            <span class="font-medium text-gray-800 dark:text-gray-100">special character</span>.
+        </p>';
+
+        // Use the hint_bar() to render the message
+        return hint_bar(
+            $message,
+            attributes:$attributes,
+            icon: "fa-solid fa-circle-info"
+        );
+    }
+
+    /**
+     * Creates a hint bar (alert/callout) element
+     * @param string $body Inner HTML content
+     * @param string $type Bar type (info, success, warning, error)
+     * @param bool $can_hide Whether the bar can be dismissed
+     * @param array $attributes Additional HTML attributes
+     * @param string|null $icon Optional Font Awesome icon class (e.g. "fa-solid fa-check-circle")
+     * @return string HTML hint bar element
+     */
+    function hint_bar($body = "", $type = "info", $can_hide = false, $attributes = [], $icon = null) {
+        $colors = [
+            "success" => ["bg" => "bg-green-100 dark:bg-green-900/40", "text" => "text-green-800 dark:text-green-200", "border" => "border-green-300 dark:border-green-700"],
+            "error"   => ["bg" => "bg-red-100 dark:bg-red-900/40", "text" => "text-red-800 dark:text-red-200", "border" => "border-red-300 dark:border-red-700"],
+            "warning" => ["bg" => "bg-yellow-100 dark:bg-yellow-900/40", "text" => "text-yellow-800 dark:text-yellow-200", "border" => "border-yellow-300 dark:border-yellow-700"],
+            "info"    => ["bg" => "bg-blue-100 dark:bg-blue-900/40", "text" => "text-blue-800 dark:text-blue-200", "border" => "border-blue-300 dark:border-blue-700"],
+        ];
+
+        $color = $colors[$type] ?? $colors["info"];
+        $attr = convert_attributes($attributes);
+        $class_ = merge_class($attributes);
+
+        $alpine = $can_hide ? "x-data=\"{ show: true }\" x-show=\"show\" @click=\"show = false\"" : "";
+
+        $icon_html = $icon 
+            ? "<i class=\"$icon mt-0.5\"></i>" 
+            : "";
+
+        return "
+            <div $alpine class=\"border-l-4 p-3 rounded-md flex items-start space-x-2 {$color['bg']} {$color['text']} {$color['border']} $class_\" $attr>
+                $icon_html
+                <div class=\"flex-1\">$body</div>
+            </div>
+        ";
+    }
+
+

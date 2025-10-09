@@ -73,6 +73,11 @@
                 } else {
                     $errors["password"] = "Password is required";
                 }
+            }elseif(($pass_error = is_valid_password($password)) !== true){
+                $errors["password"] = $pass_error;
+            }elseif($type == "teacher"){
+                // alert teacher to not change password
+                $_POST["password_reset_required"] = 0;
             }
 
             if(!$errors){

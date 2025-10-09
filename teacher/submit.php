@@ -20,15 +20,41 @@
                 $errors["system_message"] = "User defined is invalid";
             }if(empty($password)){
                 $errors["password"] = "Password is required";
-            }if(empty($confirm_password)){
+            }elseif(empty($confirm_password)){
                 $errors["confirm_password"] = "Please confirm your password";
-            }if($password !== $confirm_password){
+            }elseif($password !== $confirm_password){
                 $errors["password"] = "Passwords do not match";
+            }elseif(($pass_error = is_valid_password($password)) !== true){
+                $errors["password"] = $pass_error;
             }
 
             if(empty($errors)){
-                $errors["system_message"] = "Not done yet. Try at a later time.";
+                $data = form_data(exclude: ["new_user", "confirm_password", "user_id"]);
+                $data["password"] = password_hash($data["password"], PASSWORD_DEFAULT);
+                $response = update(user(), $data, "users", ["id"]);
+
+                if($response === true){
+                    if($new_user){
+                        $data = [
+                            "user_id" => $user_id, "password_reset_required" => false
+                        ];
+                        update(user(), $data, "teachers", ["user_id"]);
+
+                        // update user session information
+                        user(true);
+                    }
+
+                    $_SESSION["system_message"] = "Password has been reset";
+                }else{
+                    if(empty($_SESSION["errors"]["system_message"])){
+                        $errors["system_message"] = is_string($response) ? $response : "User update could not be parsed";
+                    }else{
+                        $errors["system_message"] = $_SESSION["errors"]["system_message"];
+                    }
+                }
             }
+        }elseif($submit == "save_teacher"){
+            
         }
     }else{
         $errors["system_message"] = "No submission provided";

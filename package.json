@@ -19,5 +19,9 @@
   "description": "",
   "devDependencies": {
     "tailwindcss": "^3.4.17"
+  },
+  "scripts": {
+    "build": "npx tailwindcss -i ./assets/css/tailwind.css -o ./assets/css/app.css --minify",
+    "watch": "npx tailwindcss -i ./assets/css/tailwind.css -o ./assets/css/app.css --watch"
   }
 }

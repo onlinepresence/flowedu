@@ -1219,6 +1219,27 @@ function create_course_code(int $program_id, int $year, int $semester): string|f
         return $password;
     }
 
+    /**
+     * Used to validate a strong password
+     * @param string $password The password to check
+     * @return true|string
+     */
+    function is_valid_password(string $password):true|string{
+        $message = true;
+
+        if(!preg_match('/[A-Z]/', $password)){
+            $message = "Password must contain at least one uppercase letter";
+        }elseif(!preg_match('/[a-z]/', $password)){
+            $message = "Password must contain at least one lowercase letter";
+        }elseif(!preg_match('/[0-9]/', $password)){
+            $message = "Password must contain at least one number";
+        }elseif(!preg_match('/[\W_]/', $password)){
+            $message = "Password must contain at least one special character";
+        }
+
+        return $message;
+    }
+
     require_once "mailer_functions.php";
     require_once "jobs.php";
     require_once "student_function.php";
