@@ -15,8 +15,8 @@
             $exclude = $exclude ?? ["class", "type", "name", "value", "required"];
 
             foreach($attributes as $attribute => $value){
-                if(!in_array($attribute, $exclude)){
-                    $attr[] = "$attribute = \"$value\"";
+                if(!in_array($attribute, $exclude) && $value !== false){
+                    $attr[] = is_null($value) ? "$attribute" : "$attribute = \"$value\"";
                 }
             }
             $attr = implode(" ", $attr);

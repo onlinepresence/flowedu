@@ -498,79 +498,79 @@
         return $column ? $course[$column] : $course;
     }
 
-/**
- * Shortens a word/phrase into a code of at least 3 characters
- * @param string $text The text to be shortened
- * @return string
- */
-function shorten_to_code(string $text): string {
-    // Remove any non-alphabetic characters
-    $text = preg_replace('/[^a-zA-Z\s]/', '', $text);
-    
-    $words = explode(' ', strtoupper($text));
-    $words = array_filter($words); // Remove empty elements
-    $word_count = count($words);
-    
-    if ($word_count == 1) {
-        // For single word, take first 3 characters minimum
-        return substr($words[0], 0, max(3, min(4, strlen($words[0]))));
-    } else if ($word_count == 2) {
-        // For 2 words, take first char of first word and first 2 chars of second
-        return substr($words[0], 0, 1) . substr($words[1], 0, 2);
-    } else {
-        // For 3+ words, take first letter of each word (up to 4 words)
-        $code = '';
-        $words = array_values($words); // Reindex array after filtering
-        for ($i = 0; $i < min(4, $word_count); $i++) {
-            $code .= substr($words[$i], 0, 1);
+    /**
+     * Shortens a word/phrase into a code of at least 3 characters
+     * @param string $text The text to be shortened
+     * @return string
+     */
+    function shorten_to_code(string $text): string {
+        // Remove any non-alphabetic characters
+        $text = preg_replace('/[^a-zA-Z\s]/', '', $text);
+        
+        $words = explode(' ', strtoupper($text));
+        $words = array_filter($words); // Remove empty elements
+        $word_count = count($words);
+        
+        if ($word_count == 1) {
+            // For single word, take first 3 characters minimum
+            return substr($words[0], 0, max(3, min(4, strlen($words[0]))));
+        } else if ($word_count == 2) {
+            // For 2 words, take first char of first word and first 2 chars of second
+            return substr($words[0], 0, 1) . substr($words[1], 0, 2);
+        } else {
+            // For 3+ words, take first letter of each word (up to 4 words)
+            $code = '';
+            $words = array_values($words); // Reindex array after filtering
+            for ($i = 0; $i < min(4, $word_count); $i++) {
+                $code .= substr($words[$i], 0, 1);
+            }
+            return $code;
         }
-        return $code;
-    }
-}
-
-/**
- * Creates a course code based on program, year and semester
- * @param int $program_id The program ID
- * @param int $year The course year
- * @param int $semester The semester number
- * @return string|false
- */
-function create_course_code(int $program_id, int $year, int $semester): string|false {
-    // Get program name and existing courses for this semester
-    $program = fetchData(
-        ["p.name", "COUNT(c.id) as course_count"],
-        ["join" => "programs courses", "on" => "id program_id", "alias" => "p c"],
-        "p.id = $program_id",
-        join_type: "left", 
-        group_by: "p.id"
-    );
-
-    if (!$program) {
-        return false;
     }
 
-    // Create program code from name
-    $program_code = shorten_to_code($program["name"]);
-    
-    // Calculate level (100, 200, 300, 400)
-    if(in_array($year, [1, 2, 3, 4])){
-        $level = $year * 100;
-    }elseif(!in_array($year, [100,200,300,400])){
-        return false;
+    /**
+     * Creates a course code based on program, year and semester
+     * @param int $program_id The program ID
+     * @param int $year The course year
+     * @param int $semester The semester number
+     * @return string|false
+     */
+    function create_course_code(int $program_id, int $year, int $semester): string|false {
+        // Get program name and existing courses for this semester
+        $program = fetchData(
+            ["p.name", "COUNT(c.id) as course_count"],
+            ["join" => "programs courses", "on" => "id program_id", "alias" => "p c"],
+            "p.id = $program_id",
+            join_type: "left", 
+            group_by: "p.id"
+        );
+
+        if (!$program) {
+            return false;
+        }
+
+        // Create program code from name
+        $program_code = shorten_to_code($program["name"]);
+        
+        // Calculate level (100, 200, 300, 400)
+        if(in_array($year, [1, 2, 3, 4])){
+            $level = $year * 100;
+        }elseif(!in_array($year, [100,200,300,400])){
+            return false;
+        }
+        
+        // Calculate sequence number based on existing courses
+        $count = ($program["course_count"] ?? 0);
+        
+        // For first semester, use odd numbers (101, 103, etc)
+        // For second semester, use even numbers (100, 102, etc)
+        $course_number = $semester == 1 
+            ? $level + 1 + ($count * 2)  // First semester: 101, 103, 105...
+            : $level + ($count * 2);      // Second semester: 100, 102, 104...
+        
+        // Combine program code and course number
+        return sprintf("%s %d", $program_code, $course_number);
     }
-    
-    // Calculate sequence number based on existing courses
-    $count = ($program["course_count"] ?? 0);
-    
-    // For first semester, use odd numbers (101, 103, etc)
-    // For second semester, use even numbers (100, 102, etc)
-    $course_number = $semester == 1 
-        ? $level + 1 + ($count * 2)  // First semester: 101, 103, 105...
-        : $level + ($count * 2);      // Second semester: 100, 102, 104...
-    
-    // Combine program code and course number
-    return sprintf("%s %d", $program_code, $course_number);
-}
 
     /**
      * This is basically used to get just one hall. Works with halls() function
@@ -786,7 +786,7 @@ function create_course_code(int $program_id, int $year, int $semester): string|f
                 $cols = [
                     "t.id AS teacher_id", "t.phone_number",
                     "t.contact_address", "t.ghana_card", "t.profile_pic", "t.cv", "t.id_document",
-                    "t.certificate", "t.department_id", "t.qualification", "t.password_reset_required",
+                    "t.certificate", "t.department_id", "staff_id", "t.qualification", "t.password_reset_required",
                     "research_interests", "t.created_at", "t.updated_at"
                 ];
                 break;
@@ -1033,32 +1033,6 @@ function create_course_code(int $program_id, int $year, int $semester): string|f
     }
 
     /**
-     * Used to validate if a phone number is valid
-     * @param string $phone The phone number to be checked
-     * @param ?string $provider The service provider
-     * @param int
-     */
-    function is_valid_phone_number(string $phone, ?string $provider = null) :int {
-        // Extract the first 3 digits of the phone number
-        $prefix = substr($phone, 0, 3);
-        
-        // If a provider is specified, validate it
-        if ($provider) {
-            global $provider_prefixes;
-
-            if (!isset($provider[$provider])) {
-                return -1;
-            }
-            return in_array($prefix, $provider_prefixes[$provider]);
-        }
-
-        global $phone_prefixes;
-
-        // Check if the prefix exists in the array
-        return in_array($prefix, $phone_prefixes);
-    }
-
-    /**
      * This function is used to serialize a data
      * @param mixed $data The data to be serialized
      * @return string
@@ -1194,16 +1168,6 @@ function create_course_code(int $program_id, int $year, int $semester): string|f
     }
 
     /**
-     * This is used to make sure the ghana card number provided is valid
-     */
-    function is_valid_ghana_card_number($number) {
-        // Pattern: GHA- followed by 9 digits, then a dash, then 1 digit
-        $pattern = '/^GHA-\d{9}-\d{1}$/';
-    
-        return preg_match($pattern, $number) === 1;
-    }
-
-    /**
      * Generate a strong random password.
      * Includes uppercase, lowercase, numbers, and symbols.
      */
@@ -1219,27 +1183,7 @@ function create_course_code(int $program_id, int $year, int $semester): string|f
         return $password;
     }
 
-    /**
-     * Used to validate a strong password
-     * @param string $password The password to check
-     * @return true|string
-     */
-    function is_valid_password(string $password):true|string{
-        $message = true;
-
-        if(!preg_match('/[A-Z]/', $password)){
-            $message = "Password must contain at least one uppercase letter";
-        }elseif(!preg_match('/[a-z]/', $password)){
-            $message = "Password must contain at least one lowercase letter";
-        }elseif(!preg_match('/[0-9]/', $password)){
-            $message = "Password must contain at least one number";
-        }elseif(!preg_match('/[\W_]/', $password)){
-            $message = "Password must contain at least one special character";
-        }
-
-        return $message;
-    }
-
     require_once "mailer_functions.php";
     require_once "jobs.php";
     require_once "student_function.php";
+    require_once "form-validation.php";

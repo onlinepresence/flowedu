@@ -119,3 +119,13 @@
 
         $next();
     }
+
+    function valid_teacher_check($next){
+        $user = user();
+
+        if(!empty($user["username"])){
+            header("location: /teacher/dashboard");
+        }
+
+        $next();
+    }

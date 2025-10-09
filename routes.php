@@ -87,7 +87,7 @@
         // teachers routes
         '/teacher/setup' => [
             'prefix' => '/teacher/setup',
-            'middleware' => ['auth', 'check_school_status'],
+            'middleware' => ['auth', 'valid_teacher_check', 'check_school_status'],
             'routes' => [
                 '/' => ['file' => 'teacher/setup-personal.php'],
                 // '/status' => ['file' => 'teacher/setup/activate.php'],
@@ -99,7 +99,8 @@
             'prefix' => '/teacher',
             'middleware' => ['auth', 'valid_teacher', 'check_school_status'],
             'routes' => [
-                '/dashboard' => ['file' => 'teacher/dashboard.php']
+                '/dashboard' => ['file' => 'teacher/dashboard.php'],
+                '/profile' => ['file' => 'teacher/setup-personal.php']
             ]
         ]
 

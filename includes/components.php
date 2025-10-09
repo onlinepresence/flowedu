@@ -320,10 +320,10 @@
     /**
      * Creates an attribute array
      * @param string $attribute Attribute name
-     * @param string $value Attribute value
+     * @param mixed $value Attribute value
      * @return array Attribute array
      */
-    function attribute($attribute, $value = ""){
+    function attribute(string $attribute, $value = null){
         return [$attribute => $value];
     }
 
@@ -617,34 +617,53 @@
      * Creates an alert message
      * @param string $text Alert text
      * @param string $type Alert type (success/error/warning)
-     * @param string $icon Custom icon class
      * @return string HTML alert element
      */
-    function alert($text = "", $type = "", $icon = ""){
-        $icons = [
-            "success" => ["icon" => "fas fa-check", "color" => "green"],
-            "error" => ["icon" => "fas fa-times-circle", "color" => "red"],
-            "warning" => ["icon" => "fas fa-exclamation", "color" => "yellow"]
+    function alert($text = "", $type = "info"){
+        // Define type-based styling and icons (Font Awesome)
+        $styles = [
+            "success" => [
+                "icon" => "fa-solid fa-circle-check",
+                "bg" => "bg-green-600",
+            ],
+            "error" => [
+                "icon" => "fa-solid fa-circle-xmark",
+                "bg" => "bg-red-600",
+            ],
+            "warning" => [
+                "icon" => "fa-solid fa-triangle-exclamation",
+                "bg" => "bg-yellow-500",
+            ],
+            "info" => [
+                "icon" => "fa-solid fa-circle-info",
+                "bg" => "bg-slate-800",
+            ],
         ];
 
-        if(empty($icon)){
-            $icon = $icons[$type]["icon"] ?? "fas fa-bell";
-            $color = $icons[$type]["color"] ?? "neutral";
-        }
+        $style = $styles[$type] ?? $styles["info"];
 
         return "
-            <div x-data=\"{ show: true }\" x-show=\"show\" @click=\"show = false\" class=\"flex justify-between p-4 cursor-pointer rounded-md bg-$color-50 border border-$color-300\">
-                <div class=\"flex gap-3 sm:items-center\">
-                    <div>
-                        <i class=\"w-6 h-6 $icon text-$color-500\"></i>
-                    </div>
-                    <p class=\"text-$color-600 sm:text-sm\">
-                        $text
-                    </p>
-                </div>
+            <div 
+                role=\"alert\" 
+                class=\"mt-3 relative flex w-full items-center p-3 text-sm text-white {$style['bg']} rounded-md\" 
+                x-data=\"{ show: true }\" 
+                x-show=\"show\" 
+                x-transition.opacity.duration.300ms
+            >
+                <i class=\"{$style['icon']} mr-2 text-white/90\"></i>
+                <span class=\"flex-1\">$text</span>
+                
+                <button 
+                    type=\"button\" 
+                    @click=\"show = false\" 
+                    class=\"flex items-center justify-center transition-all px-2 h-8 rounded-md text-white hover:bg-white/10 active:bg-white/10 absolute top-1.5 right-1.5\"
+                >
+                    <i class=\"fa-solid fa-xmark\"></i>
+                </button>
             </div>
         ";
     }
+
 
     /**
      * Creates an information bar
@@ -654,26 +673,58 @@
      * @param array $attributes Additional HTML attributes
      * @return string HTML information bar element
      */
-    function information_bar($text = "", $type = "", $can_hide = false, $attributes = []){
-        $colors = [
-            "success" => "green",
-            "error" => " red",
-            "warning" => "yellow"
+    function information_bar($text = "", $type = "info", $can_hide = false, $attributes = []){
+        // Font Awesome icons per type
+        $styles = [
+            "success" => [
+                "bg" => "bg-green-100",
+                "border" => "border-green-300",
+                "text" => "text-green-800",
+                "icon" => "fa-solid fa-circle-check"
+            ],
+            "error" => [
+                "bg" => "bg-red-100",
+                "border" => "border-red-300",
+                "text" => "text-red-800",
+                "icon" => "fa-solid fa-circle-xmark"
+            ],
+            "warning" => [
+                "bg" => "bg-yellow-100",
+                "border" => "border-yellow-300",
+                "text" => "text-yellow-800",
+                "icon" => "fa-solid fa-triangle-exclamation"
+            ],
+            "info" => [
+                "bg" => "bg-blue-100",
+                "border" => "border-blue-300",
+                "text" => "text-blue-800",
+                "icon" => "fa-solid fa-circle-info"
+            ],
         ];
 
-        $color = $colors[$type] ?? "neutral";
+        $style = $styles[$type] ?? $styles["info"];
         $attr = convert_attributes($attributes);
         $class_ = merge_class($attributes);
-        $alpine = $can_hide ? "x-data=\"{ show: true }\" x-show=\"show\" @click=\"show = false\"" : "";
+        $alpine = $can_hide ? "x-data=\"{ show: true }\" x-show=\"show\"" : "";
+
+        // Close button (if enabled)
+        $closeBtn = $can_hide
+            ? "<button @click=\"show = false\" class=\"ml-3 text-gray-500 hover:text-gray-700 transition\">
+                    <i class=\"fa-solid fa-xmark\"></i>
+                </button>"
+            : "";
 
         return "
             <div $alpine 
-                class=\"border-b border-$color-300 bg-$color-200 px-4 py-2 text-$color-900 $class_\" 
+                class=\"flex items-center justify-between rounded-md border {$style['border']} {$style['bg']} px-4 py-3 shadow-sm $class_\" 
+                role=\"alert\" 
                 $attr
             >
-                <p class=\"text-center font-medium\">
-                    $text
-                </p>
+                <div class=\"flex items-center space-x-3 {$style['text']}\">
+                    <i class=\"{$style['icon']} text-lg\"></i>
+                    <span class=\"font-medium\">$text</span>
+                </div>
+                $closeBtn
             </div>
         ";
     }

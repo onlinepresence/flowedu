@@ -65,6 +65,13 @@ ob_start();
                             attributes: attribute("class", "mb-4 text-sm rounded-sm")
                         ); ?> -->
 
+                        <?php if(!$isProfilePage): ?>
+                            <?= information_bar(
+                                "All fields with * mean they are required fields",  attributes: attribute("class", "mb-4 text-sm rounded-sm text-center")
+                            ) ?>
+
+                        <?php endif; ?>
+
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                             
                             <!-- Profile Picture -->
@@ -89,7 +96,7 @@ ob_start();
                             </div>
 
                             <!-- Gender -->
-                            <?= select("gender", "Gender", ["male" => "Male", "female" => "Female"], true, value: $teacher["gender"] ?? ""); ?>
+                            <?= select("gender", "Gender", ["male" => "Male", "female" => "Female"], true, value: $teacher["gender"] ?? "", required: true); ?>
 
                             <!-- Date of Birth -->
                             <?= input("date", "Date of Birth", "date_of_birth", $teacher["date_of_birth"] ?? "", true); ?>
@@ -116,7 +123,10 @@ ob_start();
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 
                             <!-- Staff ID -->
-                            <?= input("text", "Staff ID", "staff_id", $teacher["staff_id"] ?? "", true, placeholder("Enter staff ID")); ?>
+                            <?= input_h("text", "Staff ID", "staff_id", $teacher["staff_id"] ?? "", true, "Your staff ID will also serve as your username", array_merge(
+                                placeholder("Enter staff ID"),
+                                attribute("readonly", $teacher["staff_id"] ? null : false)
+                            )); ?>
 
                             <!-- Department -->
                             <?php 
@@ -171,7 +181,7 @@ ob_start();
 
                             <?= input_h("file", "Highest Certificate", "certificate", required: empty($teacher["certificate"]), attributes: attribute("accept", ".pdf,.jpg,.png")); ?>
 
-                            <?= input_h("file", "Staff ID or National ID", "id_document", required: empty($teacher["id_document"]), attributes: attribute("accept", ".pdf,.jpg,.png")); ?>
+                            <?= input_h("file", "National ID", "id_document", required: empty($teacher["id_document"]), attributes: attribute("accept", ".pdf,.jpg,.png")); ?>
                         </div>
                     <?= fieldset_end(); ?>
 
@@ -194,7 +204,7 @@ ob_start();
                             "submit",
                             empty($teacher["username"]) ? "Submit Lecturer Details" : "Save Changes",
                             "submit",
-                            "save_teacher",
+                            empty($teacher["username"]) ? "save_teacher" : "update_teacher",
                             "blue",
                         ); ?>
                     </div>

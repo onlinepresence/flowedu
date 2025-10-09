@@ -1,5 +1,6 @@
 /logs
 /assets/students
+/assets/teachers
 nationalities.json
 /node_modules
 .env

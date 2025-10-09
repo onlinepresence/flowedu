@@ -9,9 +9,14 @@
         ];
     }else{
         return [
+            "dashboard" => [
+                "text" => "My Dashboard",
+                "link" => "/teacher/dashboard",
+                "icon" => "fas fa-compass"
+            ],
             "profile" => [
                 "text" => "My Profile",
-                "link" => "/lecturer/profile",
+                "link" => "/teacher/profile",
                 "icon" => "fas fa-user"
             ],
         
@@ -20,9 +25,9 @@
                 "icon" => "fas fa-book-open",
                 "group" => true,
                 "items" => [
-                    ["text" => "Courses Assigned", "url" => "/lecturer/courses"],
-                    ["text" => "Course Materials", "url" => "/lecturer/courses/materials"],
-                    ["text" => "Class Timetable", "url" => "/lecturer/timetable"]
+                    ["text" => "Courses Assigned", "url" => "/teacher/courses"],
+                    ["text" => "Course Materials", "url" => "/teacher/courses/materials"],
+                    ["text" => "Class Timetable", "url" => "/teacher/timetable"]
                 ]
             ],
         
@@ -31,9 +36,9 @@
                 "icon" => "fas fa-users",
                 "group" => true,
                 "items" => [
-                    ["text" => "Student List", "url" => "/lecturer/students"],
-                    ["text" => "Attendance", "url" => "/lecturer/attendance"],
-                    ["text" => "Performance", "url" => "/lecturer/performance"]
+                    ["text" => "Student List", "url" => "/teacher/students"],
+                    ["text" => "Attendance", "url" => "/teacher/attendance"],
+                    ["text" => "Performance", "url" => "/teacher/performance"]
                 ]
             ],
         
@@ -42,8 +47,8 @@
                 "icon" => "fas fa-clipboard-list",
                 "group" => true,
                 "items" => [
-                    ["text" => "Upload Results", "url" => "/lecturer/results/upload"],
-                    ["text" => "Grade Submissions", "url" => "/lecturer/grades"],
+                    ["text" => "Upload Results", "url" => "/teacher/results/upload"],
+                    ["text" => "Grade Submissions", "url" => "/teacher/grades"],
                 ]
             ],
         
@@ -52,8 +57,8 @@
                 "icon" => "fas fa-envelope",
                 "group" => true,
                 "items" => [
-                    ["text" => "Announcements", "url" => "/lecturer/announcements"],
-                    ["text" => "Messages", "url" => "/lecturer/messages"]
+                    ["text" => "Announcements", "url" => "/teacher/announcements"],
+                    ["text" => "Messages", "url" => "/teacher/messages"]
                 ]
             ]
         ];

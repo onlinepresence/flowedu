@@ -53,8 +53,82 @@
                     }
                 }
             }
-        }elseif($submit == "save_teacher"){
-            
+        }elseif($submit == "save_teacher" || $submit == "update_teacher"){
+            $rules = [
+                "user_id"          => "required|numeric|positive",
+                "lastname"         => "required|string|max:50",
+                "othernames"       => "required|string|max:255",
+                "gender"           => "required|string",
+                "date_of_birth"    => "required|date",
+                "nationality"      => "required|string|max:255",
+                "ghana_card"       => "required|string|ghana_card",
+                "contact_address"  => "required|string|max:100",
+                "phone_number"     => "required|phone",
+                "staff_id"         => "required|string|max:15",
+                "department_id"    => "nullable|integer",
+                "rank"             => "nullable|string|max:30",
+                "qualification"    => "nullable|string|max:20",
+                "specialization"   => "required|string|max:50",
+                "employment_type"  => "nullable|string|max:20",
+                "years_experience" => "required|numeric|min:0|max:50",
+                "emergency_name"   => "nullable|string|max:50",
+                "emergency_phone"  => "nullable|phone",
+                "research_interests" => "nullable|string|max:255",
+                "cv" => "required|file|mimes:pdf,doc,docx|max:2048",
+                "profile_pic" => "required|file|mimes:jpg,jpeg,png|max:1024",
+                "id_document" => "required|file|mimes:pdf,doc,docx|max:2048",
+                "certificate" => "required|file|mimes:pdf,doc,docx|max:2048"
+            ];
+
+            $messages = [
+                "user_id" => [
+                    "required" => "User could not be defined or is invalid",
+                    "numeric"  => "User defined is invalid"
+                ]
+            ];
+
+            $errors = validate_form($rules, $messages);
+
+            if(!$errors){
+                $staff_id = $_POST["staff_id"];
+                $data = form_data("teachers/$staff_id");
+
+                // if updating, remove optional files
+                if($submit == "update_teacher"){
+                    if(empty($_FILES["cv"]["name"])){
+                        unset($data["cv"]);
+                    }
+                    if(empty($_FILES["profile_pic"]["name"])){
+                        unset($data["profile_pic"]);
+                    }
+                    if(empty($_FILES["id_document"]["name"])){
+                        unset($data["id_document"]);
+                    }
+                    if(empty($_FILES["certificate"]["name"])){
+                        unset($data["certificate"]);
+                    }
+                }
+
+                // update the teacher
+                $response = update(user(), $data, "teachers", ["user_id"]);
+
+                if($response){
+                    update(user(), ["username" => $staff_id], "users", ["id"]);
+                    $next_request = "teacher/dashboard";
+                    $_SESSION["system_message"] = ($submit === "update_teacher") ? "Your profile details have been updated successfully." : "Welcome aboard! Your information has been saved successfully.";
+
+                    // refresh user session
+                    user(true);
+                }else{
+                    if($submit == "save_teacher"){
+                        unlink(asset($data["certificate"], false, true));
+                        unlink(asset($data["profile_pic"], false, true));
+                        unlink(asset($data["id_document"], false, true));
+                        unlink(asset($data["cv"], false, true));
+                    }
+                }
+            }
+
         }
     }else{
         $errors["system_message"] = "No submission provided";
