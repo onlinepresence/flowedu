@@ -21,7 +21,7 @@ ob_start();
 
         <?php if($isProfilePage): ?>
             <div class="flex gap-4 border-b pb-2 mb-4 text-sm font-medium text-gray-700 dark:text-gray-200">
-                <a href="#" class="menu-link active" data-view="details">Change Details</a>
+                <a href="#" class="menu-link text-blue-600 dark:text-blue-300" data-view="details">Change Details</a>
                 <a href="#" class="menu-link" data-view="password">Change Password</a>
             </div>
         <?php endif; ?>
@@ -218,8 +218,8 @@ ob_start();
     $(document).ready(function(){
         $('.menu-link').on('click', function(e){
             e.preventDefault();
-            $('.menu-link').removeClass('active');
-            $(this).addClass('active');
+            $('.menu-link').removeClass('text-blue-600 dark:text-blue-300');
+            $(this).addClass('text-blue-600 dark:text-blue-300');
 
             const view = $(this).data('view');
             $('#view-container > div').addClass('hidden');

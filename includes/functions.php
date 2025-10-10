@@ -784,10 +784,11 @@
                 break;
             case "teacher":
                 $cols = [
-                    "t.id AS teacher_id", "t.phone_number",
-                    "t.contact_address", "t.ghana_card", "t.profile_pic", "t.cv", "t.id_document",
-                    "t.certificate", "t.department_id", "staff_id", "t.qualification", "t.password_reset_required",
-                    "research_interests", "t.created_at", "t.updated_at"
+                    "t.id AS teacher_id", "ghana_card", "profile_pic", "gender", "date_of_birth",
+                    "nationality", "contact_address", "phone_number", "staff_id", "department_id", "rank",
+                    "qualification", "specialization", "employment_type", "years_experience", "cv", "certificate",
+                    "id_document", "emergency_name", "emergency_phone", "research_interests", "t.created_at", "t.updated_at",
+                    "password_reset_required"
                 ];
                 break;
             default:
