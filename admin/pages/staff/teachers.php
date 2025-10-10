@@ -53,6 +53,9 @@ ob_start();
                 <div class="grid gap-4 lg:gap-6">
                     <!-- Teacher Email -->
                     <?= input("email", "Teacher Email", "email", required: true, attributes: placeholder("Enter admin email")); ?>
+                    
+                    <!-- Staff ID -->
+                    <?= input_h("email", "Staff ID", "staff_id", sub_text: "Leave blank so that the teacher provides it himself",  attributes: placeholder("Enter Teacher's staff ID")); ?>
 
                     <!-- User Type -->
                     <?= hidden_input("type", "teacher") ?>

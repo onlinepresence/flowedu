@@ -56,29 +56,35 @@
             $type = $_POST["type"] ?? null;
             $password = $_POST["password"] ?? null;
 
-            if(empty($email)){
-                $errors["email"] = "Email is required";
-            }elseif(fetchData("id", "users", ["email = '$email'"])){
-                $errors["email"] = "Email already exists";
-            }
+            $rules = [
+                "email" => "required|string|email",
+                "type" => "required",
+                "password" => "nullable|string|password",
+                "staff_id" => "nullable"
+            ];
 
-            if(empty($type)){
-                $errors["type"] = "User type is required";
-            }
+            $messages = [
+                "type" => [
+                    "required" => "User Type is required"
+                ]
+            ];
 
-            if (empty($password)) {
-                if ($type == "teacher") {
-                    // Generate a random secure password
-                    $password = generate_random_password(10);
-                } else {
-                    $errors["password"] = "Password is required";
+            $errors = validate_form($rules, $messages);
+
+            // other validations
+            if(!$errors){
+                if (empty($password)) {
+                    if ($type == "teacher") {
+                        // Generate a random secure password
+                        $password = generate_random_password(10);
+                    } else {
+                        $errors["password"] = "Password is required";
+                    }
+                }elseif($type == "teacher"){
+                    // alert teacher to not change password
+                    $_POST["password_reset_required"] = 0;
                 }
-            }elseif(($pass_error = is_valid_password($password)) !== true){
-                $errors["password"] = $pass_error;
-            }elseif($type == "teacher"){
-                // alert teacher to not change password
-                $_POST["password_reset_required"] = 0;
-            }
+            }            
 
             if(!$errors){
                 $data = [
@@ -87,6 +93,10 @@
                     "password" => password_hash($password, PASSWORD_DEFAULT),
                     "user_secret" => generate_user_secret()
                 ];
+
+                if($data["type"] == "teacher" && !empty($_POST["staff_id"])){
+                    $data["username"] = $_POST["staff_id"];
+                }
 
                 if(data_insert("users", $data)){
                     // add user to table
@@ -97,7 +107,8 @@
                         ]);
                     }elseif($data['type'] == "teacher"){
                         data_insert("teachers", [
-                            "user_id" => $connect->insert_id
+                            "user_id" => $connect->insert_id,
+                            "staff_id" => $_POST["staff_id"] ?? null,
                         ]);
                     }
 

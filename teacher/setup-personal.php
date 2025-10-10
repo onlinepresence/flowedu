@@ -7,12 +7,7 @@ $teacher = user();
 // Start output buffering to capture the content
 ob_start();
 ?>
-    <form action="<?= url('teacher/submit.php') ?>" method="POST" enctype="multipart/form-data" 
-        class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md space-y-6">
-
-        <!-- Hidden User ID -->
-        <?= hidden_input("user_id", $_SESSION['user_id']); ?>
-
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md space-y-6">
         <?php 
             $hasUsername = !empty($teacher["username"]);
             $requiresReset = !empty($teacher["password_reset_required"]);
@@ -29,7 +24,11 @@ ob_start();
         <div id="view-container">
             <?php if($isProfilePage || (!$hasUsername && $requiresReset)): ?>
                 <!-- reset password -->
-                <div id="view-password" class="<?= $isProfilePage ? "hidden" : "" ?>">
+                <form action="<?= url('teacher/submit.php') ?>" method="POST" 
+                    id="view-password" class="<?= $isProfilePage ? "hidden" : "" ?>">
+                    <!-- Hidden User ID -->
+                    <?= hidden_input("user_id", $teacher['user_id']); ?>
+                    
                     <?= fieldset_start(); ?>
                         <?= fieldset_legend(!$isProfilePage ? "Reset Password" : "Set Your Password"); ?>
 
@@ -50,12 +49,16 @@ ob_start();
                             <?= button("submit", $isProfilePage ? "Change Password" : "Set Password", "submit", "set_password", "blue"); ?>
                         </div>
                     <?= fieldset_end(); ?>
-                </div>
+                </form>
             <?php endif; ?>
 
             <?php if($isProfilePage || (!$hasUsername && !$requiresReset)): ?>
                 <!-- change details -->
-                <div id="view-details" class="space-y-6">
+                <form action="<?= url('teacher/submit.php') ?>" method="POST" enctype="multipart/form-data" 
+                    id="view-details" class="space-y-6">
+                    <!-- User ID -->
+                    <?= hidden_input("user_id", $teacher['user_id']); ?>
+
                     <!-- PERSONAL INFORMATION -->
                     <?= fieldset_start(); ?>
                         <?= fieldset_legend("Personal Information"); ?>
@@ -177,11 +180,23 @@ ob_start();
                         <?= fieldset_legend("Academic Documents"); ?>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            <?= input_h("file", "Curriculum Vitae (CV)", "cv", required: empty($teacher["cv"]), attributes: attribute("accept", ".pdf,.doc,.docx")); ?>
+                            <?php 
+                                $sub_text = $teacher["cv"] 
+                                    ? "<a href=\"".asset($teacher['cv'], false)."\" target=\"_blank\">View Document</a>" 
+                                    : "";
+                                echo input_h("file", "Curriculum Vitae (CV)", "cv", sub_text: $sub_text, required: empty($teacher["cv"]), attributes: attribute("accept", ".pdf,.doc,.docx")); ?>
 
-                            <?= input_h("file", "Highest Certificate", "certificate", required: empty($teacher["certificate"]), attributes: attribute("accept", ".pdf,.jpg,.png")); ?>
+                            <?php 
+                                $sub_text = $teacher["certificate"] 
+                                    ? "<a href=\"".asset($teacher['certificate'], false)."\" target=\"_blank\">View Document</a>" 
+                                    : "";
+                                echo input_h("file", "Highest Certificate", "certificate", sub_text: $sub_text, required: empty($teacher["certificate"]), attributes: attribute("accept", ".pdf,.jpg,.png")); ?>
 
-                            <?= input_h("file", "National ID", "id_document", required: empty($teacher["id_document"]), attributes: attribute("accept", ".pdf,.jpg,.png")); ?>
+                            <?php 
+                                $sub_text = $teacher["id_document"] 
+                                    ? "<a href=\"".asset($teacher['id_document'], false)."\" target=\"_blank\">View Document</a>" 
+                                    : "";
+                                echo input_h("file", "National ID", "id_document", sub_text: $sub_text, required: empty($teacher["id_document"]), attributes: attribute("accept", ".pdf,.jpg,.png")); ?>
                         </div>
                     <?= fieldset_end(); ?>
 
@@ -208,10 +223,10 @@ ob_start();
                             "blue",
                         ); ?>
                     </div>
-                </div>
+                </form>
             <?php endif; ?>
         </div>
-    </form>
+    </div>
 
 <?php $scripts = <<<HTML
 <script>
@@ -222,7 +237,7 @@ ob_start();
             $(this).addClass('text-blue-600 dark:text-blue-300');
 
             const view = $(this).data('view');
-            $('#view-container > div').addClass('hidden');
+            $('#view-container > form').addClass('hidden');
             $('#view-' + view).removeClass('hidden');
         });
     })

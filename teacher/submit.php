@@ -74,10 +74,10 @@
                 "emergency_name"   => "nullable|string|max:50",
                 "emergency_phone"  => "nullable|phone",
                 "research_interests" => "nullable|string|max:255",
-                "cv" => "required|file|mimes:pdf,doc,docx|max:2048",
-                "profile_pic" => "required|file|mimes:jpg,jpeg,png|max:1024",
-                "id_document" => "required|file|mimes:pdf,doc,docx|max:2048",
-                "certificate" => "required|file|mimes:pdf,doc,docx|max:2048"
+                "cv" => "nullable|file|mimes:pdf,doc,docx|max:2048",
+                "profile_pic" => "nullable|file|mimes:jpg,jpeg,png|max:1024",
+                "id_document" => "nullable|file|mimes:pdf,doc,docx|max:2048",
+                "certificate" => "nullable|file|mimes:pdf,doc,docx|max:2048"
             ];
 
             $messages = [
@@ -113,8 +113,11 @@
                 $response = update(user(), $data, "teachers", ["user_id"]);
 
                 if($response){
-                    update(user(), ["username" => $staff_id], "users", ["id"]);
-                    $next_request = "teacher/dashboard";
+                    if($submit === "save_teacher"){
+                        update(user(), ["username" => $staff_id], "users", ["id"]);
+                        $next_request = "teacher/dashboard";
+                    }
+                    
                     $_SESSION["system_message"] = ($submit === "update_teacher") ? "Your profile details have been updated successfully." : "Welcome aboard! Your information has been saved successfully.";
 
                     // refresh user session
