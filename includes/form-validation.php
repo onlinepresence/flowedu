@@ -76,6 +76,20 @@
                         break;
                     }
                 }
+
+                // 🧩 Required If
+                if ($rule === 'required_if' && $param !== null) {
+                    [$otherField, $otherValue] = explode(',', $param, 2);
+                    $otherField = trim($otherField);
+                    $otherValue = trim($otherValue);
+
+                    $otherFieldValue = isset($data[$otherField]) ? trim($data[$otherField]) : '';
+
+                    if ($otherFieldValue === $otherValue && $value === '') {
+                        $errors[$field] = $messages[$field]['required_if'] ?? ucfirst(str_replace('_', ' ', $field)) . " is required when " . str_replace('_', ' ', $otherField) . " is $otherValue";
+                        break;
+                    }
+                }
     
                 // Skip other checks if empty and nullable
                 if ($value === '' && !$is_file_field && $is_nullable) break;
@@ -165,7 +179,9 @@
     
                 // 🧩 Confirmed
                 if ($rule === 'confirmed') {
-                    $confirmation_field = $field . '_confirmation';
+                    // Allow optional custom confirmation field name
+                    $confirmation_field = $param ?? $field . '_confirmation';
+                
                     if (!isset($data[$confirmation_field]) || $data[$confirmation_field] !== $value) {
                         $errors[$field] = $messages[$field]['confirmed'] ?? ucfirst(str_replace('_', ' ', $field)) . " confirmation does not match";
                         break;
@@ -200,6 +216,104 @@
                 if ($rule === 'ghana_card' && !is_valid_ghana_card_number($value)) {
                     $errors[$field] = $messages[$field]['ghana_card'] ?? "Invalid Ghana Card number provided";
                     break;
+                }
+
+                // 🧩 Unique
+                if ($rule === 'unique' && $param !== null) {
+                    // Split parameters safely
+                    $parts = array_map('trim', explode(',', $param));
+                    $table = array_shift($parts);   // first part = table
+                    $column = array_shift($parts);  // second part = column
+                
+                    // Default WHERE condition
+                    $where = [$column => $value];
+                    $where_bind = 'AND'; // default logical binder
+                
+                    // Process additional parameters like deleted_at=null or where_bind=OR
+                    foreach ($parts as $condition) {
+                        if (strpos($condition, '=') !== false) {
+                            [$key, $val] = explode('=', $condition, 2);
+                            $key = trim($key);
+                            $val = trim($val);
+                
+                            // Allow a special key for binding operator
+                            if (strtolower($key) === 'where_bind') {
+                                $where_bind = strtoupper($val);
+                            } else {
+                                $where[$key] = $val;
+                            }
+                        }
+                    }
+                
+                    // Fetch existing record(s)
+                    $exists = fetchData($column, $table, $where, where_binds: $where_bind);
+                
+                    // If record exists, validation fails
+                    if (!empty($exists)) {
+                        $errors[$field] = $messages[$field]['unique']
+                            ?? ucfirst(str_replace('_', ' ', $field)) . " has already been taken";
+                        break;
+                    }
+                }
+
+                // 🧩 Exists
+                if ($rule === 'exists' && $param !== null) {
+                    [$table, $column] = explode(',', $param);
+                    $exists = fetchData($column, $table, [$column => $value]);
+                    if (empty($exists)) {
+                        $errors[$field] = $messages[$field]['exists'] ?? ucfirst(str_replace('_', ' ', $field)) . " does not exist in the database";
+                        break;
+                    }
+                }
+
+                // 🧩 In
+                if ($rule === 'in' && $param !== null) {
+                    $allowedValues = array_map('trim', explode(',', $param));
+                    if (!in_array($value, $allowedValues)) {
+                        $errors[$field] = $messages[$field]['in'] ?? ucfirst(str_replace('_', ' ', $field)) . " must be one of the following: " . implode(', ', $allowedValues);
+                        break;
+                    }
+                }
+
+                // 🧩 Not In
+                if ($rule === 'not_in' && $param !== null) {
+                    $disallowedValues = array_map('trim', explode(',', $param));
+                    if (in_array($value, $disallowedValues)) {
+                        $errors[$field] = $messages[$field]['not_in'] ?? ucfirst(str_replace('_', ' ', $field)) . " must not be one of the following: " . implode(', ', $disallowedValues);
+                        break;
+                    }
+                }
+
+                // 🧩 Starts With
+                if ($rule === 'starts_with' && $param !== null) {
+                    $prefixes = array_map('trim', explode(',', $param));
+                    $startsWith = false;
+                    foreach ($prefixes as $prefix) {
+                        if (strpos($value, $prefix) === 0) {
+                            $startsWith = true;
+                            break;
+                        }
+                    }
+                    if (!$startsWith) {
+                        $errors[$field] = $messages[$field]['starts_with'] ?? ucfirst(str_replace('_', ' ', $field)) . " must start with one of the following: " . implode(', ', $prefixes);
+                        break;
+                    }
+                }
+
+                // 🧩 Ends With
+                if ($rule === 'ends_with' && $param !== null) {
+                    $suffixes = array_map('trim', explode(',', $param));
+                    $endsWith = false;
+                    foreach ($suffixes as $suffix) {
+                        if (substr($value, -strlen($suffix)) === $suffix) {
+                            $endsWith = true;
+                            break;
+                        }
+                    }
+                    if (!$endsWith) {
+                        $errors[$field] = $messages[$field]['ends_with'] ?? ucfirst(str_replace('_', ' ', $field)) . " must end with one of the following: " . implode(', ', $suffixes);
+                        break;
+                    }
                 }
             }
         }

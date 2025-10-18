@@ -47,38 +47,70 @@
      * @param string|string[] $binder This is what joins the parts together
      * @return string the stringified where part of the query string
      */
-    function stringifyWhere(string|array $where, string|array $bind = "") :string{
-        $new_where = "";
-
-        if(!is_array($where)){
-            $new_where = $where;
-        }else{
-            if(is_array($bind)){
-                // bind should be one less than the where
-                while(count($bind) >= count($where)){
-                    array_pop($bind);
-                }
-                
-                foreach($bind as $key => $binder){
-                    if(!empty($new_where)){
-                        $new_where .= " ";
-                    }
-
-                    $new_where .= $where[$key]." ".$binder;
-                }
-
-                //add last parts of the where
-                $new_where .= " ". end($where);
-            }else if(!empty($bind) && 
-                array_search(strtolower($bind), ["or", "and", "like"], true) !== false
-            ){
-                $new_where = implode(" $bind ", $where);
-            }else{
-                $new_where = implode(" ", $where);
-            }
+    function stringifyWhere(string|array $where, string|array $bind = "AND"): string {
+        // if it's already a string, just return as is
+        if (!is_array($where)) {
+            return trim($where);
         }
-
-        return $new_where;
+    
+        $parts = [];
+    
+        foreach ($where as $key => $value) {
+            // CASE 1: Associative (column => value)
+            if (!is_int($key)) {
+                $column = $key;
+                $operator = '=';
+                $val = $value;
+            }
+            // CASE 2: [column, value] shorthand
+            else if (is_array($value) && count($value) === 2) {
+                [$column, $val] = $value;
+                $operator = '=';
+            }
+            // CASE 3: [column, operator, value]
+            else if (is_array($value) && count($value) === 3) {
+                [$column, $operator, $val] = $value;
+            }
+            // CASE 4: a raw condition string
+            else if (is_string($value)) {
+                $parts[] = "$value";
+                continue;
+            }
+            // Anything else: skip
+            else {
+                continue;
+            }
+    
+            // Handle NULLs properly
+            if (is_null($val)) {
+                $condition = "$column IS NULL";
+            } else {
+                // Simple quoting for strings (you may replace with proper binding later)
+                $quoted = is_numeric($val) ? $val : "'" . addslashes((string)$val) . "'";
+                $condition = "$column $operator $quoted";
+            }
+    
+            $parts[] = "$condition";
+        }
+    
+        // Handle $bind array or string
+        if (is_array($bind)) {
+            // Truncate bind if too many
+            while (count($bind) >= count($parts)) {
+                array_pop($bind);
+            }
+    
+            $sql = "";
+            foreach ($bind as $i => $b) {
+                $sql .= $parts[$i] . " $b ";
+            }
+            $sql .= end($parts);
+        } else {
+            $joiner = strtoupper(trim($bind)) ?: "AND";
+            $sql = implode(" $joiner ", $parts);
+        }
+    
+        return trim($sql);
     }
 
     /**

@@ -944,51 +944,47 @@
         global $connect;
         $errors = [];
 
-        $email = $_POST["email"] ?? null;
-        $password = $_POST["password"] ?? null;
-        $password_confirm = $_POST["password_confirm"] ?? null;
-        $type = $_POST["type"] ?? null;
+        $rules = [
+            "email" => "required|email|unique:users,email",
+            "password" => "required|min:8|confirmed:password_confirm",
+            "password_confirm" => "required",
+            "type" => "required|in:admin,student,teacher",
+            "admin_register" => "nullable",
+            "system_secret" => "required_if:admin_register,1"
+        ];
+
         $admin_register = $_POST["admin_register"] ?? null;
         $system_secret = $_POST["system_secret"] ?? null;
+        $type = $_POST["type"] ?? null;
 
-        if(empty($email)){
-            $errors["email"] = "No email provided";
-        }elseif(!filter_var($email, FILTER_VALIDATE_EMAIL)){
-            $errors["email"] = "Invalid email provided";
-        }if(empty($password)){
-            $errors["password"] = "No password provided";
-        }if(empty($password_confirm)){
-            $errors["password_confirm"] = "No confirmation password provided";
-        }if(strlen($password) < 8){
-            $errors["password"] = "Password provided should be at least 8 characters";
-        }if(strcmp($password, $password_confirm) != 0){
-            $errors["password"] = "Passwords do not match";
-        }if($admin_register == 1 && empty($system_secret)){
-            $errors["system_secret"] = "System secret is needed to activate it";
-        }if($admin_register == 1 && !check_secret($system_secret)){
-            $errors["system_secret"] = "System secret provided is not valid";
-        }
+        $errors = validate_form($rules);
 
         if(!$errors){
-            $data = form_data(exclude: ["system_secret", "admin_register", "password_confirm"]);
-            $data["password"] = password_hash($data["password"], PASSWORD_DEFAULT);
-            $data["user_secret"] = generate_user_secret();
-            $response = data_insert("users", $data);
-            if($response){
-                create_user_session($type, $connect->insert_id);
+            if($admin_register == 1 && empty($system_secret)){
+                $errors["system_secret"] = "System secret is needed to activate it";
+            }elseif($admin_register == 1 && !check_secret($system_secret)){
+                $errors["system_secret"] = "System secret provided is not valid";
+            }else{
+                $data = form_data(exclude: ["system_secret", "admin_register", "password_confirm"]);
+                $data["password"] = password_hash($data["password"], PASSWORD_DEFAULT);
+                $data["user_secret"] = generate_user_secret();
+                $response = data_insert("users", $data);
+                if($response){
+                    create_user_session($type, $connect->insert_id);
 
-                // send verification email
-                if(send_verification_email() !== false){
-                    $_SESSION["system_message"] = "An email verification message has been sent to your email";
-                    send_to_next_request();
+                    // send verification email
+                    if(send_verification_email() !== false){
+                        $_SESSION["system_message"] = "An email verification message has been sent to your email";
+                        send_to_next_request();
+                    }
+                    
+                    if($admin_register == 1){
+                        $next_request = "admin-setup/personal";
+                    }else{
+                        $next_request = "student-setup/personal";
+                    }
                 }
-                
-                if($admin_register == 1){
-                    $next_request = "admin-setup/personal";
-                }else{
-                    $next_request = "student-setup/personal";
-                }
-            }
+            }            
         }else{
             $_SESSION["errors"] = $errors;
         }
