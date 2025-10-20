@@ -2,6 +2,7 @@
 // Include the routes and middleware
 $routes = require 'routes.php';
 require_once "includes/load_env.php";
+require "vendor/autoload.php";
 
 // Parse the request URI and normalize it
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);

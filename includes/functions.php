@@ -114,7 +114,7 @@
         if(!$complete && !$columns){
             $columns = ["id", "name", "faculty_id", "hod"];
         }elseif($complete){
-            $columns = ["d.id", "d.name", "hod", "faculty_id", "f.name AS faculty_name", "lastname", "othernames"];
+            $columns = ["d.id", "d.name", "hod", "d.faculty_id", "f.name AS faculty_name", "lastname", "othernames"];
         }
         return fetchData($columns, $tables, $where, !is_null($id) ? 1 : 0, join_type: "left");
     }

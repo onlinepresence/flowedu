@@ -75,7 +75,7 @@ ob_start();
             <?= modal_title("Update Department Info") ?>
             
             <form action="<?= url("admin/submit.php") ?>" method="POST">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     <!-- Department Name -->
                     <?= input("text", "Department Name", "name", required: true, attributes: placeholder("Name of the department")); ?>
 

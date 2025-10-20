@@ -4,3 +4,4 @@
 nationalities.json
 /node_modules
 .env
+vendor/
