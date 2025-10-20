@@ -115,8 +115,6 @@
             $columns = ["id", "name", "faculty_id", "hod"];
         }elseif($complete){
             $columns = ["d.id", "d.name", "hod", "faculty_id", "f.name AS faculty_name", "lastname", "othernames"];
-        }else{
-            $columns = ["f.*"];
         }
         return fetchData($columns, $tables, $where, !is_null($id) ? 1 : 0, join_type: "left");
     }
@@ -136,8 +134,6 @@
             $columns = ["id", "name", "dean_id"];
         }elseif($complete){
             $columns = ["f.id", "name", "dean_id", "lastname", "othernames"];
-        }else{
-            $columns = ["f.*"];
         }
         return fetchData($columns, $tables, $where, !is_null($id) ? 1 : 0, join_type: "left");
     }
@@ -478,7 +474,11 @@
             case "hod":
             case "owner":
             case "dean":
-                $cols = ["a.id as admin_id", "a.type", "ghana_card", "name AS admin_type", "display_name"];
+                $cols = [
+                    "a.id as admin_id", "a.type", "ghana_card", "name AS admin_type", "display_name",
+                    "phone_number", "gender", "profile_pic", "position_title",
+                    "department_id", "faculty_id", "a.status", "date_of_appointment", "created_by",
+                ];
                 break;
             case "student":
                 $cols = [
@@ -587,12 +587,41 @@
     }
 
     /**
-     * Returns the details of the school
-     * @return array|false
+     * Returns the details of the school.
+     *
+     * @param bool $refresh Whether to force refresh from the database.
+     * @return array|false|null
      */
-    function school(){
-        return fetchData("*", "schools", "id = 1");
+    function school($refresh = false) {
+        $school = null;
+
+        if(!$refresh){
+            // Check if cached data is older than 5 minsz.
+            $lastFetch = session('school_last_fetch') ?? 0;
+            if (time() - $lastFetch > 300) {
+                $refresh = true;
+            }
+        }
+
+        if ($refresh) {
+            // Fetch the school data from the database.
+            $school = fetchData("*", "schools", "id = 1");
+
+            if ($school) {
+                // Cache in the session for faster future access.
+                session("school", $school);
+                session('school_last_fetch', time());
+            }
+        }
+
+        // Return cached data if available.
+        if (session('school')) {
+            $school = session('school');
+        }
+
+        return $school;
     }
+
 
     /**
      * This gets all the nationalities

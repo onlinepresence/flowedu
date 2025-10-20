@@ -36,6 +36,7 @@
                 '/students' => ['file' => 'admin/pages/students/index.php'],
                 '/staff' => ['file' => 'admin/pages/staff/index.php'],
                 '/staff/teachers' => ['file' => 'admin/pages/staff/teachers.php'],
+                '/profile' => ['file' => 'admin/setup/personal.php']
             ]
         ],
 

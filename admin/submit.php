@@ -8,21 +8,39 @@
         $next_request = null;
         $_SESSION["old_input"] = $_REQUEST;
 
-        if($submit == "create_admin"){
+        if($submit == "create_admin" || $submit == "update_admin"){
             $user_id = $_POST["user_id"] ?? null;
             $username = $_POST["username"] ?? null;
             $lastname = $_POST["lastname"] ?? null;
             $othernames = $_POST["othernames"] ?? null;
             $type = $_POST["type"] ?? $_SESSION["user_type"];
-
+            
             $rules = [
                 "user_id" => "required|numeric|integer|positive|exists:users,id",
-                "username" => "required|string|unique:users,username",
+                "username" => "required|string|unique:users,username,username IS NOT NULL,id != $user_id",
                 "lastname" => "required|string",
                 "othernames" => "required|string",
-                "ghana_card" => "required|string|ghana_card",
-                "type" => "required"
+                "ghana_card" => "required|string|ghana_card"
             ];
+
+            if($submit == "create_admin"){
+                $extra_rules = [
+                    "type" => "required", 
+                ];
+            }elseif($submit == "update_admin"){
+                $extra_rules = [
+                    "profile_pic" => "nullable|file|accepts:jpg,jpeg,png,gif",
+                    "gender" => "nullable|string|in:male,female",
+                    "phone_number" => "required|string|phone|unique:admins,phone_number,phone_number IS NOT NULL,user_id != $user_id",
+                    "position_title" => "required|string|",
+                    "type" => "required|integer|exists:admin_types,id",
+                    "department_id" => "required_if:type,3",
+                    "faculty_id" => "required_if:type,4",
+                    "date_of_appointment" => "nullable|date",
+                ];
+            }
+
+            $rules = array_merge($rules, $extra_rules);
 
             $messages = [
                 "user_id" => [
@@ -32,21 +50,29 @@
                 ],
             ];
 
-            $errors = validate_form($rules, $messages);
+            $alias = [
+                "type" => "Admin Type",
+                "department_id" => "Department",
+                "faculty_id" => "Faculty"
+            ];
+
+            $errors = validate_form($rules, $messages, alias: $alias);
 
             if(!$errors){
-                $data = form_data(exclude: ["username"]);
-                $response = empty(user()["username"]) ? data_insert("admins", $data) : update(user(), $data, "admins", ["user_id"]);
+                $data = form_data("admins/profile", exclude: ["username"]);
+                $response = empty(user()["username"]) ? data_insert("admins", $data) : update(user(), $data, "admins", ["user_id"]);             
 
                 if($response === true){
-                    $response = update(user(true), ["username" => $username], "users", ["id"]);
+                    if($submit === "create_admin"){
+                        $response = update(user(true), ["username" => $username], "users", ["id"]);
+                    }
 
                     if($response === true){
                         $_SESSION["system_message"] = "Admin account updated";
                         user(true);     // reflect new changes
                     }
 
-                    if($type == 2){
+                    if($type == 2 && $submit === "create_admin"){
                         $next_request = "admin/dashboard";
                         send_verification_email();
                     }

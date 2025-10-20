@@ -445,7 +445,7 @@ function formatColumns(array $columns, array $tables): array {
 
     /**
      * This function gets the form data from a request
-     * @param string|array|null $upload_dir A string of the upload directory or an associative array of them
+     * @param string|array|null $upload_dir A string of the upload directory or an associative array of them. Files are stored in assets folder
      * @param array $exclude Some more keys to be excluded
      * @param array $key_change Specify an array with keys to be renamed in the new array
      * @param array $preserve This is used to specify some keys that need to be preserved, especially for bools and integer values with 0 as a valid value
