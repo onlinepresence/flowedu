@@ -15,23 +15,24 @@
             $othernames = $_POST["othernames"] ?? null;
             $type = $_POST["type"] ?? $_SESSION["user_type"];
 
-            if(empty($user_id)){
-                $errors["user_id"] = "Admin account could not be found";
-            }if(!is_numeric($user_id)){
-                $errors["user_id"] = "Invalid admin account detected";
-            }if(empty($username)){
-                $errors["username"] = "Username is required";
-            }if(empty($lastname)){
-                $errors["lastname"] = "Lastname is required";
-            }if(empty($othernames)){
-                $errors["othernames"] = "Othername(s) is required";
-            }if(empty($type)){
-                $errors["system_message"] = "Admin type could not be detected";
-            }if(empty($_POST["ghana_card"])){
-                $errors["ghana_card"] = "Ghana card number is required";
-            }elseif(!is_valid_ghana_card_number($_POST["ghana_card"])){
-                $errors["ghana_card"] = "Invalid Ghana card provided";
-            }
+            $rules = [
+                "user_id" => "required|numeric|integer|positive|exists:users,id",
+                "username" => "required|string|unique:users,username",
+                "lastname" => "required|string",
+                "othernames" => "required|string",
+                "ghana_card" => "required|string|ghana_card",
+                "type" => "required"
+            ];
+
+            $messages = [
+                "user_id" => [
+                    "required" => "Admin account could not be found",
+                    "numeric" => "Invalid admin account detected",
+                    "exists" => "Admin account does not exist",
+                ],
+            ];
+
+            $errors = validate_form($rules, $messages);
 
             if(!$errors){
                 $data = form_data(exclude: ["username"]);
@@ -63,13 +64,11 @@
                 "staff_id" => "nullable"
             ];
 
-            $messages = [
-                "type" => [
-                    "required" => "User Type is required"
-                ]
+            $alias = [
+                "type" => "User Type"
             ];
 
-            $errors = validate_form($rules, $messages);
+            $errors = validate_form($rules, alias: $alias);
 
             // other validations
             if(!$errors){
@@ -153,18 +152,16 @@
                 }
             }
         }elseif($submit == "create_hall"){
-            if(empty($_POST["name"])){
-                $errors["name"] = "Name of hall is required";
-            }if(empty($_POST["cost"])){
-                $errors["cost"] = "Please specify the cost per head";
-            }elseif(!is_numeric($_POST["cost"])){
-                $errors["cost"] = "Invalid cost value provided";
-            }
-            if(empty($_POST["period"])){
-                $errors["period"] = "Please specify the cost duration";
-            }elseif(!in_array($_POST["period"], ["per_semester", "per_year"])){
-                $errors["period"] = "Invalid cost duration provided";
-            }
+            $rules = [
+                "name" => "string|name|unique:halls,name",
+                "cost" => "required|numeric|positive",
+                "period" => "required|string"
+            ];
+            $alias = [
+                "name" => "Name of Hall",
+                "cost" => "Cost per head",
+                "period" => "Cost Duration"
+            ];
 
             if(!$errors){
                 if(data_insert("halls", form_data())){
@@ -201,9 +198,15 @@
         elseif($submit == "create_faculty"){
             $name = $_POST["name"] ?? null;
 
-            if(empty($name)){
-                $errors["name"] = "Faculty name is required";
-            }
+            $rules = [
+                "name" => "required|string|unique:faculties,name"
+            ];
+            
+            $alias = [
+                "name" => "Faculty Name"
+            ];
+            
+            $errors = validate_form($rules, alias: $alias);
 
             if(empty($errors)){
                 $data = form_data();
@@ -217,13 +220,17 @@
             $name = $_POST["name"] ?? null;
             $dean_id = $_POST["dean_id"] ?? null;
 
-            if(empty($faculty_id)){
-                $errors["faculty_id"] = "Faculty id is not valid";
-            }if(empty($name)){
-                $errors["name"] = "Faculty name is required";
-            }if(!empty($dean_id) && !is_numeric($dean_id)){
-                $errors["dean_id"] = "Invalid faculty dean provided";
-            }
+            $rules = [
+                "faculty_id" => "required|integer|exists:faculties,id",
+                "name" => "required|string|unique:faculties,name,id != $faculty_id",
+                "dean_id" => "nullable|integer|exists:admins,id,type = 4"
+            ];
+            $alias = [
+                "name" => "Faculty Name",
+                "dean_id" => "Faculty Dean"
+            ];
+
+            $errors = validate_form($rules, alias: $alias);
 
             if(!$errors){
                 $data = form_data(key_change: ["faculty_id" => "id"], exclude: empty($dean_id) ? ["dean_id"] : []);
@@ -240,14 +247,20 @@
             $name = $_POST["name"] ?? null;
             $faculty_id = $_POST["faculty_id"] ?? null;
             $hod = $_POST["hod"] ?? null;
-    
-            if(empty($name)){
-                $errors["name"] = "Name of department not provided";
-            }if(!empty($faculty_id) && !is_numeric($faculty_id)){
-                $errors["faculty_id"] = "Faculty provided is invalid or incorrect";
-            }if(!empty($hod) && !is_numeric($hod)){
-                $errors["hod"] = "Head of Department provided is invalid or incorrect";
-            }
+
+            $rules = [
+                "name" => "required|string|unique:departments,name",
+                "faculty_id" => "nullable|integer|exists:faculties,id",
+                "hod" => "nullable|integer|exists:admins,id,type = 3"
+            ];
+
+            $alias = [
+                "name" => "Name of Department",
+                "faculty_id" => "Faculty",
+                "hod" => "Head of Department"
+            ];
+
+            $errors = validate_form($rules, alias: $alias);
     
             if(empty($errors)){
                 $exclude = [];
@@ -270,13 +283,19 @@
             $name = $_POST["name"] ?? null;
             $faculty_id = $_POST["faculty_id"] ?? null;
 
-            if(empty($department_id)){
-                $errors["department_id"] = "Department id is not valid";
-            }if(empty($name)){
-                $errors["name"] = "Name of department not provided";
-            }if(!empty($faculty_id) && !is_numeric($faculty_id)){
-                $_SESSION["system_message"] = "Faculty provided is invalid or incorrect";
-            }
+            $rules = [
+                "department_id" => "required|integer|exists:departments,id",
+                "name" => "required|string|unique:departments,name,id != $department_id",
+                "faculty_id" => "nullable|integer|exists:faculties,id"
+            ];
+            
+            $alias = [
+                "department_id" => "Department",
+                "name" => "Department name",
+                "faculty_id" => "Faculty"
+            ];
+
+            $errors = validate_form($rules, alias: $alias);
 
             if(!$errors){
                 $exclude = [];
@@ -299,18 +318,20 @@
 
         // program management
         elseif($submit == "create_program"){
-            if(empty($_POST["name"])){
-                $errors["name"] = "Name of program is required";
-            }if(empty($_POST["cost"])){
-                $errors["cost"] = "Cost fee of program is required";
-            }if(empty($_POST["certificate"])){
-                $errors["certificate"] = "Program certificate of completion is required";
-            }
-            if(empty($_POST["department_id"])){
-                $errors["department_id"] = "No department has been selected";
-            }elseif(!is_numeric($_POST["department_id"])){
-                $errors["department_id"] = "Chosen department is invalid";
-            }
+            $rules = [
+                "name" => "required|string|unique:programs,name",
+                "cost" => "required|numeric|positive",
+                "certificate" => "required|string",
+                "department_id" => "required|integer|exists:departments,id"
+            ];
+            $alias = [
+                "name" => "Program Name",
+                "cost" => "Cost Fee",
+                "certificate" => "Program Certification",
+                "department_id" => "Department"
+            ];
+
+            $errors = validate_form($rules, alias: $alias);
 
             if(!$errors){
                 $data = form_data(exclude: ["program_id"]);
@@ -324,17 +345,20 @@
             $cost = $_POST["cost"] ?? null;
             $department_id = $_POST["department_id"] ?? null;
 
-            if(empty($program_id)){
-                $errors["program_id"] = "Program id is not valid";
-            }if(empty($name)){
-                $errors["name"] = "Name of program is required";
-            }if(empty($cost)){
-                $errors["cost"] = "Cost fee of program is required";
-            }if(empty($department_id)){
-                $errors["department_id"] = "No department has been selected";
-            }elseif(!is_numeric($department_id)){
-                $errors["department_id"] = "Chosen department is invalid";
-            }
+            $rules = [
+                "program_id" => "required|integer|exists:programs,id",
+                "name" => "required|string|unique:programs,name,id != $program_id",
+                "cost" => "required|numeric|positive",
+                "department_id" => "required|integer|exists:departments,id"
+            ];
+            $alias = [
+                "program_id" => "Program",
+                "name" => "Program Name",
+                "cost" => "Cost Fee",
+                "department_id" => "Department"
+            ];
+
+            $errors = validate_form($rules, alias: $alias);
 
             if(!$errors){
                 $data = form_data(key_change: ["program_id" => "id"]);
@@ -348,27 +372,27 @@
 
         // course management
         elseif($submit == "create_course"){
-            if(empty($_POST["name"])){
-                $errors["name"] = "Name of course is required";
-            }if(empty($_POST["course_semester"])){
-                $errors["course_semester"] = "Course Semester is required";
-            }elseif(!is_numeric($_POST["course_semester"])){
-                $errors["course_semester"] = "Invalid course semster value";
-            }if(empty($_POST["program_id"])){
-                $errors["program_id"] = "No program has been selected";
-            }elseif(!is_numeric($_POST["program_id"])){
-                $errors["program_id"] = "Chosen program is invalid";
-            }if(empty($_POST["year_level"])){
-                $errors["year_level"] = "Year level is required";
-            }elseif(!is_numeric($_POST["year_level"])){
-                $errors["year_level"] = "Invalid year level value";
-            }
+            $rules = [
+                "name" => "required|string|unique:courses,name",
+                "course_semester" => "required|integer|positive|max:2|min:1",
+                "program_id" => "required|integer|exists:programs,id",
+                "year_level" => "required|integer|positive",
+                "code" => "nullable|string|unique:courses,code"
+            ];
+
+            $alias = [
+                "name" => "Course Name",
+                "course_semester" => "Course Semester",
+                "program_id" => "Program",
+                "year_level" => "Year Level",
+                "code" => "Course Code"
+            ];
 
             if(empty($_POST["code"])){
                 $_REQUEST["code"] = create_course_code($_POST["program_id"], $_POST["year_level"], $_POST["course_semester"]);
 
                 if($_REQUEST["code"] === false){
-                    $errors["system_message"] = "Code could not be generated";
+                    $errors["system_message"] = "Course Code could not be generated";
                 }
             }
 
@@ -386,25 +410,13 @@
             $year_level = $_POST["year_level"] ?? null;
             $program_id = $_POST["program_id"] ?? null;
 
-            if(empty($course_id)){
-                $errors["course_id"] = "Course id is not valid";
-            }if(empty($name)){
-                $errors["name"] = "Name of course is required";
-            }if(empty($code)){
-                $errors["code"] = "Course code is required";
-            }if(empty($course_semester)){
-                $errors["course_semester"] = "Course Semester is required";
-            }elseif(!is_numeric($course_semester)){
-                $errors["course_semester"] = "Invalid course semster value";
-            }if(empty($year_level)){
-                $errors["year_level"] = "Year level is required";
-            }elseif(!is_numeric($year_level)){
-                $errors["year_level"] = "Invalid year level value";
-            }if(empty($program_id)){
-                $errors["program_id"] = "No program has been selected";
-            }elseif(!is_numeric($program_id)){
-                $errors["program_id"] = "Chosen program is invalid";
-            }
+            $rules = [
+                "course_id" => "required|integer|exists:courses,id",
+                "name" => "required|string|unique:courses,name,id != $course_id",
+                "course_semester" => "required|integer|positive|max:2|min:1",
+                "year_level" => "required|integer|positive",
+                "program_id" => "required|integer|exists:programs,id"
+            ];
 
             if(!$errors){
                 $data = form_data(exclude: ["name", "code"], key_change: ["course_id" => "id"]);

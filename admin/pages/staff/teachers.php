@@ -35,8 +35,8 @@ ob_start();
                 <?= td($teacher["lastname"] ? $teacher["lastname"] . " " . $teacher["othernames"] : "Not Set"); ?>
                 <?= td($teacher["email"]); ?>
                 <?= td($teacher["ghana_card"]); ?>
-                <?= td("<div class='flex gap-2 items-center'>
-                            <i @click='openModal' data-id='{$teacher['id']}' data-modal-body='delete-body' data-show-footer='1' class='fas action-btn fa-trash-can text-red-500 hover:text-red-600 cursor-pointer action-delete' title='Delete'></i>
+                <?= td("<div class='flex items-center gap-2'>
+                            <i @click='openModal' data-id='{$teacher['id']}' data-modal-body='delete-body' data-show-footer='1' class='text-red-500 cursor-pointer fas action-btn fa-trash-can hover:text-red-600 action-delete' title='Delete'></i>
                         </div>"); ?>
             <?= tr_end(); ?>
         <?php endforeach; else: echo td_empty("No teachers have been set yet", (count($column_names) + 1)); endif; ?>
@@ -55,7 +55,7 @@ ob_start();
                     <?= input("email", "Teacher Email", "email", required: true, attributes: placeholder("Enter admin email")); ?>
                     
                     <!-- Staff ID -->
-                    <?= input_h("email", "Staff ID", "staff_id", sub_text: "Leave blank so that the teacher provides it himself",  attributes: placeholder("Enter Teacher's staff ID")); ?>
+                    <?= input_h("text", "Staff ID", "staff_id", sub_text: "Leave blank so that the teacher provides it himself",  attributes: placeholder("Enter Teacher's staff ID")); ?>
 
                     <!-- User Type -->
                     <?= hidden_input("type", "teacher") ?>

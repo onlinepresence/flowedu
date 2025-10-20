@@ -38,41 +38,47 @@
      *
      * @param array $rules     Validation rules for each field
      * @param array $messages  Optional custom messages
-     * @param ?array $data      Form data (e.g. $_POST)
+     * @param ?array $data     Form data (e.g. $_POST)
+     * @param ?array $alias    Key names and their alias names to use
      * @return array $errors   Validation errors
      */
-    function validate_form($rules, $messages = [], $data = null) {
+    function validate_form($rules, $messages = [], $data = null, $alias = null) {
         $errors = [];
-    
+
         if (!$data) {
-            $data = $_POST;
+            $data = $_REQUEST;
             unset($data["submit"]);
         }
-    
+
         foreach ($rules as $field => $rule_string) {
             $value = isset($data[$field]) ? trim($data[$field]) : '';
             $field_rules = explode('|', $rule_string);
-    
+
             $is_nullable = in_array('nullable', $field_rules);
             $is_file_field = isset($_FILES[$field]) && is_array($_FILES[$field]);
-    
+
+            // Determine display name (use alias or fallback)
+            $display_name = isset($alias[$field]) 
+                ? $alias[$field] 
+                : ucfirst(str_replace('_', ' ', $field));
+
             foreach ($field_rules as $rule) {
                 $param = null;
                 if (strpos($rule, ':') !== false) {
                     [$rule, $param] = explode(':', $rule, 2);
                 }
-    
+
                 $rule = strtolower(trim($rule));
-    
+
                 // 🧩 Required
                 if ($rule === 'required') {
                     if ($is_file_field) {
                         if ($_FILES[$field]['error'] === UPLOAD_ERR_NO_FILE) {
-                            $errors[$field] = $messages[$field]['required'] ?? ucfirst(str_replace('_', ' ', $field)) . " is required";
+                            $errors[$field] = $messages[$field]['required'] ?? "$display_name is required";
                             break;
                         }
                     } elseif ($value === '') {
-                        $errors[$field] = $messages[$field]['required'] ?? ucfirst(str_replace('_', ' ', $field)) . " is required";
+                        $errors[$field] = $messages[$field]['required'] ?? "$display_name is required";
                         break;
                     }
                 }
@@ -84,134 +90,134 @@
                     $otherValue = trim($otherValue);
 
                     $otherFieldValue = isset($data[$otherField]) ? trim($data[$otherField]) : '';
+                    $otherDisplay = isset($alias[$otherField])
+                        ? $alias[$otherField]
+                        : str_replace('_', ' ', $otherField);
 
                     if ($otherFieldValue === $otherValue && $value === '') {
-                        $errors[$field] = $messages[$field]['required_if'] ?? ucfirst(str_replace('_', ' ', $field)) . " is required when " . str_replace('_', ' ', $otherField) . " is $otherValue";
+                        $errors[$field] = $messages[$field]['required_if'] ?? "$display_name is required when $otherDisplay is $otherValue";
                         break;
                     }
                 }
-    
-                // Skip other checks if empty and nullable
+
+                // Skip nullable or empty
                 if ($value === '' && !$is_file_field && $is_nullable) break;
                 if ($value === '' && !$is_file_field) continue;
-    
+
                 // ================================
                 // 🔹 FILE VALIDATION SECTION
                 // ================================
                 if ($rule === 'file') {
                     if (!$is_file_field || $_FILES[$field]['error'] === UPLOAD_ERR_NO_FILE) {
                         if (!$is_nullable) {
-                            $errors[$field] = $messages[$field]['file'] ?? ucfirst(str_replace('_', ' ', $field)) . " must be uploaded";
+                            $errors[$field] = $messages[$field]['file'] ?? "$display_name must be uploaded";
                             break;
                         }
                     } elseif ($_FILES[$field]['error'] !== UPLOAD_ERR_OK) {
-                        $errors[$field] = $messages[$field]['file'] ?? "Error uploading " . str_replace('_', ' ', $field);
+                        $errors[$field] = $messages[$field]['file'] ?? "Error uploading $display_name";
                         break;
                     }
                 }
-    
-                // 🧩 Mimes (e.g. mimes:jpg,png,pdf)
+
+                // 🧩 Mimes
                 if ($rule === 'mimes' && $is_file_field && $_FILES[$field]['error'] === UPLOAD_ERR_OK) {
                     $allowed = array_map('strtolower', array_map('trim', explode(',', $param)));
                     $extension = strtolower(pathinfo($_FILES[$field]['name'], PATHINFO_EXTENSION));
-    
                     if (!in_array($extension, $allowed)) {
-                        $errors[$field] = $messages[$field]['mimes'] ?? ucfirst(str_replace('_', ' ', $field)) . " must be a file of type: " . implode(', ', $allowed);
+                        $errors[$field] = $messages[$field]['mimes'] ?? "$display_name must be a file of type: " . implode(', ', $allowed);
                         break;
                     }
                 }
-    
-                // 🧩 Max (for file or numeric/string)
+
+                // 🧩 Max
                 if ($rule === 'max' && $param !== null) {
                     if ($is_file_field && $_FILES[$field]['error'] === UPLOAD_ERR_OK) {
                         $sizeKB = $_FILES[$field]['size'] / 1024;
                         if ($sizeKB > (float)$param) {
-                            $errors[$field] = $messages[$field]['max'] ?? ucfirst(str_replace('_', ' ', $field)) . " must not be larger than $param KB";
+                            $errors[$field] = $messages[$field]['max'] ?? "$display_name must not be larger than $param KB";
                             break;
                         }
                     } elseif (is_numeric($value)) {
                         if ($value > $param) {
-                            $errors[$field] = $messages[$field]['max'] ?? ucfirst(str_replace('_', ' ', $field)) . " may not be greater than $param";
+                            $errors[$field] = $messages[$field]['max'] ?? "$display_name may not be greater than $param";
                             break;
                         }
                     } elseif (strlen($value) > $param) {
-                        $errors[$field] = $messages[$field]['max'] ?? ucfirst(str_replace('_', ' ', $field)) . " may not be longer than $param characters";
+                        $errors[$field] = $messages[$field]['max'] ?? "$display_name may not be longer than $param characters";
                         break;
                     }
                 }
-    
-                // 🧩 Min (for numeric/string)
+
+                // 🧩 Min
                 if ($rule === 'min' && $param !== null) {
                     if (is_numeric($value)) {
                         if ($value < $param) {
-                            $errors[$field] = $messages[$field]['min'] ?? ucfirst(str_replace('_', ' ', $field)) . " must be at least $param";
+                            $errors[$field] = $messages[$field]['min'] ?? "$display_name must be at least $param";
                             break;
                         }
                     } elseif (strlen($value) < $param) {
-                        $errors[$field] = $messages[$field]['min'] ?? ucfirst(str_replace('_', ' ', $field)) . " must be at least $param characters";
+                        $errors[$field] = $messages[$field]['min'] ?? "$display_name must be at least $param characters";
                         break;
                     }
                 }
-    
+
                 // 🧩 Numeric
                 if ($rule === 'numeric' && !is_numeric($value)) {
-                    $errors[$field] = $messages[$field]['numeric'] ?? ucfirst(str_replace('_', ' ', $field)) . " must be numeric";
+                    $errors[$field] = $messages[$field]['numeric'] ?? "$display_name must be numeric";
                     break;
                 }
-    
+
                 // 🧩 Integer
                 if ($rule === 'integer' && filter_var($value, FILTER_VALIDATE_INT) === false) {
-                    $errors[$field] = $messages[$field]['integer'] ?? ucfirst(str_replace('_', ' ', $field)) . " must be an integer";
+                    $errors[$field] = $messages[$field]['integer'] ?? "$display_name must be an integer";
                     break;
                 }
-    
+
                 // 🧩 Email
                 if ($rule === 'email' && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
-                    $errors[$field] = $messages[$field]['email'] ?? ucfirst(str_replace('_', ' ', $field)) . " must be a valid email address";
+                    $errors[$field] = $messages[$field]['email'] ?? "$display_name must be a valid email address";
                     break;
                 }
-    
-                // 🧩 Date (YYYY-MM-DD)
+
+                // 🧩 Date
                 if ($rule === 'date' && !preg_match("/^\d{4}-\d{2}-\d{2}$/", $value)) {
-                    $errors[$field] = $messages[$field]['date'] ?? ucfirst(str_replace('_', ' ', $field)) . " must be a valid date (YYYY-MM-DD)";
+                    $errors[$field] = $messages[$field]['date'] ?? "$display_name must be a valid date (YYYY-MM-DD)";
                     break;
                 }
-    
+
                 // 🧩 Confirmed
                 if ($rule === 'confirmed') {
-                    // Allow optional custom confirmation field name
                     $confirmation_field = $param ?? $field . '_confirmation';
-                
                     if (!isset($data[$confirmation_field]) || $data[$confirmation_field] !== $value) {
-                        $errors[$field] = $messages[$field]['confirmed'] ?? ucfirst(str_replace('_', ' ', $field)) . " confirmation does not match";
+                        $errors[$field] = $messages[$field]['confirmed'] ?? "$display_name confirmation does not match";
                         break;
                     }
                 }
-    
+
                 // 🧩 Regex
                 if ($rule === 'regex' && $param !== null && !preg_match($param, $value)) {
-                    $errors[$field] = $messages[$field]['regex'] ?? ucfirst(str_replace('_', ' ', $field)) . " format is invalid";
+                    $errors[$field] = $messages[$field]['regex'] ?? "$display_name format is invalid";
                     break;
                 }
-    
+
                 // 🧩 Positive
                 if ($rule === 'positive' && (!is_numeric($value) || $value <= 0)) {
-                    $errors[$field] = $messages[$field]['positive'] ?? ucfirst(str_replace('_', ' ', $field)) . " must be positive";
+                    $errors[$field] = $messages[$field]['positive'] ?? "$display_name must be positive";
                     break;
                 }
-    
+
                 // 🧩 Phone
                 if ($rule === 'phone') {
                     $validate_phone = is_valid_phone_number($value);
                     if (!preg_match("/^[0-9]{10}$/", $value)) {
-                        $errors[$field] = $messages[$field]['phone'] ?? ucfirst(str_replace('_', ' ', $field)) . " must be a valid 10-digit number";
+                        $errors[$field] = $messages[$field]['phone'] ?? "$display_name must be a valid 10-digit number";
                         break;
                     } elseif ($validate_phone == -1 || !$validate_phone) {
                         $errors[$field] = "Invalid phone number provided";
                         break;
                     }
                 }
-    
+
                 // 🧩 Ghana Card
                 if ($rule === 'ghana_card' && !is_valid_ghana_card_number($value)) {
                     $errors[$field] = $messages[$field]['ghana_card'] ?? "Invalid Ghana Card number provided";
@@ -220,48 +226,21 @@
 
                 // 🧩 Unique
                 if ($rule === 'unique' && $param !== null) {
-                    // Split parameters safely
-                    $parts = array_map('trim', explode(',', $param));
-                    $table = array_shift($parts);   // first part = table
-                    $column = array_shift($parts);  // second part = column
-                
-                    // Default WHERE condition
-                    $where = [$column => $value];
-                    $where_bind = 'AND'; // default logical binder
-                
-                    // Process additional parameters like deleted_at=null or where_bind=OR
-                    foreach ($parts as $condition) {
-                        if (strpos($condition, '=') !== false) {
-                            [$key, $val] = explode('=', $condition, 2);
-                            $key = trim($key);
-                            $val = trim($val);
-                
-                            // Allow a special key for binding operator
-                            if (strtolower($key) === 'where_bind') {
-                                $where_bind = strtoupper($val);
-                            } else {
-                                $where[$key] = $val;
-                            }
-                        }
-                    }
-                
-                    // Fetch existing record(s)
+                    list($column, $table, $where, $where_bind) = split_query_information($param, $value);
                     $exists = fetchData($column, $table, $where, where_binds: $where_bind);
-                
-                    // If record exists, validation fails
+
                     if (!empty($exists)) {
-                        $errors[$field] = $messages[$field]['unique']
-                            ?? ucfirst(str_replace('_', ' ', $field)) . " has already been taken";
+                        $errors[$field] = $messages[$field]['unique'] ?? "$display_name has already been taken";
                         break;
                     }
                 }
 
                 // 🧩 Exists
                 if ($rule === 'exists' && $param !== null) {
-                    [$table, $column] = explode(',', $param);
-                    $exists = fetchData($column, $table, [$column => $value]);
+                    list($column, $table, $where, $where_bind) = split_query_information($param, $value);
+                    $exists = fetchData($column, $table, $where, where_binds: $where_bind);
                     if (empty($exists)) {
-                        $errors[$field] = $messages[$field]['exists'] ?? ucfirst(str_replace('_', ' ', $field)) . " does not exist in the database";
+                        $errors[$field] = $messages[$field]['exists'] ?? "$display_name does not exist in the database";
                         break;
                     }
                 }
@@ -270,7 +249,7 @@
                 if ($rule === 'in' && $param !== null) {
                     $allowedValues = array_map('trim', explode(',', $param));
                     if (!in_array($value, $allowedValues)) {
-                        $errors[$field] = $messages[$field]['in'] ?? ucfirst(str_replace('_', ' ', $field)) . " must be one of the following: " . implode(', ', $allowedValues);
+                        $errors[$field] = $messages[$field]['in'] ?? "$display_name must be one of the following: " . implode(', ', $allowedValues);
                         break;
                     }
                 }
@@ -279,7 +258,7 @@
                 if ($rule === 'not_in' && $param !== null) {
                     $disallowedValues = array_map('trim', explode(',', $param));
                     if (in_array($value, $disallowedValues)) {
-                        $errors[$field] = $messages[$field]['not_in'] ?? ucfirst(str_replace('_', ' ', $field)) . " must not be one of the following: " . implode(', ', $disallowedValues);
+                        $errors[$field] = $messages[$field]['not_in'] ?? "$display_name must not be one of the following: " . implode(', ', $disallowedValues);
                         break;
                     }
                 }
@@ -295,7 +274,7 @@
                         }
                     }
                     if (!$startsWith) {
-                        $errors[$field] = $messages[$field]['starts_with'] ?? ucfirst(str_replace('_', ' ', $field)) . " must start with one of the following: " . implode(', ', $prefixes);
+                        $errors[$field] = $messages[$field]['starts_with'] ?? "$display_name must start with one of the following: " . implode(', ', $prefixes);
                         break;
                     }
                 }
@@ -311,15 +290,16 @@
                         }
                     }
                     if (!$endsWith) {
-                        $errors[$field] = $messages[$field]['ends_with'] ?? ucfirst(str_replace('_', ' ', $field)) . " must end with one of the following: " . implode(', ', $suffixes);
+                        $errors[$field] = $messages[$field]['ends_with'] ?? "$display_name must end with one of the following: " . implode(', ', $suffixes);
                         break;
                     }
                 }
             }
         }
-    
+
         return $errors;
     }
+
     
 
     /**
@@ -346,4 +326,27 @@
 
         // Check if the prefix exists in the array
         return in_array($prefix, $phone_prefixes);
+    }
+
+    /**
+     * This function creates the table variables used to query form validation tables
+     * @param ?string $param The parameters
+     * @return array
+     */
+    function split_query_information(?string $param, $value){
+        // Split parameters safely
+        $parts = array_map('trim', explode(',', $param));
+        $table = array_shift($parts);   // first part = table
+        $column = array_shift($parts);  // second part = column
+    
+        // Default WHERE condition
+        $where = [$column => $value];
+        $where_bind = 'AND'; // default logical binder
+    
+        // Process additional parameters like deleted_at=null or where_bind=OR
+        foreach ($parts as $condition) {
+            $where[] = trim($condition);
+        }
+
+        return [$column, $table, $where, $where_bind];
     }

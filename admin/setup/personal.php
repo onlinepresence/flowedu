@@ -9,9 +9,13 @@ ob_start();
 ?>
 <!-- Personal Information Form -->
 <form action="<?= url("admin/submit.php") ?>" method="POST" class="p-6 bg-white rounded-lg shadow-md dark:bg-gray-800">
+    <?php if(session("admin_register") == 1 &&  empty($user["username"])): ?>
+        <?= information_bar("Complete this form to finish your Super Admin registration.", can_hide: true, attributes: attribute("class", "mb-4 text-sm")) ?>
+    <?php endif; ?>
+    
     <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <!-- Hidden User ID -->
-        <?php echo input("hidden", "", "user_id", $_SESSION['user_id'], true); ?>
+        <?php echo input("hidden", "", "user_id", session('user_id'), true); ?>
 
         <!-- Username -->
         <div>

@@ -42,6 +42,7 @@
 
                         // update user session information
                         user(true);
+                        send_verification_email();
                     }
 
                     $_SESSION["system_message"] = "Password has been reset";
