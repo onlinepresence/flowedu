@@ -12,61 +12,28 @@
             if($submit == "create_student")
                 require_once "$rootPath/includes/image_validation.php";
 
-            if(empty($_POST["user_id"])){
-                $errors["system_message"] = "User could not be defined or is invalid";
-            }elseif(!is_numeric($_POST["user_id"])){
-                $errors["system_message"] = "User defined is invalid";
-            }if(empty($_POST["index_number"])){
-                $errors["index_number"] = "Index number could not be generated";
-            }if(empty($_POST["lastname"])){
-                $errors["lastname"] = "Please provide your lastname";
-            }if(empty($_POST["othernames"])){
-                $errors["othernames"] = "Please provide your othername(s)";
-            }if(empty($_POST["date_of_birth"])){
-                $errors["date_of_birth"] = "Date of birth is required";
-            }if(empty($_POST["nationality"])){
-                $errors["nationality"] = "Nationality is required";
-            }if(empty($_POST["insurance_number"])){
-                $errors["insurance_number"] = "Your insurance number is required";
-            }elseif(fetchData("insurance_number", "students", "insurance_number='{$_POST['insurance_number']}' AND user_id != {$_POST['user_id']}")){
-                $errors["insurance_number"] = "Insurance number already exists";
-            }if(empty($_POST["ghana_card"])){
-                $errors["ghana_card"] = "Ghana card number is required";
-            }elseif(!is_valid_ghana_card_number($_POST["ghana_card"])){
-                $errors["ghana_card"] = "Invalid Ghana card provided";
-            }if(empty($_POST["contact_address"])){
-                $errors["contact_address"] = "Contact address is required";
-            }if(empty($_POST["phone_number"])){
-                $errors["phone_number"] = "Phone number is required";
-            }
+            $rules = [
+                "user_id" => "required|numeric",
+                "index_number" => "required",
+                "lastname" => "required|string",
+                "othernames" => "required|string",
+                "date_of_birth" => "required|date",
+                "nationality" => "required|string",
+                "insurance_number" => "nullable|numeric",
+                "ghana_card" => "required|string|ghana_card",
+                "contact_address" => "required|string",
+                "phone_number" => "required|string|phone|unique:students,phone_number,user_id != {$_POST['user_id']}",
+            ];
             
             // other creation account validations
             if($submit == "create_student"){
-                if(empty($_POST["program_id"])){
-                    $errors["program_id"] = "Program is required";
-                }elseif(!is_numeric($_POST["program_id"])){
-                    $errors["program_id"] = "Invalid program has been provided";
-                }elseif(empty($_POST["department_id"])){
-                    $errors["program_id"] = "Program department could not be identified";
-                }elseif(!is_numeric($_POST["department_id"])){
-                    $errors["program_id"] = "Program department is invalid";
-                }if(empty($_POST["hall_id"])){
-                    $errors["hall_id"] = "Hall is required";
-                }elseif(!is_numeric($_POST["hall_id"])){
-                    $errors["hall_id"] = "Invalid hall has been selected";
-                }if(empty($_POST["username"])){
-                    $errors["username"] = "Username is required";
-                }elseif(fetchData("username", "users", "username='{$_POST['username']}' AND id != {$_POST['user_id']}")){
-                    $errors["username"] = "Username already exists";
-                }
-
-                if(empty(user()["username"]) && empty($_FILES["profile_pic"]["name"])){
-                    $errors["profile_pic"] = "Profile picture is required";
-                }if(empty($_POST["gender"])){
-                    $errors["gender"] = "Gender is required";
-                }elseif(!in_array($_POST["gender"], ["male", "female"])){
-                    $errors["gender"] = "Gender provided is invalid";
-                }
+                $rules = array_merge($rules, [
+                    "program_id" => "required|numeric|exists:programs,id",
+                    "hall_id" => "required|numeric|exists:halls,id",
+                    "username" => "required|unique:users,username,id != {$_POST['user_id']}",
+                    "profile_pic" => "nullable|file|mimes:jpg,png,jpeg,avif,webp",
+                    "gender" => "required|string|in:male,female"
+                ]);
 
                 /*$validate_profile = validate_passport_photo($_FILES["profile_pic"]["tmp_name"]);
                 if(!$validate_profile["status"]){
@@ -74,18 +41,13 @@
                 }*/
             }elseif($submit == "update_student"){
                 // verify account numbers
-                if(!empty($_POST["account_number"]) && empty($_POST["account_bank"])){
-                    $errors["account_bank"] = "Please select the bank of your e-zwitch account";
-                }elseif(!empty($_POST["account_number"])){
-                    if(fetchData(
-                        "id", "students", 
-                        ["account_number = '{$_POST['account_number']}'", "user_id != ".user()['user_id']],
-                        where_binds: "AND"
-                    )){
-                        $errors["account_number"] = "This account number has already been picked";
-                    }
-                }
+                $rules = array_merge($rules, [
+                    "account_bank" => "nullable|required_if:account_number",
+                    "account_number" => "nullable|required_if:account_bank|unique:students,account_number, user_id != ".user()['user_id'],
+                ]);
             }
+
+            $errors = validate_form($rules);
             
             if(!$errors){
                 $data = form_data("students/profiles/", ['username', 'prev_profile_pic']);
@@ -115,15 +77,20 @@
                 }
             }
         }elseif($submit == "save_guardian"){
-            if(empty($_POST["name"])){
-                $errors["name"] = "Guardian name is required";
-            }if(empty($_POST["student_id"])){
-                $errors["system_message"] = "Student data could not be verified";
-            }if(empty($_POST["relationship"])){
-                $errors["relationship"] = "Relationship with guardian is required";
-            }if(empty($_POST["phone_number"])){
-                $errors["phone_number"] = "Guardian phone number is required";
-            }
+            $rules = [
+                "name" => "required|string",
+                "student_id" => "required|integer|positive|exists:students,id",
+                "relationship" => "required|string",
+                "phone_number" => "required|phone"
+            ];
+            $hidden = ["student_id"];
+            $messages = [
+                "student_id" => [
+                    "required" => "Student Data could not be verified",
+                    "exists" => "Student specified was not found"
+                ]
+            ];
+            $errors = validate_form($rules, $messages, hidden: $hidden);
 
             if(!$errors){
                 $data = form_data(exclude: ["id"]);

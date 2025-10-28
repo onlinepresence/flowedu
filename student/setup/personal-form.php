@@ -157,7 +157,7 @@
                     "Health Insurance Number",
                     "insurance_number",
                     $is_student ? ($user["insurance_number"] ?? '') : "",
-                    true,
+                    false,
                     array_merge(placeholder("Health insurance number"), attribute("minlength", 6))
                 ); ?>
             </div>
