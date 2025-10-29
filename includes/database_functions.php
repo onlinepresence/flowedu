@@ -617,47 +617,59 @@ function formatColumns(array $columns, array $tables): array {
      * @param string|array $order_by order results by some columns
      * @param bool $asc order is in ascending order by default
      * @param array $multiple_table Takes a list of tables that can appear multiple times during joins
+     * @param int $offset Offset value used for pagination
+     * @param string $sort_key       Column name used for keyset pagination.
+     *                               When provided, the query will use a WHERE condition
+     *                               such as "WHERE <sort_key> > <last_key_value>" (or "<" if descending)
+     *                               instead of relying solely on OFFSET-based pagination.
+     *                               This approach provides faster performance for large datasets.
+     * @param mixed  $last_key_value The last known value of the sort key from the previous page.
+     *                               It determines where the next page of results should start.
+     *                               Typically this is the value of the sort key from the final record
+     *                               of the current page (e.g., the last record's "id" or timestamp).
+     *                               Set to null for the first page.
      * 
      * @return string
      */
-    function create_query_string(string|array $columns, string|array $table, 
-        string|array $where = "", int $limit = 1, string|array $where_binds = "",
-        string $join_type = "", string|array $group_by = "", string|array $order_by = "", bool $asc = true,
-        array $multiple_table = []
-    ):string{
+    function create_query_string(string|array $columns,string|array $table,string|array $where = "",
+        int $limit = 1, string|array $where_binds = "", string $join_type = "", string|array $group_by = "", 
+        string|array $order_by = "", bool $asc = true, array $multiple_table = [], int $offset = 0, string $sort_key = "",
+        mixed $last_key_value = null
+    ): string {
+    
         $columns = stringifyColumn($columns);
         $table = stringifyTable($table, $join_type, $multiple_table);
         $where = stringifyWhere($where, $where_binds);
-
+    
+        // Add keyset condition
+        if (!empty($sort_key) && $last_key_value !== null) {
+            $comparison = $asc ? '>' : '<';
+            $key_clause = "$sort_key $comparison " . (is_numeric($last_key_value) ? $last_key_value : "'$last_key_value'");
+            $where = !empty($where) ? "$where AND $key_clause" : $key_clause;
+        }
+    
         $sql = "SELECT $columns FROM $table";
         $sql .= !empty($where) ? " WHERE $where" : "";
-
-        //automatically detect that know that all data is been fetched if where is empty
-        if(empty($where)){
-            $limit = 0;
-        }else{
-            if(!empty($group_by)){
-                $sql .=" GROUP BY ";
-                $sql .= is_array($group_by) ? implode(", ", $group_by) : $group_by;
+    
+        if (!empty($group_by)) {
+            $sql .= " GROUP BY " . (is_array($group_by) ? implode(", ", $group_by) : $group_by);
+        }
+    
+        if (!empty($order_by)) {
+            $sql .= " ORDER BY " . (is_array($order_by) ? implode(", ", $order_by) : $order_by);
+            $sql .= $asc ? " ASC" : " DESC";
+        }
+    
+        if ($limit > 0) {
+            $sql .= " LIMIT $limit";
+            if ($offset > 0 && empty($sort_key)) {
+                $sql .= " OFFSET $offset";
             }
         }
-
-        if(!empty($order_by)){
-            $sql .= " ORDER BY ";
-            $sql .= is_array($order_by) ? implode(", ", $order_by) : $order_by;
-
-            if($asc){
-                $sql .= " ASC";
-            }else{
-                $sql .= " DESC";
-            }
-        }
-
-        //add the limit if the limit is set
-        $sql .= $limit > 0 ? " LIMIT $limit" : "";
-
+    
         return $sql;
     }
+    
 
     /**
      * This function queries the database, usually for select statements
@@ -692,6 +704,19 @@ function formatColumns(array $columns, array $tables): array {
      * @param string|array $order_by order results by some columns
      * @param bool $asc order is in ascending order by default
      * @param array $multiple_table Takes a list of tables that can appear multiple times during joins.
+     *                              Do something like [table_name => max_occurences] If the table must have 
+     *                              multiple occurences for a fixed number of times
+     * @param int $offset Offset to be used during pagination
+     * @param string $sort_key       Column name used for keyset pagination.
+     *                               When provided, the query will use a WHERE condition
+     *                               such as "WHERE <sort_key> > <last_key_value>" (or "<" if descending)
+     *                               instead of relying solely on OFFSET-based pagination.
+     *                               This approach provides faster performance for large datasets.
+     * @param mixed  $last_key_value The last known value of the sort key from the previous page.
+     *                               It determines where the next page of results should start.
+     *                               Typically this is the value of the sort key from the final record
+     *                               of the current page (e.g., the last record's "id" or timestamp).
+     *                               Set to null for the first page.
      * Do something like [table_name => max_occurences] If the table must have multiple occurences for a fixed number of times
      * 
      * @return string|array returns a(n) array|string of data or error
@@ -699,14 +724,14 @@ function formatColumns(array $columns, array $tables): array {
     function fetchData(string|array $columns, string|array $table, 
         string|array $where = "", int $limit = 1, string|array $where_binds = "",
         string $join_type = "", string|array $group_by = "", string|array $order_by = "", bool $asc = true,
-        array $multiple_table = []
+        array $multiple_table = [], int $offset = 0
     ){
         global $connect;
 
         // generate an sql
         $sql = create_query_string(
             $columns, $table, $where, $limit, $where_binds, 
-            $join_type, $group_by, $order_by, $asc, $multiple_table
+            $join_type, $group_by, $order_by, $asc, $multiple_table, $offset
         );
 
         try{

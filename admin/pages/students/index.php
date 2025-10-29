@@ -23,6 +23,7 @@ $row_template = <<<HTML
         </td>
         <td class="px-4 py-3 text-sm">__NAME__</td>
         <td class="px-4 py-3 text-sm">__GENDER__</td>
+        <td class="px-4 py-3 text-sm">__FORM_LEVEL__</td>
         <td class="px-4 py-3 text-sm">__PROGRAM__</td>
         <td class="px-4 py-3 text-sm">
             <div class="flex items-center space-x-4 text-sm">
@@ -47,7 +48,7 @@ HTML;
 
 <!-- filters -->
 <div>
-    <h2 class="text-lg font-bold mb-2">Filters</h2>
+    <h2 class="mb-2 text-lg font-bold">Filters</h2>
     <div class="flex gap-4">
         <?= 
             select("level", "Student Level", [
@@ -55,29 +56,36 @@ HTML;
                 ["id" => 200, "text" => "Level 200"],
                 ["id" => 300, "text" => "Level 300"],
                 ["id" => 400, "text" => "Level 400"]
-            ], "All Levels", attributes: attribute("class", "w-full"))
+            ], "All Levels", attributes: array_merge(
+                attribute("class", "w-full"), attribute("id", "level")
+            ))
         ?>
         <?php 
             $faculties = faculties();
-            echo select("faculty", "Faculty", $faculties, "All Faculties", keys: select_keys("id", "name"), attributes: attribute("class", "w-full"))
+            echo select("faculty", "Faculty", $faculties, "All Faculties", keys: select_keys("id", "name"), attributes: array_merge(
+                attribute("class", "w-full"), attribute("id", "faculty")
+            ))
         ?>
         <?php 
             $departments = departments();
-            echo select("department", "Department", $departments, "All Departments", keys: select_keys("id", "name"), attributes: attribute("class", "w-full"))
+            echo select("department", "Department", $departments, "All Departments", keys: select_keys("id", "name"), attributes: array_merge(
+                attribute("class", "w-full"), attribute("id", "department")
+            ))
         ?>
         <?php 
             $programs = programs();
-            echo select("program", "Program", $programs, "All Programs", keys: select_keys("id", "name"), attributes: attribute("class", "w-full"))
+            echo select("program", "Program", $programs, "All Programs", keys: select_keys("id", "name"), attributes: array_merge(
+                attribute("class", "w-full"), attribute("id", "program")
+            ))
         ?>
     </div>
-    <div class="mt-4 max-w-52 flex gap-2">
-        <?= button("button", "Search") ?>
+    <div class="flex gap-2 mt-4 max-w-52">
         <?= button("button", "Download") ?>
     </div>
 </div>
 
 <!-- results to be displayed in table -->
-<div class="w-full overflow-hidden rounded-lg shadow-xs mt-3">
+<div class="w-full mt-3 overflow-hidden rounded-lg shadow-xs">
     <div class="w-full overflow-x-auto">
         <?= table_start(attribute("class", "w-full whitespace-no-wrap")) ?>
             <?= thead_start() ?>
@@ -85,6 +93,7 @@ HTML;
                     <?= th('Student', attribute('class', 'px-4 py-3')) ?>
                     <?= th('Name', attribute('class', 'px-4 py-3')) ?>
                     <?= th('Gender', attribute('class', 'px-4 py-3')) ?>
+                    <?= th('Form Level', attribute('class', 'px-4 py-3')) ?>
                     <?= th('Program', attribute('class', 'px-4 py-3')) ?>
                     <?= th('Actions', attribute('class', 'px-4 py-3')) ?>
                 <?= tr_end() ?>
@@ -125,11 +134,15 @@ HTML;
     </div>
 </div>
 
+<?= $row_template ?>
+
+<span id="relative_path" class="hidden"><?= url() ?></span>
+
 <?php $scripts = <<<HTML
     <script>
         $(document).ready(function(){
             let currentPage = 1;
-            const basePath = "<?= relative_path(''); ?>";
+            const basePath = $("#relative_path").text();
             
             function relative_path(path) {
                 return basePath + path;
@@ -143,35 +156,45 @@ HTML;
                     faculty: $('#faculty').val(),
                     department: $('#department').val(),
                     program: $('#program').val(),
-                    page: page
+                    page: page,
+                    submit: "fetch_students",
+                    response_type: "json"
                 };
 
-                $.get(relative_path('api/students'), filters)
+                $.get(relative_path('admin/pages/students/submit.php'), filters, null, 'json')
                     .done(function(response) {
                         const tbody = $('tbody');
                         tbody.empty();
 
-                        if (response.data && response.data.length > 0) {
-                            response.data.forEach(function(student) {
+                        const students = response.data.students;
+                        const total_students = response.data.total;
+
+                        if (students && students.length > 0) {
+                            students.forEach(function(student) {
                                 const template = $('#student-row-template').html()
-                                    .replace('__PROFILE_PIC__', student.profile_pic || relative_path('assets/img/default-avatar.jpg'))
+                                    .replace('__PROFILE_PIC__', relative_path("assets/" + student.profile_pic) || relative_path('assets/img/default-avatar.jpg'))
                                     .replace('__INDEX_NUMBER__', student.index_number)
                                     .replace('__NAME__', student.fullname)
                                     .replace('__GENDER__', student.gender)
-                                    .replace('__PROGRAM__', student.program_name);
+                                    .replace('__PROGRAM__', student.program_name)
+                                    .replace('__FORM_LEVEL__', student.current_year);
                                 
                                 tbody.append(template);
                             });
 
-                            updatePagination(response.total, page);
+                            updatePagination(total_students, page);
                         } else {
-                            const emptyTemplate = $('#empty-row-template').html();
+                            const emptyTemplate = $('#empty-row-template').html(response.status ? "No information to show" : "An internal error has occured. Check logs");
                             tbody.append(emptyTemplate);
+
+                            if(!response.status){
+                                console.error(response.error);
+                            }
                         }
                     })
                     .fail(function(error) {
                         console.error('Error loading students:', error);
-                        const emptyTemplate = $('#empty-row-template').html();
+                        const emptyTemplate = $('#empty-row-template').html(error);
                         $('tbody').empty().append(emptyTemplate);
                     });
             }
