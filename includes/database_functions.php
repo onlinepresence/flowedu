@@ -724,14 +724,14 @@ function formatColumns(array $columns, array $tables): array {
     function fetchData(string|array $columns, string|array $table, 
         string|array $where = "", int $limit = 1, string|array $where_binds = "",
         string $join_type = "", string|array $group_by = "", string|array $order_by = "", bool $asc = true,
-        array $multiple_table = [], int $offset = 0
+        array $multiple_table = [], int $offset = 0, string $sort_key = "", mixed $last_key_value = null
     ){
         global $connect;
 
         // generate an sql
         $sql = create_query_string(
             $columns, $table, $where, $limit, $where_binds, 
-            $join_type, $group_by, $order_by, $asc, $multiple_table, $offset
+            $join_type, $group_by, $order_by, $asc, $multiple_table, $offset, $sort_key, $last_key_value
         );
 
         try{

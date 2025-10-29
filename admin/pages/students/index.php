@@ -49,7 +49,7 @@ HTML;
 <!-- filters -->
 <div>
     <h2 class="mb-2 text-lg font-bold">Filters</h2>
-    <div class="flex gap-4">
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <?= 
             select("level", "Student Level", [
                 ["id" => 100, "text" => "Level 100"],
@@ -57,25 +57,25 @@ HTML;
                 ["id" => 300, "text" => "Level 300"],
                 ["id" => 400, "text" => "Level 400"]
             ], "All Levels", attributes: array_merge(
-                attribute("class", "w-full"), attribute("id", "level")
+                attribute("id", "level"), data_attr("filter", "level")
             ))
         ?>
         <?php 
             $faculties = faculties();
             echo select("faculty", "Faculty", $faculties, "All Faculties", keys: select_keys("id", "name"), attributes: array_merge(
-                attribute("class", "w-full"), attribute("id", "faculty")
+                attribute("id", "faculty"), data_attr("filter", "faculty")
             ))
         ?>
         <?php 
             $departments = departments();
             echo select("department", "Department", $departments, "All Departments", keys: select_keys("id", "name"), attributes: array_merge(
-                attribute("class", "w-full"), attribute("id", "department")
+                attribute("id", "department"), data_attr("filter", "department")
             ))
         ?>
         <?php 
             $programs = programs();
             echo select("program", "Program", $programs, "All Programs", keys: select_keys("id", "name"), attributes: array_merge(
-                attribute("class", "w-full"), attribute("id", "program")
+                attribute("id", "program"), data_attr("filter", "program")
             ))
         ?>
     </div>
@@ -106,9 +106,9 @@ HTML;
     
     <!-- Pagination -->
     <div class="grid px-4 py-3 text-xs font-semibold tracking-wide text-gray-500 uppercase border-t dark:border-gray-700 bg-gray-50 sm:grid-cols-9 dark:text-gray-400 dark:bg-gray-800">
-        <span class="flex items-center col-span-3">
-            Showing <span id="page-info" class="mx-1">0-0</span> of <span id="total-count">0</span>
-        </span>
+        <p class="flex items-center col-span-3 gap-2">
+            Showing <span id="page-info" class="mx-1">0–0</span> of <span id="total-count">0</span> students
+        </p>
         <span class="col-span-2"></span>
         <!-- Pagination -->
         <span class="flex col-span-4 mt-2 sm:mt-auto sm:justify-end">
@@ -136,109 +136,29 @@ HTML;
 
 <?= $row_template ?>
 
-<span id="relative_path" class="hidden"><?= url() ?></span>
-
-<?php $scripts = <<<HTML
+<?php
+    $pagination_script = pagination_script(
+        'admin/pages/students/submit.php', 'student-row-template', 'students', 
+        [
+            "PROFILE_PIC" => "profile_pic", "INDEX_NUMBER" => "index_number", "NAME" => "fullname",
+            "GENDER" => "gender", "PROGRAM" => "program_name", "FORM_LEVEL" => "current_year"
+        ],
+        ["submit" => "fetch_students"], ["profile_pic"]);
+        
+    $scripts = <<<HTML
     <script>
         $(document).ready(function(){
-            let currentPage = 1;
-            const basePath = $("#relative_path").text();
-            
-            function relative_path(path) {
-                return basePath + path;
-            }
-            
-            // Function to load students data
-            function loadStudents(page = 1) {
-                currentPage = page;
-                const filters = {
-                    level: $('#level').val(),
-                    faculty: $('#faculty').val(),
-                    department: $('#department').val(),
-                    program: $('#program').val(),
-                    page: page,
-                    submit: "fetch_students",
-                    response_type: "json"
-                };
-
-                $.get(relative_path('admin/pages/students/submit.php'), filters, null, 'json')
-                    .done(function(response) {
-                        const tbody = $('tbody');
-                        tbody.empty();
-
-                        const students = response.data.students;
-                        const total_students = response.data.total;
-
-                        if (students && students.length > 0) {
-                            students.forEach(function(student) {
-                                const template = $('#student-row-template').html()
-                                    .replace('__PROFILE_PIC__', relative_path("assets/" + student.profile_pic) || relative_path('assets/img/default-avatar.jpg'))
-                                    .replace('__INDEX_NUMBER__', student.index_number)
-                                    .replace('__NAME__', student.fullname)
-                                    .replace('__GENDER__', student.gender)
-                                    .replace('__PROGRAM__', student.program_name)
-                                    .replace('__FORM_LEVEL__', student.current_year);
-                                
-                                tbody.append(template);
-                            });
-
-                            updatePagination(total_students, page);
-                        } else {
-                            const emptyTemplate = $('#empty-row-template').html(response.status ? "No information to show" : "An internal error has occured. Check logs");
-                            tbody.append(emptyTemplate);
-
-                            if(!response.status){
-                                console.error(response.error);
-                            }
-                        }
-                    })
-                    .fail(function(error) {
-                        console.error('Error loading students:', error);
-                        const emptyTemplate = $('#empty-row-template').html(error);
-                        $('tbody').empty().append(emptyTemplate);
-                    });
-            }
-
-            // Function to update pagination
-            function updatePagination(total, currentPage) {
-                const totalPages = Math.ceil(total / 100);
-                const start = (currentPage - 1) * 100 + 1;
-                const end = Math.min(currentPage * 100, total);
-                
-                $('#page-info').text(start + " " + end);
-                $('#total-count').text(total);
-                
-                $('#prev-page').prop('disabled', currentPage === 1)
-                    .toggleClass('opacity-50 cursor-not-allowed', currentPage === 1);
-                $('#next-page').prop('disabled', currentPage === totalPages)
-                    .toggleClass('opacity-50 cursor-not-allowed', currentPage === totalPages);
-            }
-
-            // Handle pagination clicks
-            $('#prev-page').on('click', function() {
-                if (!$(this).prop('disabled')) {
-                    loadStudents(currentPage - 1);
-                }
-            });
-
-            $('#next-page').on('click', function() {
-                if (!$(this).prop('disabled')) {
-                    loadStudents(currentPage + 1);
-                }
-            });
+            $pagination_script
 
             // Handle filter changes
             $('#level, #faculty, #department, #program').on('change', function() {
-                loadStudents(1);
+                loadPaginatedData(1);
             });
 
             // Handle search button click
             $('#search-btn').on('click', function() {
-                loadStudents(1);
+                loadPaginatedData(1);
             });
-
-            // Initial load
-            loadStudents();
         });
     </script>
 HTML;

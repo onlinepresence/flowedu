@@ -19,13 +19,14 @@
 
         return $where;
     }
+    
+    $errors = [];
+    $request_from = $_SERVER["HTTP_REFERER"];
+    $next_request = null;
+    $_SESSION["old_input"] = $_REQUEST;
 
     if(isset($_REQUEST["submit"])){
         $submit = $_REQUEST["submit"];
-        $errors = [];
-        $request_from = $_SERVER["HTTP_REFERER"];
-        $next_request = null;
-        $_SESSION["old_input"] = $_REQUEST;
 
         if($submit == "fetch_students"){
             $filters = form_data();
@@ -41,9 +42,15 @@
             ];
 
             $where = buildWhereClause($filters);
+            $where[] = "s.approved = TRUE";
 
             $data["students"] = fetchData($columns, $tables, $where, 50, offset: $offset);
-            $data["total"] = (int) fetchData("COUNT(index_number) AS total", $tables, $where)["total"];
+
+            if($data["students"]){
+                $data["total"] = (int) fetchData("COUNT(index_number) AS total", $tables, $where)["total"];
+            }else{
+                $data["students"] = []; $data["total"] = 0;
+            }
 
             $status = true;
         }

@@ -1261,4 +1261,119 @@
         ";
     }
 
+    /**
+     * This is used to fetch data from the database using page filters
+     */
+    function pagination_script($fetch_url, $template_id, $data_key, $placeholder_map = [], $filters = [], $url_tags = []) {
+        $base_url = '"' . url() . '"';
+
+        $default_filters = [
+            "response_type" => "json"
+        ];
+
+        $filters_json = json_encode(array_merge($default_filters, $filters)); // pass default filters (if any)
+        $placeholder_json = json_encode($placeholder_map, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $url_json = json_encode($url_tags, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    
+        $script = <<<JAVASCRIPT
+            const basePath = $base_url;
+            const fetchUrl = '$fetch_url';
+            const templateId = '$template_id';
+            const dataKey = '$data_key';
+            const defaultFilters = $filters_json;
+            const placeholderMap = $placeholder_json;
+            const urlMap = $url_json;
+            let currentPage = 1;
+    
+            function relative_path(path) {
+                return basePath + path;
+            }
+    
+            function loadPaginatedData(page = 1) {
+                currentPage = page;
+    
+                // Collect filter inputs dynamically
+                const filters = { ...defaultFilters, page };
+                $('select[data-filter], input[data-filter]').each(function() {
+                    const key = $(this).attr('name') || $(this).data('filter');
+                    filters[key] = $(this).val();
+                });
+    
+                $.get(relative_path(fetchUrl), filters, null, 'json')
+                    .done(function(response) {
+                        const tbody = $('tbody');
+                        tbody.empty();
+    
+                        const items = response.data[dataKey] || [];
+                        const total = response.data.total || 0;
+    
+                        if (items.length > 0) {
+                            items.forEach(function(item) {
+                                let template = $('#' + templateId).html();
+    
+                                // Perform placeholder replacements dynamically
+                                for (const [placeholder, key] of Object.entries(placeholderMap)) {
+                                    let value = item[key] ?? '';
+                                    if (urlMap.includes(key)) {
+                                        value = relative_path("assets/" + value);
+                                    }
+                                    const regex = new RegExp('__' + placeholder + '__', 'g');
+                                    template = template.replace(regex, value);
+                                }
+    
+                                tbody.append(template);
+                            });    
+                        } else {
+                            const emptyMsg = response.status ? "No information to show" : "An internal error has occurred.";
+                            const emptyTemplate = $('#empty-row-template').html(emptyMsg);
+                            tbody.append(emptyTemplate);
+    
+                            if (!response.status) console.error(response.error);
+                        }
+
+                        updatePagination(total, page);
+                    })
+                    .fail(function(error) {
+                        console.error('Error loading data:', error);
+                        const emptyTemplate = $('#empty-row-template').html("Error loading data");
+                        $('tbody').empty().append(emptyTemplate);
+                    });
+            }
+    
+            // Pagination UI update
+            function updatePagination(total, currentPage) {
+                const totalPages = Math.ceil(total / 100);
+                const start = (currentPage - 1) * 100 + 1;
+                const end = Math.min(currentPage * 100, total);
+    
+                $('#page-info').text(start + " - " + end);
+                $('#total-count').text(total);
+    
+                $('#prev-page').prop('disabled', currentPage === 1)
+                    .toggleClass('opacity-50 cursor-not-allowed', currentPage === 1);
+                $('#next-page').prop('disabled', currentPage === totalPages)
+                    .toggleClass('opacity-50 cursor-not-allowed', currentPage === totalPages);
+            }
+    
+            // Pagination buttons
+            $('#prev-page').on('click', function() {
+                if (!$(this).prop('disabled')) {
+                    loadPaginatedData(currentPage - 1);
+                }
+            });
+    
+            $('#next-page').on('click', function() {
+                if (!$(this).prop('disabled')) {
+                    loadPaginatedData(currentPage + 1);
+                }
+            });
+
+            // Initial load
+            loadPaginatedData();
+        JAVASCRIPT;
+    
+        return $script;
+    }
+    
+
 
