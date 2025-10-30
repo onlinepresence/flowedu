@@ -53,6 +53,59 @@
             }
 
             $status = true;
+        }elseif($submit == "download_students"){
+            require_once $rootPath."/includes/spreadsheet.php";
+
+            try {            
+                $filters = form_data();
+            
+                $tables = [
+                    ["join" => "students departments", "on" => "department_id id", "alias" => "s d"],
+                    ["join" => "students programs", "on" => "program_id id", "alias" => "s p"],
+                    ["join" => "students halls", "on" => "hall_id id", "alias" => "s h"],
+                    ["join" => "students parent_guardians", "on" => "id student_id", "alias" => "s g"],
+                ];
+            
+                $columns = [
+                    "index_number", "CONCAT(lastname, ' ', othernames) AS fullname", "d.name as department_name",
+                    "p.name as program_name", "gender", "current_year", "date_of_birth", "nationality", "religion",
+                    "contact_address", "s.phone_number", "ghana_card", "h.name AS hall_name", "g.name as guardian_name",
+                    "g.relationship as guardian_relation", "g.address as guardian_address", "g.phone_number as guardian_phone",
+                    "g.email as guardian_email"
+                ];
+            
+                $where = buildWhereClause($filters);
+                $where[] = "s.approved = TRUE";
+            
+                $students = fetchData($columns, $tables, $where, 0);
+            
+                if (empty($students)) {
+                    throw new Exception("No students found for the selected filters.");
+                }
+            
+                // Set up spreadsheet
+                $spreadsheet = setup_spreadsheet($students);
+            
+                // Generate unique filename and folder
+                $filename = "students_" . date("Ymd_His");
+                $directory = "tmp";
+            
+                // Save it temporarily (so frontend can download)
+                create_spreadsheet($spreadsheet, $filename, $directory, true);
+            
+                $file_url = "/$directory/$filename.xlsx";
+            
+                $status = true;
+                $data = [
+                    "file_url" => url($file_url),
+                    "filename" => "$filename.xlsx"
+                ];
+
+                // create a deletion job
+                add_job("delete_tmp", create_payload("delete_tmp_file", [relative_path($file_url)]), 120);
+            } catch (Exception $e) {
+                $errors[] = $e->getMessage();
+            }
         }
     }
 

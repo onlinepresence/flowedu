@@ -8,3 +8,6 @@
     
     // run email queues
     run_worker("email");
+
+    // remove temp files
+    run_worker("delete_tmp");

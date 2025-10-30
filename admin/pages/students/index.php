@@ -80,7 +80,7 @@ HTML;
         ?>
     </div>
     <div class="flex gap-2 mt-4 max-w-52">
-        <?= button("button", "Download") ?>
+        <?= button("button", "Download", attributes: attribute("id", "download")) ?>
     </div>
 </div>
 
@@ -159,6 +159,54 @@ HTML;
             $('#search-btn').on('click', function() {
                 loadPaginatedData(1);
             });
+
+            $("#download").click(function () {
+                const level = $("#level").val();
+                const faculty = $("#faculty").val();
+                const department = $("#department").val();
+                const program = $("#program").val();
+
+                $.ajax({
+                    url: relative_path("admin/pages/students/submit.php"),
+                    type: "POST",
+                    data: {
+                        level: level,
+                        faculty: faculty,
+                        department: department,
+                        program: program,
+                        submit: "download_students",
+                        response_type: "json"
+                    },
+                    dataType: "json",
+                    beforeSend: function () {
+                        $("#download").prop("disabled", true).text("Processing...");
+                    },
+                    success: function (response) {
+                        $("#download").prop("disabled", false).text("Download");
+
+                        if (response.status && response.data && response.data.file_url) {
+                            // file_url is expected to be provided by the backend, e.g. "files/export.xlsx"
+                            const link = document.createElement("a");
+                            link.href = response.data.file_url;
+                            link.download = response.data.filename || "students.xlsx";
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                        } else {
+                            // Handle error message
+                            const errorMsg = response.errors && response.errors.length
+                                ? response.errors.join(" ")
+                                : "An unknown error occurred.";
+                            alert(errorMsg);
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        $("#download").prop("disabled", false).text("Download");
+                        alert("Request failed: " + error);
+                    }
+                });
+            });
+
         });
     </script>
 HTML;

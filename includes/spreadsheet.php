@@ -5,6 +5,8 @@
     use PhpOffice\PhpSpreadsheet\Spreadsheet;
     use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
+    require_once "$rootPath/vendor/autoload.php";
+
     class Validation{
         /**
          * @var int $max_cols Sets the maximum number of columns for the sheet
@@ -313,6 +315,14 @@
         return $spreadsheet;
     }
 
+    /**
+     * This file contains functions and utilities for handling spreadsheet operations.
+     * 
+     * @param Spreadsheet $spreadsheet The spreadsheet object. Create with create_spreadsheet function
+     * @param string $filename The file name
+     * @param ?string $directory_name The directory name from root
+     * @param bool $backup_file This is used to determine if the file should be created on disk or from stream
+     */
     function create_spreadsheet(Spreadsheet $spreadsheet, string $filename, $directory_name = null, bool $backup_file = false){
         // clear any outputs
         ob_end_clean();

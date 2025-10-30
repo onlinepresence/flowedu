@@ -29,11 +29,11 @@
      * This is used to add a new job to the jobs table
      * @param string $queue The type of queue this job belongs to
      * @param array $payload The payload
-     * @param int $max_attempts The maximumn number attempts till it is determined a failed job
+     * @param int $delay Adds a delay to when the job should be run in seconds
      * @return bool
      */
-    function add_job(string $queue, array $payload) :bool {
-        $time = time();
+    function add_job(string $queue, array $payload, int $delay = 0) :bool {
+        $time = time() + $delay;
         $data = [
             "queue" => $queue, 
             "payload" => serialize_(json_encode($payload)), 
@@ -156,4 +156,87 @@
         if($count){
             log_cron_message("$count '$queue' queues finished");
         }
+    }
+
+    /**
+     * Delete a single tmp file (used as job target)
+     * @param string $filepath absolute file path
+     * @return bool true on success (or if file already missing), false on failure
+     */
+    function delete_tmp_file(string $filepath) : bool {
+        // basic safety check: ensure file is inside your tmp dir
+        $tmpDir = str_replace("\\", "/", relative_path("tmp"));
+        $real = str_replace("\\","/", @realpath($filepath));
+
+        if ($real === false) {
+            // file doesn't exist
+            return true;
+        }
+
+        // ensure file is under tmp dir to avoid accidental deletions
+        if (strpos($real, $tmpDir) !== 0) {
+            // attempted delete outside tmp -> fail and log
+            // optionally set a global exception variable for failed job
+            global $last_exception;
+            $last_exception = "Unsafe delete attempt for file: $filepath";
+            return false;
+        }
+
+        // Optionally, check file age so we don't delete prematurely if job was delayed incorrectly
+        $maxAgeSeconds = 30; // if file is younger than 30s, skip (defensive)
+        if (file_exists($real) && (time() - filemtime($real) < $maxAgeSeconds)) {
+            // not old enough; requeue or return false to trigger attempt increment
+            global $last_exception;
+            $last_exception = "File too new to delete: $filepath";
+            return false;
+        }
+
+        // attempt unlink
+        if (unlink($real)) {
+            return true;
+        } else {
+            global $last_exception;
+            $last_exception = "Failed to unlink file: $filepath";
+            return false;
+        }
+    }
+
+    /**
+     * Cleanup function: delete all files in dir older than $max_age seconds.
+     * Useful for periodic cleanup jobs.
+     *
+     * @param string $dir absolute or relative to doc root (if relative, assumed under doc root)
+     * @param int $max_age seconds
+     * @return bool
+     */
+    function delete_tmp_cleanup(string $dir = 'tmp', int $max_age = 120) : bool {
+        $base = $dir;
+        if (!preg_match('#^/#', $dir)) {
+            $base = $_SERVER['DOCUMENT_ROOT'] . "/$dir";
+        }
+
+        $base = realpath($base);
+        if ($base === false || !is_dir($base)) {
+            global $last_exception;
+            $last_exception = "Cleanup dir not found: $dir";
+            return false;
+        }
+
+        $files = glob($base . '/*'); // or '*' for any file type
+        $ok = true;
+        foreach ($files as $file) {
+            if (!is_file($file)) continue;
+            $age = time() - filemtime($file);
+            if ($age >= $max_age) {
+                if (!@unlink($file)) {
+                    $ok = false;
+                    // record last exception for logging
+                    global $last_exception;
+                    $last_exception = "Failed to unlink $file";
+                    // continue trying other files
+                }
+            }
+        }
+
+        return $ok;
     }
