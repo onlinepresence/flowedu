@@ -492,7 +492,7 @@
             case "teacher":
                 $cols = [
                     "t.id AS teacher_id", "ghana_card", "profile_pic", "gender", "date_of_birth",
-                    "nationality", "contact_address", "phone_number", "staff_id", "department_id", "rank",
+                    "nationality", "contact_address", "phone_number", "staff_id", "department_id", "`rank`",
                     "qualification", "specialization", "employment_type", "years_experience", "cv", "certificate",
                     "id_document", "emergency_name", "emergency_phone", "research_interests", "t.created_at", "t.updated_at",
                     "password_reset_required"
