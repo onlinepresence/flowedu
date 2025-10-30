@@ -1,28 +1,27 @@
 <?php
 require_once relative_path("includes/components.php");
 
-$title = 'Setup Account'; // Set the page title
 $teacher = user();
+
+$hasUsername = !empty($teacher["username"]);
+$requiresReset = $teacher["password_reset_required"];
+$isProfilePage = $teacher["is_onboarded"];
+
+$title = $isProfilePage ? 'Update Profile' : 'Setup Account'; // Set the page title
 
 // Start output buffering to capture the content
 ob_start();
 ?>
-    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md space-y-6">
-        <?php 
-            $hasUsername = !empty($teacher["username"]);
-            $requiresReset = !empty($teacher["password_reset_required"]);
-            $isProfilePage = ($hasUsername && !$requiresReset);
-        ?>
-
+    <div class="p-6 space-y-6 bg-white rounded-lg shadow-md dark:bg-gray-800">
         <?php if($isProfilePage): ?>
-            <div class="flex gap-4 border-b pb-2 mb-4 text-sm font-medium text-gray-700 dark:text-gray-200">
-                <a href="#" class="menu-link text-blue-600 dark:text-blue-300" data-view="details">Change Details</a>
+            <div class="flex gap-4 pb-2 mb-4 text-sm font-medium text-gray-700 border-b dark:text-gray-200">
+                <a href="#" class="text-blue-600 menu-link dark:text-blue-300" data-view="details">Change Details</a>
                 <a href="#" class="menu-link" data-view="password">Change Password</a>
             </div>
         <?php endif; ?>
 
         <div id="view-container">
-            <?php if($isProfilePage || (!$hasUsername && $requiresReset)): ?>
+            <?php if($isProfilePage || $requiresReset): ?>
                 <!-- reset password -->
                 <form action="<?= url('teacher/submit.php') ?>" method="POST" 
                     id="view-password" class="<?= $isProfilePage ? "hidden" : "" ?>">
@@ -32,7 +31,7 @@ ob_start();
                     <?= fieldset_start(); ?>
                         <?= fieldset_legend(!$isProfilePage ? "Reset Password" : "Set Your Password"); ?>
 
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                             <?= input("password", "New Password", "password", "", true, placeholder("Enter new password")); ?>
                             <?= input("password", "Confirm Password", "confirm_password", "", true, placeholder("Confirm new password")); ?>
                             <?php if(!$isProfilePage): ?>
@@ -52,7 +51,7 @@ ob_start();
                 </form>
             <?php endif; ?>
 
-            <?php if($isProfilePage || (!$hasUsername && !$requiresReset)): ?>
+            <?php if($isProfilePage || !$requiresReset): ?>
                 <!-- change details -->
                 <form action="<?= url('teacher/submit.php') ?>" method="POST" enctype="multipart/form-data" 
                     id="view-details" class="space-y-6">
@@ -75,7 +74,7 @@ ob_start();
 
                         <?php endif; ?>
 
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                             
                             <!-- Profile Picture -->
                             <div>
@@ -123,7 +122,7 @@ ob_start();
                     <?= fieldset_start(); ?>
                         <?= fieldset_legend("Professional Details"); ?>
 
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
 
                             <!-- Staff ID -->
                             <?= input_h("text", "Staff ID", "staff_id", $teacher["staff_id"] ?? "", true, "Your staff ID will also serve as your username", array_merge(
@@ -179,7 +178,7 @@ ob_start();
                     <?= fieldset_start(); ?>
                         <?= fieldset_legend("Academic Documents"); ?>
 
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                             <?php 
                                 $sub_text = $teacher["cv"] 
                                     ? "<a href=\"".asset($teacher['cv'], false)."\" target=\"_blank\">View Document</a>" 
@@ -204,7 +203,7 @@ ob_start();
                     <?= fieldset_start(); ?>
                         <?= fieldset_legend("Additional Information"); ?>
 
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                             <?= input("text", "Emergency Contact Name", "emergency_name", $teacher["emergency_name"] ?? "", false, placeholder("Name of person to contact in emergency")); ?>
 
                             <?= input("tel", "Emergency Contact Number", "emergency_phone", $teacher["emergency_phone"] ?? "", false, placeholder("024xxxxxxx")); ?>

@@ -495,7 +495,7 @@
                     "nationality", "contact_address", "phone_number", "staff_id", "department_id", "`rank`",
                     "qualification", "specialization", "employment_type", "years_experience", "cv", "certificate",
                     "id_document", "emergency_name", "emergency_phone", "research_interests", "t.created_at", "t.updated_at",
-                    "password_reset_required"
+                    "password_reset_required", "is_onboarded"
                 ];
                 break;
             default:

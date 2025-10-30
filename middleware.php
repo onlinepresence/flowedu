@@ -111,7 +111,7 @@
     function valid_teacher($next){
         $user = user();
 
-        if(empty($user["username"])){
+        if(!$user["is_onboarded"]){
             $_SESSION["errors"]["system_message"] = "Complete your user profile to proceed";
             send_to_next_request();
             header("location: /teacher/setup");
@@ -123,7 +123,7 @@
     function valid_teacher_check($next){
         $user = user();
 
-        if(!empty($user["username"])){
+        if($user["is_onboarded"]){
             header("location: /teacher/dashboard");
         }
 

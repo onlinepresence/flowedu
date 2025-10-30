@@ -94,6 +94,10 @@
                 $staff_id = $_POST["staff_id"];
                 $data = form_data("teachers/$staff_id");
 
+                if($submit == "update_teacher"){
+                    $data["is_onboarded"] = true;
+                }
+
                 // if updating, remove optional files
                 if($submit == "update_teacher"){
                     if(empty($_FILES["cv"]["name"])){

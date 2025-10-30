@@ -537,7 +537,7 @@ function formatColumns(array $columns, array $tables): array {
         $response = [];
 
         foreach($columns as $column){
-            $response[] = "$column = ?";
+            $response[] = "`$column` = ?";
         }
 
         return implode(", ",$response);
