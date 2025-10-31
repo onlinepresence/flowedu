@@ -65,7 +65,7 @@
                 "ghana_card"       => "required|string|ghana_card",
                 "contact_address"  => "required|string|max:100",
                 "phone_number"     => "required|phone",
-                "staff_id"         => "required|string|max:15",
+                "staff_id"         => "required|string",
                 "department_id"    => "nullable|integer",
                 "rank"             => "nullable|string|max:30",
                 "qualification"    => "nullable|string|max:20",
