@@ -1325,8 +1325,13 @@
                             });    
                         } else {
                             const emptyMsg = response.status ? "No information to show" : "An internal error has occurred.";
-                            const emptyTemplate = $('#empty-row-template').html(emptyMsg);
-                            tbody.append(emptyTemplate);
+                            const emptyTemplate = $('#empty-row-template');
+
+                            if(emptyTemplate.length > 0){
+                                tbody.append(emptyTemplate.html());
+                            } else {
+                                tbody.append('<tr><td colspan="100%" class="text-center p-4">' + emptyMsg + '</td></tr>');
+                            }
     
                             if (!response.status) console.error(response.error);
                         }

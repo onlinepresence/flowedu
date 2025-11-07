@@ -7,6 +7,7 @@ $title = 'Students Data';
 ob_start();
 
 // Template for table rows
+$empty_row_template = td_empty("No students found", 5);
 $row_template = <<<HTML
 <template id="student-row-template">
     <tr class="text-gray-700 dark:text-gray-400">
@@ -22,7 +23,7 @@ $row_template = <<<HTML
             </div>
         </td>
         <td class="px-4 py-3 text-sm">__NAME__</td>
-        <td class="px-4 py-3 text-sm">__GENDER__</td>
+        <td class="px-4 py-3 text-sm capitalize">__GENDER__</td>
         <td class="px-4 py-3 text-sm">__FORM_LEVEL__</td>
         <td class="px-4 py-3 text-sm">__PROGRAM__</td>
         <td class="px-4 py-3 text-sm">
@@ -39,9 +40,7 @@ $row_template = <<<HTML
 </template>
 
 <template id="empty-row-template">
-    <tr class="text-gray-700 dark:text-gray-400">
-        <td colspan="5" class="px-4 py-3 text-sm text-center">No students found</td>
-    </tr>
+    $empty_row_template
 </template>
 HTML;
 ?>

@@ -106,7 +106,45 @@
             } catch (Exception $e) {
                 $errors[] = $e->getMessage();
             }
+        }elseif($submit == "fetch_unapproved_students") {
+            $filters = form_data();
+            $offset = 50 * ($filters["page"] - 1);
+        
+            // Define all table joins
+            $tables = [
+                ["join" => "students programs", "on" => "program_id id", "alias" => "s p"],
+                ["join" => "students parent_guardians", "on" => "id student_id", "alias" => "s g"]
+            ];
+        
+            // Columns required by frontend
+            $columns = [
+                "s.user_id", "s.index_number", "s.profile_pic",
+                "CONCAT(s.lastname, ' ', s.othernames) AS fullname",
+                "s.gender", "p.name AS program_name", "p.department_id", "s.created_at", "g.id AS guardian"
+            ];
+        
+            // Filters / Where clause
+            $where = buildWhereClause($filters);
+            $where[] = "s.approved = FALSE"; // Unapproved students only
+        
+            // Fetch data
+            $data["students"] = fetchData($columns, $tables, $where, 50, offset: $offset, join_type: "LEFT");
+
+            if ($data["students"]) {
+                // Loop through each student and determine guardian status
+                foreach ($data["students"] as &$student) {
+                    $student["guardian_provided"] = !empty($student["guardian"]) ? "Provided" : "Not Provided";
+                }
+
+                $data["total"] = (int) fetchData("COUNT(s.id) AS total", $tables, $where, join_type: "LEFT")["total"];
+            }  else {
+                $data["students"] = [];
+                $data["total"] = 0;
+            }
+        
+            $status = true;
         }
+        
     }
 
     if($_REQUEST["response_type"] == "json"){
