@@ -75,6 +75,40 @@
                 $data["total"] = 0;
                 $status = true;
             }
+        }elseif($submit == "fetch_programs"){
+            $filters = form_data();
+            $offset = $limit * ($filters["page"] - 1);
+        
+            // Define all table joins
+            $tables = [
+                ["join" => "programs departments", "on" => "department_id id", "alias" => "p d"]
+            ];
+        
+            // Columns required by frontend
+            $columns = [
+                "p.id", 
+                "p.name",          // Maps to NAME
+                "p.certificate",   // Maps to CERTIFICATE
+                "p.cost",          // Maps to COST
+                "p.department_id", // Maps to DEPARTMENT_ID
+                "d.name AS department_name" // Maps to DEPARTMENT_NAME
+            ];
+        
+            // Filters / Where clause
+            $where = buildWhereClause($filters);
+        
+            // Fetch data
+            $data["programs"] = fetchData($columns, $tables, $where, $limit, offset: $offset, join_type: "LEFT");
+        
+            if ($data["programs"]) {
+                $data["total"] = (int) fetchData("COUNT(p.id) AS total", $tables, $where, join_type: "LEFT")["total"];
+            }  else {
+                $data["programs"] = [];
+                $data["total"] = 0;
+            }
+        
+            $status = true;
+
         }
     }
 
