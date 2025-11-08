@@ -408,6 +408,16 @@
     }
 
     /**
+     * Checks if the current page URL is in the given array of items
+     * @param array $items Array of URLs to check against
+     * @return bool True if current URL is in the array, false otherwise
+     */
+    function is_current_url_in_array($items = []) {
+        $current_url = $_SERVER['REQUEST_URI'] ?? '';
+        return in_array($current_url, $items);
+    }
+
+    /**
      * Creates a navigation group with dropdown
      * @param string $text Group title
      * @param string $menu_name Menu identifier
@@ -415,32 +425,32 @@
      * @param array $items Submenu items
      * @return string HTML navigation group element
      */
-    function auth_nav_group_link($text = "", $menu_name = "1", $icon = "", $items = []){
+    function auth_nav_group_link($text = "", $menu_name = "1", $icon = "", $items = []) {
+        $active_group = is_current_url_in_array(array_column($items, 'url'));
+    
+        // Alpine init (opens menu by default if active)
+        $default_open = $active_group ? $menu_name : "";
+    
         $nav = "
-            <li class=\"relative px-6 py-3\">
+            <li class=\"relative px-6 py-3\" x-data=\"{ current_menu: '$default_open' }\">
                 <div
-                    class=\"inline-flex cursor-pointer items-center justify-between w-full text-sm font-semibold transition-colors duration-150 hover:text-gray-800 dark:hover:text-gray-200\"
-                    @click=\"current_menu == '$menu_name' ? current_menu = '':current_menu='$menu_name'\"
+                    class=\"inline-flex cursor-pointer items-center justify-between w-full text-sm font-semibold transition-colors duration-150 hover:text-gray-800 dark:hover:text-gray-200"
+                    . ($active_group ? " text-gray-800 dark:text-gray-200" : "") . "\"
+                    @click=\"current_menu == '$menu_name' ? current_menu = '' : current_menu = '$menu_name'\"
                     aria-haspopup=\"true\"
                 >
                     <span class=\"inline-flex items-center\">
                         <i class=\"w-5 h-5 $icon\"></i>
                         <span class=\"ml-4\">$text</span>
                     </span>
-                    <svg
-                        class=\"w-4 h-4\"
-                        aria-hidden=\"true\"
-                        fill=\"currentColor\"
-                        viewBox=\"0 0 20 20\"
-                    >
-                        <path
-                        fill-rule=\"evenodd\"
-                        d=\"M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z\"
-                        clip-rule=\"evenodd\"
-                        ></path>
+                    <svg class=\"w-4 h-4\" aria-hidden=\"true\" fill=\"currentColor\" viewBox=\"0 0 20 20\">
+                        <path fill-rule=\"evenodd\"
+                            d=\"M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z\"
+                            clip-rule=\"evenodd\">
+                        </path>
                     </svg>
                 </div>
-
+    
                 <template x-if=\"current_menu == '$menu_name'\">
                     <ul
                         x-transition:enter=\"transition-all ease-in-out duration-300\"
@@ -452,19 +462,20 @@
                         class=\"p-2 mt-2 space-y-2 overflow-hidden text-sm font-medium text-gray-500 rounded-md shadow-inner bg-gray-50 dark:text-gray-400 dark:bg-gray-900\"
                         aria-label=\"submenu\"
                     >";
-
-            foreach($items as $item){
-                $nav .= nav_submenu_item($item["text"], $item["url"], is_current($item["url"]));
-            }
-            
-            $nav .= "
+    
+        foreach ($items as $item) {
+            $nav .= nav_submenu_item($item["text"], $item["url"], is_current($item["url"]));
+        }
+    
+        $nav .= "
                     </ul>
                 </template>
             </li>
         ";
-
+    
         return $nav;
     }
+    
 
     /**
      * Creates a submenu navigation item
