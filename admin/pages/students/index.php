@@ -5,47 +5,49 @@ $title = 'Students Data';
 
 // Start output buffering to capture the content
 ob_start();
+?>
 
-// Template for table rows
-$empty_row_template = td_empty("No students found", 5);
-$row_template = <<<HTML
+<!-- ============================================== -->
+<!-- 1. TEMPLATES FOR PAGINATION ROWS -->
+<!-- ============================================== -->
+
 <template id="student-row-template">
-    <tr class="text-gray-700 dark:text-gray-400">
-        <td class="px-4 py-3">
-            <div class="flex items-center text-sm">
-                <div class="relative hidden w-8 h-8 mr-3 rounded-full md:block">
-                    <img class="object-cover w-full h-full rounded-full" src="__PROFILE_PIC__" alt="">
-                    <div class="absolute inset-0 rounded-full shadow-inner" aria-hidden="true"></div>
-                </div>
-                <div>
-                    <p class="font-semibold">__INDEX_NUMBER__</p>
-                </div>
-            </div>
-        </td>
-        <td class="px-4 py-3 text-sm">__NAME__</td>
-        <td class="px-4 py-3 text-sm capitalize">__GENDER__</td>
-        <td class="px-4 py-3 text-sm">__FORM_LEVEL__</td>
-        <td class="px-4 py-3 text-sm">__PROGRAM__</td>
-        <td class="px-4 py-3 text-sm">
-            <div class="flex items-center space-x-4 text-sm">
-                <button class="flex items-center justify-between px-2 py-2 text-sm font-medium leading-5 text-purple-600 rounded-lg dark:text-gray-400 focus:outline-none focus:shadow-outline-gray" aria-label="View">
-                    <i class="fas fa-eye"></i>
-                </button>
-                <button class="flex items-center justify-between px-2 py-2 text-sm font-medium leading-5 text-purple-600 rounded-lg dark:text-gray-400 focus:outline-none focus:shadow-outline-gray" aria-label="Edit">
-                    <i class="fas fa-edit"></i>
-                </button>
-            </div>
-        </td>
-    </tr>
+    <?= tr_start(attribute("class", "text-gray-700 dark:text-gray-400")) ?>
+        <!-- Student Index Number + Profile Picture -->
+        <?= td("__INDEX_NUMBER__", "__PROFILE_PIC__") ?>
+        <!-- Name -->
+        <?= td("__NAME__", attributes: attribute("class", "px-4 py-3 text-sm")) ?>
+        <!-- Gender -->
+        <?= td("__GENDER__", attributes: attribute("class", "px-4 py-3 text-sm capitalize")) ?>
+        <!-- Form Level -->
+        <?= td("__FORM_LEVEL__", attributes: attribute("class", "px-4 py-3 text-sm")) ?>
+        <!-- Program -->
+        <?= td("__PROGRAM__", attributes: attribute("class", "px-4 py-3 text-sm")) ?>
+        
+        <!-- Actions -->
+        <?= td_actions(
+            array_merge(
+                create_td_action("fas fa-eye", "View", array_merge(
+                    attribute("class", "text-blue-500 cursor-pointer hover:text-blue-600 action-view action-btn"),
+                    data_attr("id", "__USER_ID__")
+                )),
+                create_td_action("fas fa-edit", "Edit", array_merge(
+                    attribute("class", "text-yellow-500 cursor-pointer hover:text-yellow-600 action-edit action-btn"),
+                    data_attr("id", "__USER_ID__")
+                ))
+            )
+        ) ?>
+    <?= tr_end() ?>
 </template>
 
 <template id="empty-row-template">
-    $empty_row_template
+    <?= td_empty("No students found", 6) ?>
 </template>
-HTML;
-?>
 
-<!-- filters -->
+<!-- ============================================== -->
+<!-- 2. FILTERS AND DOWNLOAD BUTTON -->
+<!-- ============================================== -->
+
 <div>
     <h2 class="mb-2 text-lg font-bold">Filters</h2>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -83,7 +85,10 @@ HTML;
     </div>
 </div>
 
-<!-- results to be displayed in table -->
+<!-- ============================================== -->
+<!-- 3. RESULTS TABLE WITH PAGINATION UI -->
+<!-- ============================================== -->
+
 <div class="w-full mt-3 overflow-hidden rounded-lg shadow-xs">
     <div class="w-full overflow-x-auto">
         <?= table_start(attribute("class", "w-full whitespace-no-wrap")) ?>
@@ -98,18 +103,18 @@ HTML;
                 <?= tr_end() ?>
             <?= thead_end() ?>
             <?= tbody_start(attribute('class', 'bg-white divide-y dark:divide-gray-700 dark:bg-gray-800')) ?>
-                <?= td_empty("Loading students...", 5) ?>
+                <?= td_empty("Loading students...", 6) ?>
             <?= tbody_end() ?>
         <?= table_end() ?>
     </div>
     
-    <!-- Pagination -->
+    <!-- Pagination Footer -->
     <div class="grid px-4 py-3 text-xs font-semibold tracking-wide text-gray-500 uppercase border-t dark:border-gray-700 bg-gray-50 sm:grid-cols-9 dark:text-gray-400 dark:bg-gray-800">
         <p class="flex items-center col-span-3 gap-2">
             Showing <span id="page-info" class="mx-1">0–0</span> of <span id="total-count">0</span> students
         </p>
         <span class="col-span-2"></span>
-        <!-- Pagination -->
+        <!-- Pagination Buttons -->
         <span class="flex col-span-4 mt-2 sm:mt-auto sm:justify-end">
             <nav aria-label="Table navigation">
                 <ul id="pagination" class="inline-flex items-center">
@@ -133,28 +138,37 @@ HTML;
     </div>
 </div>
 
-<?= $row_template ?>
 
 <?php
     $pagination_script = pagination_script(
-        'admin/ajax/student.php', 'student-row-template', 'students', 
+        'admin/ajax/student.php', 
+        'student-row-template', 
+        'students', 
         [
-            "PROFILE_PIC" => "profile_pic", "INDEX_NUMBER" => "index_number", "NAME" => "fullname",
-            "GENDER" => "gender", "PROGRAM" => "program_name", "FORM_LEVEL" => "current_year"
+            "PROFILE_PIC" => "profile_pic", 
+            "INDEX_NUMBER" => "index_number", 
+            "NAME" => "fullname",
+            "GENDER" => "gender", 
+            "PROGRAM" => "program_name", 
+            "FORM_LEVEL" => "current_year",
+            "USER_ID" => "user_id" // Added for actions
         ],
-        ["submit" => "fetch_students"], ["profile_pic"]);
+        ["submit" => "fetch_students"], 
+        ["profile_pic"]
+    );
         
     $scripts = <<<HTML
     <script>
         $(document).ready(function(){
             $pagination_script
 
-            // Handle filter changes
+            // Handle filter changes (this is key for pagination with filters)
             $('#level, #faculty, #department, #program').on('change', function() {
-                loadPaginatedData(1);
+                // When a filter changes, reset to page 1
+                loadPaginatedData(1); 
             });
 
-            // Handle search button click
+            // Handle search button click (assuming you add a search input/button)
             $('#search-btn').on('click', function() {
                 loadPaginatedData(1);
             });
@@ -165,6 +179,8 @@ HTML;
                 const department = $("#department").val();
                 const program = $("#program").val();
 
+                // Note: The download logic still uses a blocking AJAX call, 
+                // which is acceptable for file downloads.
                 $.ajax({
                     url: relative_path("admin/pages/students/submit.php"),
                     type: "POST",
@@ -196,12 +212,13 @@ HTML;
                             const errorMsg = response.errors && response.errors.length
                                 ? response.errors.join(" ")
                                 : "An unknown error occurred.";
-                            alert(errorMsg);
+                            // In a real application, replace alert with a modal/message box
+                            console.error(errorMsg); 
                         }
                     },
                     error: function (xhr, status, error) {
                         $("#download").prop("disabled", false).text("Download");
-                        alert("Request failed: " + error);
+                        console.error("Request failed: " + error);
                     }
                 });
             });

@@ -100,28 +100,38 @@ ob_start();
 
 <!-- Table row templates -->
 <template id="unapproved-row-template">
-    <tr class="text-gray-700 dark:text-gray-400">
-        <td class="px-4 py-3 text-sm">__INDEX_NUMBER__</td>
-        <td class="px-4 py-3 text-sm">__NAME__</td>
-        <td class="px-4 py-3 text-sm capitalize">__GENDER__</td>
-        <td class="px-4 py-3 text-sm">__PROGRAM__</td>
-        <td class="px-4 py-3 text-sm">__GUARDIAN_PROVIDED__</td>
-        <td class="px-4 py-3 text-sm">__CREATED_AT__</td>
-        <td class="px-4 py-3 text-sm">
-            <div class="flex gap-2 items-center">
-                <i data-user-id="__USER_ID__" 
-                   data-index-number="__INDEX_NUMBER__"
-                   data-guardian-status="__GUARDIAN_STATUS__"
-                   class="fas approve fa-check text-green-500 hover:text-green-600 cursor-pointer"
-                   title="Approve"></i>
-                <i data-id="__USER_ID__"
-                   class="fas view fa-eye text-blue-500 hover:text-blue-600 cursor-pointer"
-                   title="View"
-                   @click="openModal"
-                   ></i>
-            </div>
-        </td>
-    </tr>
+    <?= tr_start(attribute("class", "text-gray-700 dark:text-gray-400")) ?>
+        <?= td("__INDEX_NUMBER__", "__PROFILE_PIC__") ?>
+        <?= td("__NAME__", attributes: attribute("class", "px-4 py-3 text-sm")) ?>
+        <?= td("__GENDER__", attributes: attribute("class", "px-4 py-3 text-sm capitalize")) ?>
+        <?= td("__PROGRAM__", attributes: attribute("class", "px-4 py-3 text-sm")) ?>
+        <?= td("__GUARDIAN_PROVIDED__", attributes: attribute("class", "px-4 py-3 text-sm")) ?>
+        <?= td("__CREATED_AT__", attributes: attribute("class", "px-4 py-3 text-sm")) ?>
+        
+        <?= td_actions(
+            array_merge(
+                create_td_action(
+                    "fas fa-check",
+                    "Approve",
+                    array_merge(
+                        attribute("class", "text-green-500 hover:text-green-600 cursor-pointer approve"),
+                        data_attr("user-id", "__USER_ID__"),
+                        data_attr("index-number", "__INDEX_NUMBER__"),
+                        data_attr("guardian-status", "__GUARDIAN_STATUS__")
+                    )
+                ),
+                create_td_action(
+                    "fas fa-eye",
+                    "View",
+                    array_merge(
+                        attribute("class", "text-blue-500 hover:text-blue-600 cursor-pointer view"),
+                        data_attr("id", "__USER_ID__"),
+                        attribute("@click", "openModal")
+                    )
+                )
+            )
+        ) ?>
+    <?= tr_end() ?>
 </template>
 
 <template id="empty-row-template">
@@ -175,9 +185,11 @@ $pagination_script = pagination_script(
         "GUARDIAN" => "guardian_text",
         "CREATED_AT" => "created_at",
         "GUARDIAN_STATUS" => "guardian",
-        "GUARDIAN_PROVIDED" => "guardian_provided"
+        "GUARDIAN_PROVIDED" => "guardian_provided",
+        "PROFILE_PIC" => "profile_pic"
     ],
-    ["submit" => "fetch_unapproved_students"]
+    ["submit" => "fetch_unapproved_students"],
+    ["profile_pic"]
 );
 ?>
 

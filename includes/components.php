@@ -566,8 +566,10 @@
      * @return string HTML td element with action buttons
      */
     function td_actions($actions = [], $attributes = []) {
-        $attributes["class"] = "flex items-center h-full gap-2 " . ($attributes["class"] ?? "");
-        $buttons = "";
+        // $attributes["class"] = "flex items-center h-full gap-2 " . ($attributes["class"] ?? "");
+        $buttons = [];
+        $main_class = merge_class($attributes);
+        $main_attributes = convert_attributes($attributes);
 
         foreach ($actions as $action) {
             $icon = $action["icon"] ?? "";
@@ -575,16 +577,30 @@
             $classes = merge_class($action["attributes"] ?? []);
             $attributes_ = convert_attributes($action["attributes"] ?? []);
 
-            $buttons .= "
+            /*$buttons .= "
                 <i 
                     class=\"$icon $classes\"
                     title=\"$title\" 
                     $attributes_
                 ></i>
+            ";*/
+
+            $buttons[] = "
+                <button class=\"flex items-center justify-between px-2 py-2 text-sm font-medium leading-5 text-purple-600 rounded-lg dark:text-gray-400 focus:outline-none focus:shadow-outline-gray $classes\" aria-label=\"$title\" $attributes_>
+                    <i class=\"$icon\"></i>
+                </button>
             ";
         }
 
-        return td($buttons, attributes: $attributes);
+        $buttons = implode("\n", $buttons);
+
+        return "
+            <td class=\"px-4 py-3 text-sm\">
+                <div class=\"flex items-center space-x-2 text-sm $main_class\" $main_attributes>
+                    $buttons
+                </div>
+            </td>
+        ";
     }
     
     /**
