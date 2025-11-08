@@ -6,28 +6,72 @@ $title = 'Teachers'; // Set the page title
 // Start output buffering to capture the content
 ob_start();
 
-// --- 1. DEFINE ROW TEMPLATE ---
-// The placeholders must match the keys you'll select in the backend SQL query (e.g., 'fullname', 'email')
-$empty_row_template = td_empty("No teachers found", 4);
-$row_template = <<<HTML
+// get all departments
+$departments = departments();
+?>
+
 <template id="teacher-row-template">
-    <tr class="text-gray-700 dark:text-gray-400">
-        <td class="px-4 py-3 text-sm">__FULLNAME__</td>
-        <td class="px-4 py-3 text-sm">__EMAIL__</td>
-        <td class="px-4 py-3 text-sm">__GHANA_CARD__</td>
-        <td class="px-4 py-3 text-sm">
-            <div class='flex items-center gap-2'>
-                <i @click='openModal' data-id='__USER_ID__' data-modal-body='delete-body' data-show-footer='1' class='text-red-500 cursor-pointer fas action-btn fa-trash-can hover:text-red-600 action-delete' title='Delete'></i>
-                </div>
-        </td>
-    </tr>
+    <?= tr_start() ?>
+        <!-- Name + Profile Picture -->
+        <?= td("__FULLNAME__", "__PROFILE_PIC__") ?>
+        <!-- Email -->
+        <?= td("__EMAIL__") ?>
+        <!-- Phone -->
+        <?= td("__PHONE__") ?>
+        <!-- Staff ID -->
+        <?= td("__STAFF_ID__") ?>
+        <!-- Department -->
+        <?= td("__DEPARTMENT__") ?>
+        <!-- Employment Type -->
+        <?= td("__EMPLOYMENT_TYPE__") ?>
+
+        <!-- Actions -->
+        <?= td_actions(
+            array_merge(
+                create_td_action(
+                    "fas fa-eye",
+                    "View",
+                    array_merge(
+                        attribute("class", "text-blue-500 cursor-pointer hover:text-blue-600 action-view action-btn"),
+                        data_attr("id", "__USER_ID__"),
+                        data_attr("modal-body", "view-teacher"),
+                        data_attr("show-footer", "0"),
+                        attribute("@click", "openModal")
+                    )
+                ),
+                create_td_action(
+                    "fas fa-edit",
+                    "Edit",
+                    array_merge(
+                        attribute("class", "text-yellow-500 cursor-pointer hover:text-yellow-600 action-edit action-btn"),
+                        data_attr("id", "__USER_ID__"),
+                        data_attr("modal-body", "edit-teacher"),
+                        data_attr("show-footer", "1"),
+                        attribute("@click", "openModal")
+                    )
+                ),
+                create_td_action(
+                    "fas fa-trash-can",
+                    "Delete",
+                    array_merge(
+                        attribute("class", "text-red-500 cursor-pointer hover:text-red-600 action-delete action-btn"),
+                        data_attr("id", "__USER_ID__"),
+                        data_attr("modal-body", "delete-body"),
+                        data_attr("show-footer", "1"),
+                        attribute("@click", "openModal")
+                    )
+                )
+            )
+        ) ?>
+
+    <?= tr_end() ?>
 </template>
 
+
 <template id="empty-row-template">
-    $empty_row_template
+    <?= td_empty("No teachers found", 7) ?>
 </template>
-HTML;
-?>
+
 <div class="max-w-96 w-72">
     <?= button("button", "Add New Teacher", attributes: array_merge(
         attribute("@click", "openModal"), 
@@ -40,17 +84,20 @@ HTML;
 <div class="mt-8"></div>
 <div class="w-full mt-3 overflow-hidden rounded-lg shadow-xs">
     <div class="w-full overflow-x-auto">
-        <?= table_start(attribute("class", "w-full whitespace-no-wrap")) ?>
+        <?= table_start() ?>
             <?= thead_start() ?>
-                <?= tr_start() ?>
+                <?= tr_start(attribute("class", "whitespace-no-wrap")) ?>
                     <?= th('Name', attribute('class', 'px-4 py-3')) ?>
                     <?= th('Email', attribute('class', 'px-4 py-3')) ?>
-                    <?= th('Ghana Card', attribute('class', 'px-4 py-3')) ?>
+                    <?= th('Phone', attribute('class', 'px-4 py-3')) ?>
+                    <?= th('Staff ID', attribute('class', 'px-4 py-3')) ?>
+                    <?= th('Department', attribute('class', 'px-4 py-3')) ?>
+                    <?= th('Employment Type', attribute('class', 'px-4 py-3')) ?>
                     <?= th('Actions', attribute('class', 'px-4 py-3')) ?>
                 <?= tr_end() ?>
             <?= thead_end() ?>
             <?= tbody_start(attribute('class', 'bg-white divide-y dark:divide-gray-700 dark:bg-gray-800')) ?>
-                <?= td_empty("Loading teachers...", 4) ?>
+                <?= td_empty("Loading teachers...", 7) ?>
             <?= tbody_end() ?>
         <?= table_end() ?>
     </div>
@@ -90,13 +137,11 @@ HTML;
             
             <form action="<?= url("admin/submit.php") ?>" name="admin-form" method="POST">
                 <div class="grid gap-4 lg:gap-6">
-                                        <?= input("email", "Teacher Email", "email", required: true, attributes: placeholder("Enter admin email")); ?>
-                    
-                                        <?= input_h("text", "Staff ID", "staff_id", sub_text: "Leave blank so that the teacher provides it himself",  attributes: placeholder("Enter Teacher's staff ID")); ?>
-
-                                        <?= hidden_input("type", "teacher") ?>
-
-                                        <?= input_h("password", "Password", "password", sub_text: "You can leave this blank and we’ll create a random password for you.", attributes: array_merge(
+                    <?= input("email", "Teacher Email", "email", required: true, attributes: placeholder("Enter admin email")); ?>
+                    <?= select("department_id", "Teacher's Main Department", $departments, "Select Department", required: true, keys: select_keys(text: "name")) ?>
+                    <?= input_h("text", "Staff ID", "staff_id", sub_text: "Leave blank so that the teacher provides it himself",  attributes: placeholder("Enter Teacher's staff ID")); ?>
+                    <?= hidden_input("type", "teacher") ?>
+                    <?= input_h("password", "Password", "password", sub_text: "You can leave this blank and we’ll create a random password for you.", attributes: array_merge(
                         placeholder("Enter password"), attribute("minlength", 8)
             )); ?>
                 </div>
@@ -109,13 +154,11 @@ HTML;
         <?= modal_body_end(); ?>
     </div>
 
-        <div id="delete-body" class="hidden modal-body">
+    <div id="delete-body" class="hidden modal-body">
         <?= delete_item_component("teachers", form_action: url("admin/submit.php"), 
-         delete_text: "This will remove all associated records for this admin. Proceed to delete this admin?") ?>
+         delete_text: "This will remove all associated records for this teacher. Proceed to delete?") ?>
     </div>
 <?= modal_end() ?>
-
-<?= $row_template ?>
 
 <?php 
 // --- 3. IMPLEMENT PAGINATION SCRIPT ---
@@ -131,10 +174,16 @@ $pagination_script = pagination_script(
         "FULLNAME" => "fullname", 
         "EMAIL" => "email", 
         "GHANA_CARD" => "ghana_card",
-        "USER_ID" => "user_id" // Important for the delete action
+        "USER_ID" => "user_id", // Important for the delete action
+        "PHONE" => "phone",
+        "STAFF_ID" => "staff_id",
+        "DEPARTMENT" => "department",
+        "EMPLOYMENT_TYPE" => "employment_type",
+        "PROFILE_PIC" => "profile_pic"
     ],
     // 5. Extra Params (The specific submit action)
-    ["submit" => "fetch_teachers"]
+    ["submit" => "fetch_teachers"],
+    ["profile_pic"]
 );
 
 $extra_script = delete_item_component_script();
@@ -145,7 +194,7 @@ $scripts = <<<HTML
         $pagination_script
 
         // Existing modal logic
-        $(".action-btn").click(function(){
+        $(document).on("click", ".action-btn", function(){
             const modal_body = $(this).attr("data-modal-body");
             $("#modal .modal-body").addClass("hidden");
             $("#" + modal_body).removeClass("hidden");

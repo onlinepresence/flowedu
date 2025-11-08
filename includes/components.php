@@ -541,6 +541,52 @@
     }
 
     /**
+     * Creates an action for a table data cell
+     * @param string $icon Icon class
+     * @param string $title Action title
+     * @param string $classes Additional CSS classes
+     * @param array $attributes Additional data attributes or element attributes
+     * @return array Action array
+     */
+    function create_td_action($icon = "", $title = "", $attributes = [], $as_list = true) {
+        $action = [
+            "icon" => $icon,
+            "title" => $title,
+            "attributes" => $attributes
+        ];
+        
+        return $as_list ? [$action] : $action;
+    }
+    
+    /**
+     * Creates a table data cell with action buttons
+     * @param array $actions Array of action items
+     * @param array $attributes Additional HTML attributes
+     * @return string HTML td element with action buttons
+     */
+    function td_actions($actions = [], $attributes = []) {
+        $attributes["class"] = "flex items-center h-full gap-2 " . ($attributes["class"] ?? "");
+        $buttons = "";
+
+        foreach ($actions as $action) {
+            $icon = $action["icon"] ?? "";
+            $title = $action["title"] ?? "";
+            $classes = merge_class($action["attributes"] ?? []);
+            $attributes_ = convert_attributes($action["attributes"] ?? []);
+
+            $buttons .= "
+                <i 
+                    class=\"$icon $classes\"
+                    title=\"$title\" 
+                    $attributes_
+                ></i>
+            ";
+        }
+
+        return td($buttons, attributes: $attributes);
+    }
+    
+    /**
      * Creates a table header cell
      * @param string $text Header text
      * @param array $attributes Additional HTML attributes
@@ -754,7 +800,7 @@
         $attr = convert_attributes($attributes);
         $class_ = merge_class($attributes);
 
-        return "<tbody class=\"bg-white divide-y dark:divide-gray-700 dark:bg-gray-800 $class_\" $attr>";
+        return "<tbody class=\"bg-white divide-y overflow-x dark:divide-gray-700 dark:bg-gray-800 $class_\" $attr>";
     }
 
     /**

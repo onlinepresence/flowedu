@@ -17,11 +17,12 @@
             // We assume teachers table is named 'users' with type='teacher' or 'teachers'
             // I will assume the table is named 'users' and you join to a 'teachers' profile table
             $tables = [
-                ["join" => "users teachers", "on" => "id user_id", "alias" => "u t"]
+                ["join" => "users teachers", "on" => "id user_id", "alias" => "u t"],
+                ["join" => "teachers departments", "on" => "department_id id", "alias" => "t d"]
             ]; 
             $columns = [
                 "u.id AS user_id", // Essential for the delete button to work
-                "u.email",
+                "u.email", "profile_pic", "phone_number as phone", "staff_id", "d.name AS department", "employment_type",
                 // Concatenate names or select them directly if the names are in the 'users' table
                 "CONCAT(t.lastname, ' ', t.othernames) AS fullname", 
                 "t.ghana_card"
@@ -31,7 +32,7 @@
             $where[] = "u.type = 'teacher'"; // Only fetch records with user type 'teacher'
     
             // Fetch paginated data
-            $data["teachers"] = fetchData($columns, $tables, $where, 50, offset: $offset);
+            $data["teachers"] = fetchData($columns, $tables, $where, 50, offset: $offset, join_type: "LEFT");
     
             if($data["teachers"]){
                 $data["total"] = (int) fetchData("COUNT(u.id) AS total", $tables, $where)["total"];
