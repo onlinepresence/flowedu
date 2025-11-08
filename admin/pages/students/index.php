@@ -137,7 +137,7 @@ HTML;
 
 <?php
     $pagination_script = pagination_script(
-        'admin/pages/students/submit.php', 'student-row-template', 'students', 
+        'admin/ajax/student.php', 'student-row-template', 'students', 
         [
             "PROFILE_PIC" => "profile_pic", "INDEX_NUMBER" => "index_number", "NAME" => "fullname",
             "GENDER" => "gender", "PROGRAM" => "program_name", "FORM_LEVEL" => "current_year"

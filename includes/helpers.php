@@ -271,3 +271,29 @@
             return null;
         }    
     }
+
+    /**
+     * This function is used to help build a where array for queries
+     * @param array $filters The filters to be applied
+     * @param ?array $mapping The mapping of filter keys to database columns
+     *              If mapping is left as null, it means there is a global variable called mapping which will be used
+     * @return array
+     */
+    function buildWhereClause(array $filters, ?array $mapping = null): array {
+        $where = [];
+
+        if ($mapping === null && isset($GLOBALS['mapping'])) {
+            $mapping = $GLOBALS['mapping'];
+        }
+
+        if(!empty($mapping)){
+            foreach ($mapping as $key => $column) {
+                if (!empty($filters[$key])) {
+                    $where[] = "$column = '{$filters[$key]}'";
+                }
+            }
+        }
+        
+
+        return $where;
+    }

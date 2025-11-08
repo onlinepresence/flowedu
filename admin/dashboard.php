@@ -163,7 +163,7 @@ ob_start();
 <?php
 // Inject the pagination logic
 $pagination_script = pagination_script(
-    'admin/pages/students/submit.php', // endpoint
+    'admin/ajax/student.php', // endpoint
     'unapproved-row-template',          // row template ID
     'students',                         // table body container ID
     [

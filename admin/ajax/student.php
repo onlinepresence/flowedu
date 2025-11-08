@@ -1,29 +1,18 @@
 <?php
     require_once($_SERVER["DOCUMENT_ROOT"]."/includes/session.php");
-
-    function buildWhereClause($filters) {
-        $where = [];
-
-        $mapping = [
-            "level" => "current_year",
-            "program" => "program_id",
-            "department" => "department_id",
-            "faculty" => "faculty_id"
-        ];
-
-        foreach ($mapping as $key => $column) {
-            if (!empty($filters[$key])) {
-                $where[] = "$column = '{$filters[$key]}'";
-            }
-        }
-
-        return $where;
-    }
     
     $errors = [];
     $request_from = $_SERVER["HTTP_REFERER"];
     $next_request = null;
     $_SESSION["old_input"] = $_REQUEST;
+
+    // mapping variable will be used by buildWhereClause function
+    $mapping = [
+        "level" => "current_year",
+        "program" => "program_id",
+        "department" => "department_id",
+        "faculty" => "faculty_id"
+    ];
 
     if(isset($_REQUEST["submit"])){
         $submit = $_REQUEST["submit"];
