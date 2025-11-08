@@ -54,6 +54,16 @@
     }
 
     /**
+     * Checks if the current page URL is in the given array of items
+     * @param array $items Array of URLs to check against
+     * @return bool True if current URL is in the array, false otherwise
+     */
+    function is_current_url_in_array($items = []) {
+        $current_url = $_SERVER['REQUEST_URI'] ?? '';
+        return in_array($current_url, $items);
+    }
+
+    /**
      * Returns required attribute string if condition is true
      * @param bool $required Whether field is required
      * @return string Required attribute or empty string
