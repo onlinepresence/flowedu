@@ -78,7 +78,8 @@
                 "cv" => "nullable|file|mimes:pdf,doc,docx|max:2048",
                 "profile_pic" => "nullable|file|mimes:jpg,jpeg,png|max:1024",
                 "id_document" => "nullable|file|mimes:pdf,doc,docx|max:2048",
-                "certificate" => "nullable|file|mimes:pdf,doc,docx|max:2048"
+                "certificate" => "nullable|file|mimes:pdf,doc,docx|max:2048",
+                "date_of_appointment" => "required|date|before:tomorrow"
             ];
 
             $messages = [

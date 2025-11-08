@@ -171,6 +171,9 @@ ob_start();
 
                             <!-- Years of Experience -->
                             <?= input("number", "Years of Experience", "years_experience", $teacher["years_experience"] ?? "", true, attribute("min", 0)); ?>
+
+                            <!-- date of appointment -->
+                            <?= input("date", "Date of Appointment", "date_of_appointment", $teacher["date_of_appointment"] ?? "", true); ?>
                         </div>
                     <?= fieldset_end(); ?>
 

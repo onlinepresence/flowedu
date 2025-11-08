@@ -219,6 +219,94 @@
                     break;
                 }
 
+                // 🧩 Date Format
+                if ($rule === 'date_format' && $param !== null) {
+                    $format = $param;
+                    $dt = DateTime::createFromFormat($format, $value);
+
+                    if (!$dt || $dt->format($format) !== $value) {
+                        $errors[$is_hidden ? "system_message" : $field] =
+                            $messages[$field]['date_format'] ??
+                            "$display_name must match the date format $format";
+                        break;
+                    }
+                }
+
+                // 🧩 After
+                if ($rule === 'after' && $param !== null) {
+                    $compareTo = isset($data[$param]) ? $data[$param] : $param;
+
+                    if (strtotime($value) <= strtotime($compareTo)) {
+                        $errors[$is_hidden ? "system_message" : $field] =
+                            $messages[$field]['after'] ??
+                            "$display_name must be a date after $param";
+                        break;
+                    }
+                }
+
+                // 🧩 After Or Equal
+                if ($rule === 'after_or_equal' && $param !== null) {
+                    $compareTo = isset($data[$param]) ? $data[$param] : $param;
+
+                    if (strtotime($value) < strtotime($compareTo)) {
+                        $errors[$is_hidden ? "system_message" : $field] =
+                            $messages[$field]['after_or_equal'] ??
+                            "$display_name must be a date after or equal to $param";
+                        break;
+                    }
+                }
+
+                // 🧩 Before
+                if ($rule === 'before' && $param !== null) {
+                    $compareTo = isset($data[$param]) ? $data[$param] : $param;
+
+                    if (strtotime($value) >= strtotime($compareTo)) {
+                        $errors[$is_hidden ? "system_message" : $field] =
+                            $messages[$field]['before'] ??
+                            "$display_name must be a date before $param";
+                        break;
+                    }
+                }
+
+                // 🧩 Before Or Equal
+                if ($rule === 'before_or_equal' && $param !== null) {
+                    $compareTo = isset($data[$param]) ? $data[$param] : $param;
+
+                    if (strtotime($value) > strtotime($compareTo)) {
+                        $errors[$is_hidden ? "system_message" : $field] =
+                            $messages[$field]['before_or_equal'] ??
+                            "$display_name must be a date before or equal to $param";
+                        break;
+                    }
+                }
+
+                // 🧩 Date Equals
+                if ($rule === 'date_equals' && $param !== null) {
+                    $compareTo = isset($data[$param]) ? $data[$param] : $param;
+
+                    if (strtotime($value) !== strtotime($compareTo)) {
+                        $errors[$is_hidden ? "system_message" : $field] =
+                            $messages[$field]['date_equals'] ??
+                            "$display_name must be a date equal to $param";
+                        break;
+                    }
+                }
+
+                // 🧩 Between Dates (custom)
+                if ($rule === 'between_dates' && $param !== null) {
+                    [$start, $end] = array_map('trim', explode(',', $param));
+
+                    if (
+                        strtotime($value) < strtotime($start) ||
+                        strtotime($value) > strtotime($end)
+                    ) {
+                        $errors[$is_hidden ? "system_message" : $field] =
+                            $messages[$field]['between_dates'] ??
+                            "$display_name must be between $start and $end";
+                        break;
+                    }
+                }
+
                 // 🧩 Confirmed
                 if ($rule === 'confirmed') {
                     $confirmation_field = $param ?? $field . '_confirmation';
