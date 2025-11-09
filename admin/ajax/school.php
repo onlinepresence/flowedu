@@ -109,6 +109,39 @@
         
             $status = true;
 
+        }elseif($submit == "fetch_courses"){
+            $filters = form_data();
+            $offset = $limit * ($filters["page"] - 1); 
+
+            // Define table joins: courses (c) joins to programs (p)
+            $tables = [
+                ["join" => "courses programs", "on" => "program_id id", "alias" => "c p"],
+            ]; 
+            
+            // Columns must match the keys in your pagination_script mapping
+            $columns = [
+                "c.id",          // Maps to ID
+                "c.name",        // Maps to NAME
+                "c.code",        // Maps to CODE
+                "c.program_id",  // Maps to PROGRAM_ID
+                "p.name AS program_name", // Maps to PROGRAM_NAME
+                "c.course_semester AS course_semester", // Maps to SEMESTER_ID
+                "c.year_level AS year_level" // Maps to LEVEL_ID
+            ];
+
+            $where = buildWhereClause($filters); 
+
+            // Fetch paginated data
+            $data["courses"] = fetchData($columns, $tables, $where, $limit, offset: $offset);
+
+            if($data["courses"]){
+                $data["total"] = (int) fetchData("COUNT(c.id) AS total", $tables, $where)["total"];
+                $status = true;
+            } else {
+                $data["courses"] = []; 
+                $data["total"] = 0;
+                $status = true;
+            }
         }
     }
 

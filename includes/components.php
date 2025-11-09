@@ -945,7 +945,7 @@
                     x-transition:leave-end=\"opacity-0  transform translate-y-1/2\"
                     @click.away=\"closeModal\"
                     @keydown.escape=\"closeModal\"
-                    class=\"w-full px-6 py-4 overflow-hidden bg-white rounded-t-lg dark:bg-gray-800 sm:rounded-lg sm:m-4 sm:max-w-xl scrollbar-hidden $class\"
+                    class=\"w-full px-6 py-4 overflow-auto bg-white rounded-t-lg dark:bg-gray-800 sm:rounded-lg sm:m-4 scrollbar-hidden sm:max-w-xl max-h-[90vh] $class\"
                     role=\"dialog\"
                     $attr
                 >
