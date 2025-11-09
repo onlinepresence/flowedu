@@ -35,7 +35,7 @@
             $data["teachers"] = fetchData($columns, $tables, $where, 50, offset: $offset, join_type: "LEFT");
     
             if($data["teachers"]){
-                $data["total"] = (int) fetchData("COUNT(u.id) AS total", $tables, $where)["total"];
+                $data["total"] = (int) fetchData("COUNT(u.id) AS total", $tables, $where, join_type: "left")["total"];
             }else{
                 $data["teachers"] = []; 
                 $data["total"] = 0;

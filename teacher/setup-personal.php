@@ -141,13 +141,7 @@ ob_start();
                             ?>
 
                             <!-- Rank -->
-                            <?= select("rank", "Rank", [
-                                "Assistant Lecturer" => "Assistant Lecturer",
-                                "Lecturer" => "Lecturer",
-                                "Senior Lecturer" => "Senior Lecturer",
-                                "Associate Professor" => "Associate Professor",
-                                "Professor" => "Professor"
-                            ], true, value: $teacher["rank"] ?? ""); ?>
+                            <?= select("rank", "Rank", teacher_ranks(), true, value: $teacher["rank"] ?? ""); ?>
 
                             <!-- Highest Qualification -->
                             <?= select("qualification", "Highest Qualification", [

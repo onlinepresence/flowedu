@@ -297,3 +297,19 @@
 
         return $where;
     }
+
+    /**
+     * This returns a list of teacher ranks
+     * @return array
+     */
+    function teacher_ranks(): array {
+        return [
+            "Principal Chief Instructor" => "Principal Chief Instructor",
+            "Chief Instructor" => "Chief Instructor",
+            "Assistant Lecturer" => "Assistant Lecturer",
+            "Lecturer" => "Lecturer",
+            "Senior Lecturer" => "Senior Lecturer",
+            "Associate Professor" => "Associate Professor",
+            "Professor" => "Professor"
+        ];
+    }
