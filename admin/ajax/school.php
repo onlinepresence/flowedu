@@ -36,7 +36,7 @@
             $data["faculties"] = fetchData($columns, $tables, $where, $limit, offset: $offset, join_type: "LEFT");
     
             if($data["faculties"]){
-                $data["total"] = (int) fetchData("COUNT(f.id) AS total", $tables, $where)["total"];
+                $data["total"] = (int) fetchData("COUNT(f.id) AS total", $tables, $where, join_type: "left")["total"];
             }else{
                 $data["faculties"] = []; 
                 $data["total"] = 0;
@@ -68,7 +68,7 @@
             $data["departments"] = fetchData($columns, $tables, $where, 50, offset: $offset, join_type: "LEFT");
 
             if($data["departments"]){
-                $data["total"] = (int) fetchData("COUNT(d.id) AS total", $tables, $where)["total"];
+                $data["total"] = (int) fetchData("COUNT(d.id) AS total", $tables, $where, join_type: "left")["total"];
                 $status = true;
             } else {
                 $data["departments"] = []; 
