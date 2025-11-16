@@ -6,3 +6,4 @@ nationalities.json
 .env
 vendor/
 /tmp
+phinx.php
