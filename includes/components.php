@@ -1145,12 +1145,12 @@
      * @param string $element CSS selector for delete trigger
      * @return string JavaScript code
      */
-    function delete_item_component_script($element = ".action-delete") {
+    function delete_item_component_script($element = ".action-delete", $column = "id") {
         $script = <<<JAVASCRIPT
-            const main = \$('$element');
-            main.click(function() {
+            $(document).on('click', '$element', function() {
                 const id = $(this).data("id");
                 $("#delete-item-component-form input[name='delete-id']").val(id);
+                $("#delete-item-component-form input[name='delete-column']").val(column);
             });
 
             /*$("#delete-item-component-form").submit(function(e){

@@ -817,7 +817,9 @@
 
         if (empty($id) || empty($table)) {
             $errors["system_message"] = "Invalid data provided for deletion";
-        } else {      
+        } else {
+            // all users should be deleted from the users table
+            $table = in_array($table, ["admins", "students", "teachers"]) ? "users" : $table;
             if (delete($table, "$column = $id")) {
                 $_SESSION["system_message"] = $message["success"];
             } else {
