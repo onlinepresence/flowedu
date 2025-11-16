@@ -61,6 +61,15 @@
             ]
         ],
 
+        '/admin/settings' => [
+            'prefix' => '/admin/settings',
+            'middleware' => ['auth', 'valid_admin', 'check_school_status'],
+            'routes' => [
+                '/roles' => ['file' => 'admin/pages/settings/roles.php'],
+                '/school' => ['file' => 'admin/setup/school.php'],
+            ]
+        ],
+
         '/student-setup' => [
             'prefix' => '/student-setup',
             'middleware' => ['auth', 'check_school_status'],

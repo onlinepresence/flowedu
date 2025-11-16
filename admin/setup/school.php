@@ -1,7 +1,7 @@
 <?php
 require_once relative_path("includes/components.php");
 
-$title = 'Setup Schools'; // Set the page title
+$title = in_setup_mode() ? 'Setup Schools' : 'School Profile'; // Set the page title
 $school = school();
 
 // Start output buffering to capture the content

@@ -844,6 +844,14 @@
         return $password;
     }
 
+    /**
+     * Used to determine of the software is still in system setup mode
+     * @return bool
+     */
+    function in_setup_mode() :bool{
+        return boolval(session('admin_register') ?? false);
+    }
+
     require_once "mailer_functions.php";
     require_once "jobs.php";
     require_once "student_function.php";

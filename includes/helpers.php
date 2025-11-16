@@ -313,3 +313,22 @@
             "Professor" => "Professor"
         ];
     }
+
+    /**
+     * Returns a list of all the teacher roles we have
+     * @param bool $as_list Set to 'list' to return a simple list of roles (by their actual names)
+     * @return array
+     */
+    function get_system_user_roles(bool $as_list = false): array {
+        $roles = [
+            'admin' => 'Administrator',
+            'teacher' => 'Teacher',
+            'student' => 'Student',
+        ];
+
+        if($as_list){
+            return array_values($roles);
+        }
+
+        return $roles;
+    }

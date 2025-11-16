@@ -30,7 +30,9 @@
             ];
     
             // Since we don't have filters on the frontend yet, the $where clause is simple
-            $where = buildWhereClause($filters); 
+            $where = buildWhereClause($filters, [
+                "role_type" => "role_name"
+            ]); 
     
             // Fetch paginated data
             $data["faculties"] = fetchData($columns, $tables, $where, $limit, offset: $offset, join_type: "LEFT");
@@ -139,6 +141,47 @@
                 $status = true;
             } else {
                 $data["courses"] = []; 
+                $data["total"] = 0;
+                $status = true;
+            }
+        }elseif($submit == "fetch_roles"){
+            $filters = form_data();
+            $offset = $limit * ($filters["page"] - 1); 
+
+            $tables = "user_roles";
+            $columns = ["*"];
+            $where = buildWhereClause($filters); 
+
+            // do not add owner role
+            $where[] = "LOWER(name) != 'owner'";
+
+            // Fetch paginated data
+            $roles = fetchData($columns, $tables, $where, 50, offset: $offset, order_by: "id", asc: false);
+
+            $processed_roles = [];
+            if(is_array($roles)){
+                foreach($roles as $role){
+                    // 1. Calculate permissions count
+                    $permissions = json_decode($role['permissions'] ?? '[]', true);
+                    $permission_count = is_array($permissions) ? count($permissions) : 0;
+                    
+                    // 2. Base64 encode the permissions JSON string for safe transmission
+                    $role['permissions_base64'] = base64_encode($role['permissions'] ?? '[]');
+                    
+                    // 3. Format date
+                    $role['created_at_formatted'] = date('M d, Y', strtotime($role['created_at']));
+                    
+                    // 4. Set badge color
+                    $role['badge_color'] = ($permission_count > 0) ? 'blue' : 'gray';
+                    $role['permission_count'] = $permission_count;
+                    
+                    $processed_roles[] = $role;
+                }
+                $data["roles"] = $processed_roles;
+                $data["total"] = (int) fetchData("COUNT(id) AS total", $tables, $where)["total"];
+                $status = true;
+            } else {
+                $data["roles"] = []; 
                 $data["total"] = 0;
                 $status = true;
             }

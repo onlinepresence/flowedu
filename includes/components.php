@@ -1362,50 +1362,65 @@
                     filters[key] = $(this).val();
                 });
     
-                $.get(relative_path(fetchUrl), filters, null, 'json')
-                    .done(function(response) {
-                        const tbody = $('tbody');
-                        tbody.empty();
-    
-                        const items = response.data[dataKey] || [];
-                        const total = response.data.total || 0;
-    
-                        if (items.length > 0) {
-                            items.forEach(function(item) {
-                                let template = $('#' + templateId).html();
-    
-                                // Perform placeholder replacements dynamically
-                                for (const [placeholder, key] of Object.entries(placeholderMap)) {
-                                    let value = item[key] ?? '';
-                                    if (urlMap.includes(key)) {
-                                        value = relative_path("assets/" + value);
-                                    }
-                                    const regex = new RegExp('__' + placeholder + '__', 'g');
-                                    template = template.replace(regex, value);
-                                }
-    
-                                tbody.append(template);
-                            });    
-                        } else {
-                            const emptyMsg = response.status ? "No information to show" : "An internal error has occurred.";
-                            const emptyTemplate = $('#empty-row-template');
+                $.ajax({
+                    url: relative_path(fetchUrl),
+                    type: "GET",
+                    data: filters,
+                    dataType: "json",
 
-                            if(emptyTemplate.length > 0){
-                                tbody.append(emptyTemplate.html());
-                            } else {
-                                tbody.append('<tr><td colspan="100%" class="text-center p-4">' + emptyMsg + '</td></tr>');
+                    beforeSend: function() {
+                        $('tbody').html('<tr><td colspan="100%" class="text-center p-4">Loading...</td></tr>');
+                    }
+
+                }).done(function(response) {
+
+                    const tbody = $('tbody');
+                    tbody.empty();
+
+                    const items = response.data[dataKey] || [];
+                    const total = response.data.total || 0;
+
+                    if (items.length > 0) {
+                        items.forEach(function(item) {
+                            let template = $('#' + templateId).html();
+
+                            // Dynamic placeholder replacement
+                            for (const [placeholder, key] of Object.entries(placeholderMap)) {
+                                let value = item[key] ?? '';
+                                if (urlMap.includes(key)) {
+                                    value = relative_path("assets/" + value);
+                                }
+                                const regex = new RegExp('__' + placeholder + '__', 'g');
+                                template = template.replace(regex, value);
                             }
-    
-                            if (!response.status) console.error(response.error);
+
+                            tbody.append(template);
+                        });
+
+                    } else {
+                        const emptyMsg = response.status ? "No information to show" : "An internal error has occurred.";
+                        const emptyTemplate = $('#empty-row-template');
+
+                        if (emptyTemplate.length > 0) {
+                            tbody.append(emptyTemplate.html());
+                        } else {
+                            tbody.append('<tr><td colspan="100%" class="text-center p-4">' + emptyMsg + '</td></tr>');
                         }
 
-                        updatePagination(total, page);
-                    })
-                    .fail(function(error) {
-                        console.error('Error loading data:', error);
-                        const emptyTemplate = $('#empty-row-template').html("Error loading data");
-                        $('tbody').empty().append(emptyTemplate);
-                    });
+                        if (!response.status) console.error(response.error);
+                    }
+
+                    updatePagination(total, page);
+
+                }).fail(function(error) {
+
+                    console.error('Error loading data:', error);
+
+                    const emptyTemplate = $('#empty-row-template').html("Error loading data");
+                    $('tbody').empty().append(emptyTemplate);
+
+                });
+
             }
     
             // Pagination UI update
