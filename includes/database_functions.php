@@ -580,29 +580,38 @@ function formatColumns(array $columns, array $tables): array {
     }
 
     /**
-     * This function is used to delete from a specific table
-     * @param string $table The name of the table from which data should be deleted
-     * @param string|string[] $condition The condition(s) to be used [key => value] or "key=value"
-     * @param string|string[] $conditon_binds This is the set of binds to be used for the condition
+     * Delete or soft delete from a table
+     *
+     * @param string $table The table name
+     * @param string|array $condition WHERE condition(s) [key => value] or "key=value"
+     * @param string|array $condition_binds Bindings for the condition(s)
+     * @param bool $softDelete Set to TRUE to soft delete (update deleted_at), FALSE for hard delete
+     * @return bool True if operation was successful, otherwise false
      */
-    function delete(string $table, string|array $condition, string|array $condition_binds = "") :bool{
+    function delete(string $table, string|array $condition, string|array $condition_binds = "", bool $softDelete = false): bool {
         global $connect;
         $response = false;
 
         try {
+            // Convert condition array/string into SQL "key = ?" and bindings
             $condition = stringifyWhere($condition, $condition_binds);
 
-            $sql = "DELETE FROM $table WHERE $condition";
+            $sql = $softDelete ? 
+                "UPDATE $table SET deleted_at = NOW() WHERE $condition" : 
+                "DELETE FROM $table WHERE $condition";
 
-            if($connect->query($sql)){
+            // Run query
+            if ($connect->query($sql)) {
                 $response = true;
             }
+
         } catch (Throwable $th) {
             logThrowable($th);
         }
-        
+
         return $response;
     }
+
 
     /**
      * This function is used to generate an sql query
