@@ -45,6 +45,39 @@ function JSONtoFormData(json){
     return formData;
 }
 
+function serializedToJson(serializedStr) {
+    const obj = {};
+
+    // empty or invalid
+    if (!serializedStr || typeof serializedStr !== "string") {
+        return obj;
+    }
+
+    const pairs = serializedStr.split("&");
+
+    pairs.forEach(pair => {
+        if (!pair) return;
+
+        let [key, value] = pair.split("=");
+
+        // Decode URI components
+        key = decodeURIComponent(key);
+        value = value !== undefined ? decodeURIComponent(value) : "";
+
+        // Handle duplicate fields -> convert to array
+        if (obj.hasOwnProperty(key)) {
+            if (!Array.isArray(obj[key])) {
+                obj[key] = [obj[key]];
+            }
+            obj[key].push(value);
+        } else {
+            obj[key] = value;
+        }
+    });
+
+    return obj;
+}
+
 /**
  * This is used for formless transactions
  * @typedef {Object} AJAXOptions
@@ -64,6 +97,10 @@ async function ajaxCall({url, data = {}, returnType = "json", method = "GET", se
         if(data instanceof FormData){
             data.append("response_type", returnType);
         }else{
+            if (typeof data === "string") {
+                data = serializedToJson(data);   // convert to object
+            }
+            
             data.response_type = returnType;
         }
 
@@ -122,4 +159,134 @@ function fill_form(object, $form, filePreviewMap = {}) {
             }
         }
     });
+}
+
+/**
+ * This is a custom override function to show a custom alert display onscreen
+ * This automatically adds the alert modal if it was not found on a page
+ * 
+ * @param {string} message This is the message to be displayed
+ * @param {string} color This is the background color of your message. It is set to primary by default
+ * @param {integer} time This receives the time for the message to be displayed in seconds
+ * 
+ * @return this returns a message at the right top of a screen for an amount of time then disappears
+ */
+function alert_box(message, color = "primary", time = 5){
+    // Create the container if it doesn't exist
+    if($("body").find("#alert_modal").length < 1){
+        const alert_modal = `
+            <div id="alert_modal" 
+                class="fixed top-5 right-5 z-50 flex flex-col space-y-3 w-full max-w-sm pointer-events-none">
+            </div>`;
+        $("body").append(alert_modal);
+    }
+
+    let my_number = $("#alert_modal").children(".alert_box").length;
+
+    // Tailwind color presets for different alert types
+    const colorClasses = {
+        primary:  "bg-blue-600 text-white border-blue-700",
+        success:  "bg-green-600 text-white border-green-700",
+        danger:   "bg-red-600 text-white border-red-700",
+        warning:  "bg-yellow-400 text-black border-yellow-500",
+        dark:     "bg-gray-800 text-white border-gray-900",
+    };
+
+    const useColor = colorClasses[color] || colorClasses["primary"];
+
+    const box = `
+        <div id="alert_box${my_number + 1}"
+             class="alert_box ${useColor} border shadow-lg pointer-events-auto 
+                    rounded-lg px-5 py-3 transform transition-all duration-300 
+                    opacity-0 translate-y-3">
+            <div class="flex items-start space-x-3">
+                <div class="flex-1 text-sm font-medium">
+                    ${message}
+                </div>
+                <button class="text-white text-xl leading-none focus:outline-none"
+                        onclick="$('#alert_box${my_number + 1}').remove()">
+                    &times;
+                </button>
+            </div>
+        </div>
+    `;
+
+    $("#alert_modal").append(box);
+
+    // Animate in
+    setTimeout(() => {
+        $(`#alert_box${my_number + 1}`).removeClass("opacity-0 translate-y-3")
+                                      .addClass("opacity-100 translate-y-0");
+    }, 10);
+
+    removeAlert("alert_box" + (my_number + 1), time);
+}
+
+/**
+ * This function works with the alert_box to temporarily show an alert message
+ * 
+ * @param {string} id This receives the id of the element to be removed in string format
+ * @param {int} time Receives the time to wait before element is removed 
+ */
+function removeAlert(id, time){
+    if(time > 0){
+        setTimeout(function(){
+            $("#" + id).remove();
+        }, time*1000);
+    }    
+}
+
+/**
+ * Creates an error span element
+ */
+function error_span(text){
+    return `
+            <span class="text-xs text-red-600 dark:text-red-400 error-span block">
+              ${text}
+            </span>
+        `;
+}
+
+/**
+ * This adds an error element to a specified input field
+ * @param {JQuery} $input The input field to add the error to
+ * @param {string} message The error message to be displayed
+ */
+function add_error_to_input($input, message){
+    remove_error_from_input($input);
+
+    const $errorSpan = $(error_span(message));
+    $input.after($errorSpan);
+}
+
+/**
+ * This removes an error element from a specified input field
+ * @param {JQuery} $input The input field to remove the error from
+ */
+function remove_error_from_input($input){
+    $input.removeClass("border-red-600 dark:border-red-400");
+    const $nextElem = $input.next();
+    if($nextElem.hasClass("text-red-600") || $nextElem.hasClass("dark:text-red-400")){
+        $nextElem.remove();
+    }
+}
+
+/**
+ * This function takes an array of errors and displays them
+ * @param {Object} errors An object containing the errors with field names as keys and error messages as values
+ * @param {JQuery} $form The form where the errors need to be displayed
+ */
+function display_form_errors(errors, $form){
+    for(const [fieldName, errorMessage] of Object.entries(errors)){
+        if(fieldName === "system_message"){
+            alert_box(errorMessage, "danger");
+            continue;
+        }
+
+        const $input = $form.find(`[name="${fieldName}"]`);
+        if($input.length){
+            add_error_to_input($input, errorMessage);
+            // $input.addClass("border-red-600 dark:border-red-400");
+        }
+    }
 }

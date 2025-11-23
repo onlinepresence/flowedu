@@ -52,7 +52,7 @@
         }
 
         foreach ($rules as $field => $rule_string) {
-            $value = isset($data[$field]) ? trim($data[$field]) : '';
+            $value = isset($data[$field]) ? (is_array($data[$field]) ? $data[$field] : trim($data[$field])) : '';
             $field_rules = explode('|', $rule_string);
 
             $is_nullable = in_array('nullable', $field_rules);
@@ -62,7 +62,7 @@
             $display_name = isset($alias[$field]) 
                 ? $alias[$field] 
                 : ucfirst(str_replace('_', ' ', $field));
-            $is_hidden = in_array($field, $hidden);
+            $is_hidden = in_array($field, $hidden) || $hidden == ['*'];
 
             foreach ($field_rules as $rule) {
                 $param = null;
@@ -204,6 +204,18 @@
                 // 🧩 Integer
                 if ($rule === 'integer' && filter_var($value, FILTER_VALIDATE_INT) === false) {
                     $errors[$is_hidden ? "system_message" : $field] = $messages[$field]['integer'] ?? "$display_name must be an integer";
+                    break;
+                }
+
+                // 🧩 String
+                if ($rule === 'string' && !is_string($value)) {
+                    $errors[$is_hidden ? "system_message" : $field] = $messages[$field]['string'] ?? "$display_name must be a string";
+                    break;
+                }
+
+                // Array
+                if ($rule === 'array' && !is_array($value)) {
+                    $errors[$is_hidden ? "system_message" : $field] = $messages[$field]['array'] ?? "$display_name must be an array";
                     break;
                 }
 

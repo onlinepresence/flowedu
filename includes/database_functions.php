@@ -466,7 +466,7 @@ function formatColumns(array $columns, array $tables): array {
         foreach ($_REQUEST as $key => $value) {
             if (!in_array($key, $excludedKeys)) {
                 $newKey = $key_change[$key] ?? $key; // Rename key if specified
-                $value = trim($value);
+                $value = is_array($value) ? $value : trim($value);
                 $data[$newKey] = empty($value) && !in_array($key, $preserve) ? null : $value;
             }
         }

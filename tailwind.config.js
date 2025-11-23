@@ -4,6 +4,10 @@ module.exports = {
     './**/*.html',
     './**/*.php',
     './**/*.js',
+
+    // exclude the following
+    '!./node_modules/**',
+    '!./vendor/**',
   ],
   theme: {
     extend: {},

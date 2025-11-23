@@ -55,7 +55,8 @@ ob_start();
                         data_attr("permissions", "__PERMISSIONS_BASE64__"), // Base64 encoded permissions list
                         data_attr("display-name", "__DISPLAY_NAME__"),
                         data_attr("system-name", "__NAME__"),
-                        attribute("@click", "openModal")
+                        data_attr("role-name", "__USER_TYPE__"),
+                        attribute("@click", "openModal('role-modal')")
                     )
                 ),
                 // Delete Action
@@ -68,7 +69,7 @@ ob_start();
                         data_attr("modal-body", "delete-body"),
                         data_attr("show-footer", "1"),
                         data_attr("name", "__DISPLAY_NAME__"),
-                        attribute("@click", "openModal")
+                        attribute("@click", "openModal('role-modal')")
                     )
                 )
             )
@@ -86,7 +87,7 @@ ob_start();
                 color: "blue", 
                 attributes: array_merge(
                     attribute("id", "add-role-btn"),
-                    attribute("@click", "openModal"),
+                    attribute("@click", "openModal('role-modal')"),
                     data_attr("modal-body", "role-modal-content"),
                     attribute("class", "max-w-xs")
                 )) 
@@ -178,7 +179,7 @@ ob_start();
                     
                     <div class="md:col-span-2">
                         <?= input_h("text", "System Name (Unique Identifier)", 
-                                    "Name",  sub_text: "System identifier. Leave blank to auto-generate. Cannot be changed later.",
+                                    "name",  sub_text: "System identifier. Leave blank to auto-generate. Cannot be changed later.",
                                     attributes: array_merge(
                                         attribute("maxlength", 255), 
                                         data_attr("original", ""), 
@@ -193,9 +194,9 @@ ob_start();
                     <?= $permissions_html ?>
                 </div>
 
-                <div class="mt-6 hidden justify-end gap-4">
+                <div class="mt-6 flex justify-end gap-4">
                     <?= button("submit", "Save Role", color: "blue", attributes: attribute("id", "modal-submit-btn")) ?>
-                    <?= button("button", "Cancel", color: "red", attributes: attribute("@click", "closeModal()")) ?>
+                    <?= button("button", "Cancel", color: "red", attributes: array_merge(attribute("id", "cancel_btn"), attribute("@click", "closeModal()"))) ?>
                 </div>
             </form>
         <?= modal_body_end(); ?>
@@ -247,9 +248,13 @@ $scripts = <<<HTML
             $('#role-form')[0].reset(); // Clear form
             $('#submit-action').val('create_role');
             $('#role-id').val('');
-            $('#name').prop('disabled', false).val('').attr('data-original', '');
+            $('#role-form input[name=name]').prop('readonly', false).val('').attr('data-original', '');
+            $("#role-form select[name=role_name]").prop('disabled', false).change();
             // Uncheck all permissions
             $('#permissions-container input[type="checkbox"]').prop('checked', false);
+
+            // remove error span
+            $("#role-modal .error-span").remove();
         }
 
         // Handle "Add New Role" button click
@@ -261,6 +266,9 @@ $scripts = <<<HTML
         $(document).on('click', '.edit-role', function() {
             const element = $(this);
             const roleData = element.data();
+
+            // reset form
+            resetRoleForm();
             
             // Set modal for editing
             $('#role-modal-title').text('Edit Role: ' + roleData.displayName);
@@ -268,12 +276,13 @@ $scripts = <<<HTML
             $('#role-id').val(roleData.id);
             
             // Populate form fields
-            $('#display_name').val(roleData.displayName);
+            $('#role-modal input[name=display_name]').val(roleData.displayName);
             // System Name is usually fixed after creation, so disable it
-            $('#name').val(roleData.systemName).prop('disabled', true).attr('data-original', roleData.systemName); 
+            $('#role-modal input[name=name]').val(roleData.systemName).prop('readonly', true).attr('data-original', roleData.systemName); 
+            $('#role-modal select[name=role_name]').val(roleData.roleName).prop('disabled', true).change();
             
             // Handle Permissions
-            $('#permissions-container input[type="checkbox"]').prop('checked', false);
+            $('#role-modal #permissions-container input[type="checkbox"]').prop('checked', false);
             
             // Decode Base64 string and parse JSON
             const encodedPermissions = roleData.permissions;
@@ -324,6 +333,9 @@ $scripts = <<<HTML
                 return;
             }
 
+            // enable disabled fields before serialization
+            form.find('select:disabled, input:disabled').prop('disabled', false).addClass("were_disabled");
+
             ajaxCall({
                 url: form.attr('action'),
                 data: form.serialize(),
@@ -335,20 +347,28 @@ $scripts = <<<HTML
             }).then((response) => {
                 if (response.status) {
                     // Close modal, refresh table data
-                    closeModal(); 
+                    $("#cancel_btn").click();
+
                     // Use the pagination script's reload function
-                    pagination_reload(); 
+                    loadPaginatedData(1); 
                     // Assuming you have a function to display messages
-                    // show_success_message(response.message || 'Role saved successfully!'); 
+                    alert_box(response.message || 'Role saved successfully!', 'success'); 
                 } else {
-                    alert("Error: " + (response.errors.system_message || "An unknown error occurred."));
+                    if(response.errors && Object.keys(response.errors).length > 0){
+                        let errorMessages = response.errors;
+                        display_form_errors(errorMessages, form);
+                    } else {
+                        alert_box("Error: An unknown error occurred.");
+                        console.error(response);
+                    }
                 }
             }).catch((error) => {
                 console.error("AJAX Error:", error);
-                alert('A network error occurred.');
+                alert('A network error occurred. ' + error.toString());
             }).finally(() => {
                 // Re-enable button
                 submitBtn.prop('disabled', false).html('Save Role');
+                form.find(".were_disabled").prop('disabled', true).removeClass("were_disabled");
             });
         });
     });

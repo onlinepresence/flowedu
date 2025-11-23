@@ -430,11 +430,6 @@
             }
         }elseif($submit == "update_course"){
             $course_id = $_POST["course_id"] ?? null;
-            $name = $_POST["name"] ?? null;
-            $code = $_POST["code"] ?? null;
-            $course_semester = $_POST["course_semester"] ?? null;
-            $year_level = $_POST["year_level"] ?? null;
-            $program_id = $_POST["program_id"] ?? null;
 
             $rules = [
                 "course_id" => "required|integer|exists:courses,id",
@@ -451,6 +446,54 @@
                 if(update($course, $data, "courses", ["id"])){
                     $_SESSION["system_message"] = "Course '{$course['name']}' has been updated";
                 }
+            }
+        }elseif($submit == "create_role"){
+            $user_roles = implode(",", get_system_user_roles(true, true));
+            $rules = [
+                "display_name" => "required|string|unique:user_roles,display_name",
+                "role_name" => "required|string|in:$user_roles",
+                "permissions" => "nullable|array",
+                "name" => "nullable|string|unique:user_roles,name"
+            ];
+
+            $exclude = ["role_id"];
+
+            $errors = validate_form($rules);
+
+            if(!$errors){
+                $data = form_data(exclude: $exclude);
+                if(isset($data["permissions"])){
+                    $data["permissions"] = serialize_($data["permissions"]);
+                }else{
+                    $data["permissions"] = null;
+                }
+
+                $status = true;
+                $data = "No issues";
+            }
+        }elseif($submit == "update_role"){
+            $user_roles = implode(",", get_system_user_roles(true, true));
+            $role_id = $_POST["role_id"];
+            $rules = [
+                "role_id" => "required|integer|exists:user_roles,id",
+                "display_name" => "required|string|unique:user_roles,display_name,id != $role_id",
+                "role_name" => "required|string|in:$user_roles",
+                "name" => "nullable|string|unique:user_roles,name",
+                "permissions" => "nullable|array"
+            ];
+
+            $errors = validate_form($rules);
+
+            if(!$errors){
+                $data = form_data(key_change: ["role_id" => "id"]);
+                if(isset($data["permissions"])){
+                    $data["permissions"] = serialize_($data["permissions"]);
+                }else{
+                    $data["permissions"] = null;
+                }
+
+                $status = true;
+                $data = "No issues";
             }
         }
 

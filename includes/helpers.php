@@ -317,9 +317,10 @@
     /**
      * Returns a list of all the teacher roles we have
      * @param bool $as_list Set to 'list' to return a simple list of roles (by their actual names)
+     * @param bool $key_only Used with as_list, if set to true, returns only the keys, else the display names of the keys
      * @return array
      */
-    function get_system_user_roles(bool $as_list = false): array {
+    function get_system_user_roles(bool $as_list = false, bool $key_only = false): array {
         $roles = [
             'admin' => 'Administrator',
             'teacher' => 'Teacher',
@@ -327,7 +328,7 @@
         ];
 
         if($as_list){
-            return array_values($roles);
+            return !$key_only ? array_values($roles) : array_keys($roles);
         }
 
         return $roles;

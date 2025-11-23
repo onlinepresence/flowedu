@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="<?= asset("css/app.css") ?>">
     
     <script src="<?= asset("js/alpine.min.js") ?>" defer></script>
+    <script src="<?= asset("js/focus-trap.js") ?>" defer></script>
     <script src="<?= asset("js/init-alpine.js") ?>"></script>
 
      <!-- You need focus-trap.js to make the modal accessible -->
@@ -222,7 +223,7 @@
       </div>
     </div>
     <script src="<?= asset("js/jquery.min.js", false) ?>"></script>
-    <script src="<?= asset("js/functions.js", false) ?>"></script>
+    <script src="<?= asset("js/functions.js") ?>"></script>
     <?= $scripts ?? '' ?>
   </body>
 </html>
