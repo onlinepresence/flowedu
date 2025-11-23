@@ -34,9 +34,18 @@
                 '/dashboard' => ['file' => 'admin/dashboard.php'],
                 '/approve-student/{indexnumber}/{guardian}/{id}' => ['file' => 'admin/approve-student.php'],
                 '/students' => ['file' => 'admin/pages/students/index.php'],
-                '/staff' => ['file' => 'admin/pages/staff/index.php'],
-                '/staff/teachers' => ['file' => 'admin/pages/staff/teachers.php'],
                 '/profile' => ['file' => 'admin/setup/personal.php']
+            ]
+        ],
+
+        '/admin/staff' => [
+            'prefix' => '/admin/staff',
+            'middleware' => ['auth', 'valid_admin', 'check_school_status'],
+            'routes' => [
+                '/' => ['file' => 'admin/pages/staff/index.php'],
+                '/teachers' => ['file' => 'admin/pages/staff/teachers.php'],
+                '/non-teaching' => ['file' => 'admin/pages/staff/non-teaching.php'],
+                '/evaluations' => ['file' => 'admin/pages/staff/evaluation.php']
             ]
         ],
 

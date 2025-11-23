@@ -333,3 +333,21 @@
 
         return $roles;
     }
+
+    /**
+     * This gets the current academic year
+     * @return string The current academic year in the format YYYY/YYYY
+     */
+    function getCurrentAcademicYear() {
+        $current_month = (int)date('m');
+        $current_year = (int)date('Y');
+        
+        if ($current_month >= 9) {
+            $start_year = $current_year;
+            $end_year = $current_year + 1;
+        } else {
+            $start_year = $current_year - 1;
+            $end_year = $current_year;
+        }
+        return "{$start_year}/{$end_year}";
+    }
