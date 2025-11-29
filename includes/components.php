@@ -279,7 +279,7 @@
 
         return "
         <button type=\"$type\" name=\"$name\" value=\"$value\" 
-            class=\"block w-full px-4 py-2 text-sm font-medium leading-5 text-center text-white transition-colors duration-150 bg-$color-600 border border-transparent rounded-lg active:bg-$color-600 hover:bg-$color-700 focus:outline-none focus:shadow-outline-$color $class_\" $attr>
+            class=\"block px-4 py-2 text-sm font-medium leading-5 text-center text-white transition-colors duration-150 bg-$color-600 border border-transparent rounded-lg active:bg-$color-600 hover:bg-$color-700 focus:outline-none focus:shadow-outline-$color $class_\" $attr>
             $text
         </button>
         ";
@@ -519,8 +519,9 @@
      * @return string Opening HTML tr tag with styling
      */
     function tr_start($attributes = []){
+        $class_ = merge_class($attributes);
         $attr = convert_attributes($attributes);
-        return "<tr class=\"text-xs font-semibold tracking-wide text-left text-gray-500 uppercase border-b dark:border-gray-700 bg-gray-50 dark:text-gray-400 dark:bg-gray-800\" $attr>";
+        return "<tr class=\"text-xs font-semibold tracking-wide text-left text-gray-500 uppercase border-b dark:border-gray-700 bg-gray-50 dark:text-gray-400 dark:bg-gray-800 $class_\" $attr>";
     }
 
     /**
@@ -538,17 +539,13 @@
      * @return string HTML td element
      */
     function td_empty($text, $col_count){
-        return td($text, attributes: 
-            array_merge(attribute("class", "text-center"),
-            attribute("colspan", $col_count))
-        );
+        return td($text, attributes:attribute("class", "text-center w-full"));
     }
 
     /**
      * Creates an action for a table data cell
      * @param string $icon Icon class
      * @param string $title Action title
-     * @param string $classes Additional CSS classes
      * @param array $attributes Additional data attributes or element attributes
      * @return array Action array
      */
@@ -560,6 +557,42 @@
         ];
         
         return $as_list ? [$action] : $action;
+    }
+
+    /**
+     * Renders a table data cell (<td>) containing a colored badge based on status.
+     *
+     * @param string $label The text to display inside the badge (e.g., 'Active', 'Closed').
+     * @param string $color The base color (e.g., 'green', 'red', 'gray', 'blue', 'yellow').
+     * @param array $attributes Optional attributes for the <td> element.
+     * @return string The rendered HTML for the table cell and badge.
+     */
+    function td_badge(string $label, string $color, array $attributes = []): string {
+        // Define the color mapping for Tailwind CSS classes
+        $color_map = [
+            'green' => ['bg' => 'bg-green-100', 'text' => 'text-green-700', 'dark_bg' => 'dark:bg-green-700', 'dark_text' => 'dark:text-green-100'],
+            'red' => ['bg' => 'bg-red-100', 'text' => 'text-red-700', 'dark_bg' => 'dark:bg-red-700', 'dark_text' => 'dark:text-red-100'],
+            'blue' => ['bg' => 'bg-blue-100', 'text' => 'text-blue-700', 'dark_bg' => 'dark:bg-blue-700', 'dark_text' => 'dark:text-blue-100'],
+            'yellow' => ['bg' => 'bg-yellow-100', 'text' => 'text-yellow-700', 'dark_bg' => 'dark:bg-yellow-700', 'dark_text' => 'dark:text-yellow-100'],
+            'purple' => ['bg' => 'bg-purple-100', 'text' => 'text-purple-700', 'dark_bg' => 'dark:bg-purple-700', 'dark_text' => 'dark:text-purple-100'],
+            'gray' => ['bg' => 'bg-gray-100', 'text' => 'text-gray-700', 'dark_bg' => 'dark:bg-gray-700', 'dark_text' => 'dark:text-gray-100'],
+        ];
+
+        // Default to gray if color is invalid
+        $color_classes = $color_map[strtolower($color)] ?? $color_map['gray'];
+        
+        // Construct the span classes
+        $span_classes = "px-2 py-1 font-semibold leading-tight rounded-full ";
+        $span_classes .= "{$color_classes['text']} {$color_classes['bg']} ";
+        $span_classes .= "{$color_classes['dark_bg']} {$color_classes['dark_text']}";
+
+        $badge_html = "<span class='{$span_classes}'>" . htmlspecialchars($label) . "</span>";
+
+        // Combine default TD classes with any passed attributes
+        $default_td_attributes = attribute("class", "px-4 py-3 text-sm");
+        $final_attributes = array_merge($default_td_attributes, $attributes);
+
+        return td($badge_html, attributes: $final_attributes);
     }
     
     /**

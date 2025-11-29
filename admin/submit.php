@@ -567,6 +567,78 @@
                 $data['redirect'] = "/admin/evaluation/manage-questions.php?form_id={$new_form_id}";
             }
             // Final AJAX response handling (assumed)
+        }elseif ($submit == "create_evaluation_question" || $submit == "update_evaluation_question") {
+            $is_update = ($submit == "update_evaluation_question");
+            $question_id = $_POST['question_id'] ?? null;
+            $form_id = $_POST['form_id'] ?? null;
+            $admin_id = user()["id"];
+            $rating_types = implode(",", get_question_types(QUESTION_TYPES::EVALUATION, true));
+
+            if($is_update){
+                $rules["question_id"] = "required|integer|exists:evaluation_questions,id";
+
+                $exclude = ["form_id"];
+                $replace = ["question_id" => "id"];
+            }else{
+                $exclude = ["question_id"];
+            }
+            
+            // Retrieve data
+            $form_data = form_data(exclude: $exclude, key_change: $replace ?? []); // Exclude 'options' for manual handling
+            $options_array = $_POST['options'] ?? [];
+        
+            $rules = [
+                "form_id" => "required|integer|exists:evaluation_forms,id",
+                "question_text" => "required|string",
+                "rating_type" => "required|in:$rating_types",
+                "question_order" => "required|integer|min:1",
+                "is_required" => "boolean",
+            ];
+        
+            $errors = validate_form($rules); 
+        
+            // Custom Validation for Select types
+            if (in_array($form_data['rating_type'], ['select_single', 'select_multiple'])) {
+                // Filter out empty options
+                $valid_options = array_filter($options_array, 'trim'); 
+                
+                if (count($valid_options) < 2) {
+                    $errors['options'] = "Questions of type 'Single Choice' or 'Multiple Choice' require at least two options.";
+                }
+                
+                // Prepare options_json for insertion/update
+                $form_data['options_json'] = json_encode(array_values($valid_options)); // Re-index array for clean JSON
+            }
+            
+            // Set default for required field if not present (unchecked checkbox)
+            $form_data['is_required'] = $form_data['is_required'] ?? 0;
+        
+            if (!$errors) {
+                if ($is_update && $question_id) {
+                    // Update logic
+                    $form_data['last_edited_by'] = $admin_id;
+                    
+                    $question = fetchData("*", "evaluation_questions", "id = $question_id");
+                    
+                    if (update($question, $form_data, "evaluation_questions", ["id"])) {
+                        $status = true;
+                        $data['message'] = "Question updated successfully.";
+                    } else {
+                        $errors["system_message"] = "Failed to update question.";
+                    }
+                } else {
+                    // Create logic
+                    $form_data['created_by'] = $admin_id;
+                    
+                    if ($new_q_id = data_insert("evaluation_questions", $form_data)) {
+                        $status = true;
+                        $data['message'] = "Question added successfully.";
+                        $data['new_id'] = $new_q_id;
+                    } else {
+                        $errors["system_message"] = "Failed to create new question.";
+                    }
+                }
+            }
         }
 
         // delete an item

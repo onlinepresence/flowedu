@@ -852,6 +852,53 @@
         return boolval(session('admin_register') ?? false);
     }
 
+    enum QUESTION_TYPES {
+        case EVALUATION;
+        case ASSESSMENT;
+    }
+    
+    /**
+     * Returns a list of question types handled by the software.
+     *
+     * @param QUESTION_TYPES $mode The mode of question you want
+     * @param bool $id_only Returns only the ids. When false returns the full array with id/text
+     * @return array
+     */
+    function get_question_types(QUESTION_TYPES $mode, bool $id_only = false): array
+    {
+        // Define all question types
+        $types = [
+            ["id" => "scale_5","text" => "Likert Scale (1 - 5)","for" => [QUESTION_TYPES::EVALUATION]],
+            ["id" => "scale_10","text" => "Numeric Scale (1 - 10)","for" => [QUESTION_TYPES::EVALUATION]],
+            ["id" => "select_single", "text" => "Single Choice (Radio/Dropdown)"],
+            ["id" => "select_multiple", "text" => "Multiple Choice (Checkboxes)"],
+            ["id" => "text_short","text" => "Short Text Input (Single Line)"],
+            ["id" => "text_long","text" => "Long Text Input (Comment Box)"],
+            ["id" => "boolean","text" => "Yes/No (Boolean)"]
+        ];
+    
+        $result = [];
+    
+        foreach ($types as $type) {
+            // Filter by 'for' key if it exists
+            if (isset($type['for']) && !in_array($mode, $type['for'], true)) {
+                continue;
+            }
+    
+            // Only return ID if $id_only
+            if ($id_only) {
+                $result[] = $type['id'];
+            } else {
+                $result[] = [
+                    "id" => $type['id'],
+                    "text" => $type['text']
+                ];
+            }
+        }
+    
+        return $result;
+    }
+
     require_once "mailer_functions.php";
     require_once "jobs.php";
     require_once "student_function.php";

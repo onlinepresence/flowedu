@@ -48,11 +48,8 @@
 
                 // evaluation routes
                 '/evaluations' => ['file' => 'admin/pages/staff/evaluation/index.php', 'name' => 'admin.evaluations'],
-                '/evaluation/{form_code}' => ['file' => 'admin/pages/staff/evaluation/questions.php'],
-                // '/evaluation/{form_code}/responses' => ['file' => 'admin/pages/staff/evaluation-responses.php'],
-                // '/evaluation/{form_code}/responses/{response_id}' => ['file' => 'admin/pages/staff/evaluation-response-view.php'],
-                // '/evaluation/{form_code}/questions' => ['file' => 'admin/pages/staff/evaluation-questions.php'],
-                // '/evaluation/{form_code}/manage' => ['file' => 'admin/pages/staff/evaluation-manage.php'],
+                '/evaluation/{form_code}' => ['file' => 'admin/pages/staff/evaluation/manage.php'],
+                '/evaluation/{form_code}/{tab}' => ['file' => 'admin/pages/staff/evaluation/manage.php', 'name' => 'admin.evaluation'],
             ]
         ],
 
