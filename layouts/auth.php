@@ -223,6 +223,7 @@
       </div>
     </div>
     <script src="<?= asset("js/jquery.min.js", false) ?>"></script>
+    <?= add_named_routes() ?>
     <script src="<?= asset("js/functions.js") ?>"></script>
     <?= $scripts ?? '' ?>
   </body>

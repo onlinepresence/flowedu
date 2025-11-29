@@ -290,3 +290,22 @@ function display_form_errors(errors, $form){
         }
     }
 }
+
+/**
+ * JS route() helper — works exactly like PHP version
+ */
+function js_route(name, params = {}) {
+    if (!window.namedRoutes || !window.namedRoutes[name]) {
+        alert_box("JS Route '" + name + "' not found");
+        throw new Error("JS Route '" + name + "' not found");
+    }
+
+    let path = window.namedRoutes[name];
+
+    // replace dynamic parameters
+    for (const key in params) {
+        path = path.replace('{' + key + '}', params[key]);
+    }
+
+    return path; // relative path — you can wrap with your JS url() if needed
+}

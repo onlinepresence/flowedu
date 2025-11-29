@@ -15,6 +15,9 @@ if($requestUri == "/shutdown"){
     require "shutdown.php"; exit;
 }
 
+// build the dynamic route files
+require_once "include/routes.php";
+
 /**
  * Match the current request URI against defined routes.
  *
@@ -24,29 +27,59 @@ if($requestUri == "/shutdown"){
  */
 function matchRoute($requestUri, $routes) {
     foreach ($routes as $route => $config) {
+        // Handle prefixed groups
         if (isset($config['prefix'])) {
             if (str_starts_with($requestUri, $config['prefix'])) {
+
                 $subRoute = str_replace($config['prefix'], '', $requestUri) ?: '/';
+
                 foreach ($config['routes'] as $subPath => $subConfig) {
-                    $pattern = "#^" . preg_replace('/\{[\w]+\}/', '([^/]+)', $subPath) . "$#"; // Allow more flexible param matching
+
+                    // Extract param names
+                    preg_match_all('/\{(\w+)\}/', $subPath, $paramNames);
+
+                    // Build regex pattern
+                    $pattern = "#^" . preg_replace('/\{\w+\}/', '([^/]+)', $subPath) . "$#";
+
                     if (preg_match($pattern, $subRoute, $matches)) {
-                        array_shift($matches); // Remove full match
+
+                        array_shift($matches);
+
+                        // Build associative params
+                        $params = [];
+                        foreach ($paramNames[1] as $i => $name) {
+                            $params[$name] = $matches[$i] ?? null;
+                        }
+
                         $subConfig['middleware'] = array_merge($config['middleware'] ?? [], $subConfig['middleware'] ?? []);
-                        return [$subConfig, $matches];
+
+                        return [$subConfig, $params];
                     }
                 }
             }
-        } else {
-            // Handle individual routes
-            $pattern = preg_replace('/\{[\w]+\}/', '([^/]+)', $route); // Replace {param} with regex
-            $pattern = "#^" . $pattern . "$#";
+        }
+
+        // Handle normal routes
+        else {
+
+            preg_match_all('/\{(\w+)\}/', $route, $paramNames);
+
+            $pattern = "#^" . preg_replace('/\{\w+\}/', '([^/]+)', $route) . "$#";
 
             if (preg_match($pattern, $requestUri, $matches)) {
-                array_shift($matches); // Remove full match
-                return [$config, $matches];
+
+                array_shift($matches);
+
+                $params = [];
+                foreach ($paramNames[1] as $i => $name) {
+                    $params[$name] = $matches[$i] ?? null;
+                }
+
+                return [$config, $params];
             }
         }
     }
+
     return [null, []];
 }
 

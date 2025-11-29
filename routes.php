@@ -46,13 +46,13 @@
                 '/teachers' => ['file' => 'admin/pages/staff/teachers.php'],
                 '/non-teaching' => ['file' => 'admin/pages/staff/non-teaching.php'],
 
-                // evaluation
-                '/evaluations' => ['file' => 'admin/pages/staff/evaluation.php'],
-                '/evaluation/{form_code}' => ['file' => 'admin/pages/staff/evaluation-form.php'],
-                '/evaluation/{form_code}/responses' => ['file' => 'admin/pages/staff/evaluation-responses.php'],
-                '/evaluation/{form_code}/responses/{response_id}' => ['file' => 'admin/pages/staff/evaluation-response-view.php'],
-                '/evaluation/{form_code}/questions' => ['file' => 'admin/pages/staff/evaluation-questions.php'],
-                '/evaluation/{form_code}/manage' => ['file' => 'admin/pages/staff/evaluation-manage.php'],
+                // evaluation routes
+                '/evaluations' => ['file' => 'admin/pages/staff/evaluation/index.php'],
+                '/evaluation/{form_code}' => ['file' => 'admin/pages/staff/evaluation/questions.php'],
+                // '/evaluation/{form_code}/responses' => ['file' => 'admin/pages/staff/evaluation-responses.php'],
+                // '/evaluation/{form_code}/responses/{response_id}' => ['file' => 'admin/pages/staff/evaluation-response-view.php'],
+                // '/evaluation/{form_code}/questions' => ['file' => 'admin/pages/staff/evaluation-questions.php'],
+                // '/evaluation/{form_code}/manage' => ['file' => 'admin/pages/staff/evaluation-manage.php'],
             ]
         ],
 

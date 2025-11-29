@@ -359,11 +359,11 @@
      * @return array
      */
     function verify_email() :array{
+        // get parameter list from route
         global $params;
         
         if($params){
-            list($token) = $params;
-            $token = urldecode($token);
+            $token = urldecode($params["token"]);
             if(str_contains($token, "|")){
                 list($signature, $data) = explode("|", $token, 2);
                 list($id, $expiry) = explode("|",base64_decode($data));

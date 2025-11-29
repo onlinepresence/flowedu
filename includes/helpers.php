@@ -351,3 +351,41 @@
         }
         return "{$start_year}/{$end_year}";
     }
+
+    /**
+     * This provides a route
+     */
+    function route($name, $params = []){
+        global $namedRoutes;
+
+        if (!isset($namedRoutes[$name])) {
+            throw new Exception("Route '{$name}' not found.");
+        }
+
+        $path = $namedRoutes[$name];
+
+        // replace dynamic parameters
+        foreach ($params as $key => $value) {
+            $path = str_replace("{" . $key . "}", $value, $path);
+        }
+
+        // Use your existing url() helper to fully qualify it
+        return url($path);
+    }
+    
+    /**
+     * This is used to add routes to the end of script files. Use in templates for better performance
+     */
+    function add_named_routes(){
+        global $namedRoutes;
+        $encoded_routes = json_encode($namedRoutes);
+
+        $script =<<<HTML
+        <script>
+            window.namedRoutes = $encoded_routes;
+        </script>
+        HTML;
+
+        return $script;
+    }
+
