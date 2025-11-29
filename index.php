@@ -16,7 +16,7 @@ if($requestUri == "/shutdown"){
 }
 
 // build the dynamic route files
-require_once "include/routes.php";
+require_once "includes/routes.php";
 
 /**
  * Match the current request URI against defined routes.
