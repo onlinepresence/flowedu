@@ -52,7 +52,7 @@ ob_start();
                 create_td_action(
                     "fas fa-list-ol",
                     "Manage Questions",
-                    attribute("href", "admin/evaluation/__UNIQUE_CODE__")
+                    attribute("href", url("admin/staff/evaluation/__UNIQUE_CODE__"))
                 ),
                 // Delete Action (Note: Hide/Show delete based on status is handled in JS/backend check)
                 create_td_action(
@@ -373,9 +373,9 @@ $scripts = <<<HTML
                     // Assuming alert_box is available globally
                     alert_box(data.message || 'Form saved successfully!', 'success'); 
                     
-                    if (action === 'create_evaluation_form' && response.data && response.data.new_id) {
+                    if (action === 'create_evaluation_form' && data.new_id) {
                          // Redirect to Questions page upon successful creation
-                         window.location.href = 'admin/evaluation/' + data.new_id;
+                         window.location.href = 'admin/staff/evaluation/' + data.new_id;
                     } else {
                         // Reload the table using the AJAX pagination helper
                         loadPaginatedData(1);

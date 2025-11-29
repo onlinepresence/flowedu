@@ -504,7 +504,7 @@
             $rules = [
                 "title" => "required|string|max:255",
                 "academic_year" => "required|string|max:9",
-                "unique_code" => "required|string|max:50|unique:evaluation_forms,unique_code,id != $form_id", // Unique code check (excluding current ID on update)
+                "unique_code" => "required|string|max:50|unique:evaluation_forms,unique_code".$is_update ? ", id != $form_id" : "", // Unique code check (excluding current ID on update)
                 "control_type" => "required|in:auto,manual",
                 "start_time" => "required|date",
                 "end_time" => "required|date|after:start_time",

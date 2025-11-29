@@ -577,6 +577,7 @@
         foreach ($actions as $action) {
             $icon = $action["icon"] ?? "";
             $title = $action["title"] ?? "";
+            $element = array_key_exists("href", $action["attributes"]) ? "a" : "button";
             $classes = merge_class($action["attributes"] ?? []);
             $attributes_ = convert_attributes($action["attributes"] ?? []);
 
@@ -589,9 +590,9 @@
             ";*/
 
             $buttons[] = "
-                <button class=\"flex items-center justify-between px-2 py-2 text-sm font-medium leading-5 text-purple-600 rounded-lg dark:text-gray-400 focus:outline-none focus:shadow-outline-gray $classes\" aria-label=\"$title\" $attributes_>
+                <$element class=\"flex items-center justify-between px-2 py-2 text-sm font-medium leading-5 text-purple-600 rounded-lg dark:text-gray-400 focus:outline-none focus:shadow-outline-gray $classes\" aria-label=\"$title\" title=\"$title\" $attributes_>
                     <i class=\"$icon\"></i>
-                </button>
+                </$element>
             ";
         }
 
