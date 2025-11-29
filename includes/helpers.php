@@ -261,15 +261,40 @@
      * @return mixed
      */
     function session(string $name, $value = null){
-        if($value){
-            $_SESSION[$name] = $value;
-        }else{
-            if($name && isset($_SESSION[$name])){
-                return $_SESSION[$name];
+        // detect dot notation
+        $keys = explode('.', $name);
+
+        // ---------------------------------
+        // 1. Setting session value
+        // ---------------------------------
+        if ($value !== null) {
+
+            $ref = &$_SESSION;
+
+            foreach ($keys as $key) {
+                if (!isset($ref[$key]) || !is_array($ref[$key])) {
+                    $ref[$key] = [];
+                }
+                $ref = &$ref[$key];
             }
-    
-            return null;
-        }    
+
+            $ref = $value;
+            return $value;
+        }
+
+        // ---------------------------------
+        // 2. Getting session value
+        // ---------------------------------
+        $ref = $_SESSION;
+
+        foreach ($keys as $key) {
+            if (!isset($ref[$key])) {
+                return null; // missing key
+            }
+            $ref = $ref[$key];
+        }
+
+        return $ref;
     }
 
     /**

@@ -16,6 +16,7 @@ if($requestUri == "/shutdown"){
 }
 
 // build the dynamic route files
+$namedRoutes = [];
 require_once "includes/routes.php";
 
 /**

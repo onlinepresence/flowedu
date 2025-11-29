@@ -47,7 +47,7 @@
                 '/non-teaching' => ['file' => 'admin/pages/staff/non-teaching.php'],
 
                 // evaluation routes
-                '/evaluations' => ['file' => 'admin/pages/staff/evaluation/index.php'],
+                '/evaluations' => ['file' => 'admin/pages/staff/evaluation/index.php', 'name' => 'admin.evaluations'],
                 '/evaluation/{form_code}' => ['file' => 'admin/pages/staff/evaluation/questions.php'],
                 // '/evaluation/{form_code}/responses' => ['file' => 'admin/pages/staff/evaluation-responses.php'],
                 // '/evaluation/{form_code}/responses/{response_id}' => ['file' => 'admin/pages/staff/evaluation-response-view.php'],
