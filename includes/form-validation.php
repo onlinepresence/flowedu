@@ -226,10 +226,20 @@
                 }
 
                 // 🧩 Date
-                if ($rule === 'date' && !preg_match("/^\d{4}-\d{2}-\d{2}$/", $value)) {
-                    $errors[$is_hidden ? "system_message" : $field] = $messages[$field]['date'] ?? "$display_name must be a valid date (YYYY-MM-DD)";
-                    break;
-                }
+                if ($rule === 'date') {
+                    $parsed = DateTime::createFromFormat(DateTime::ATOM, $value)
+                        ?: DateTime::createFromFormat('Y-m-d', $value)
+                        ?: DateTime::createFromFormat('Y-m-d\TH:i', $value)
+                        ?: DateTime::createFromFormat('Y-m-d\TH:i:s', $value)
+                        ?: DateTime::createFromFormat('Y-m-d H:i:s', $value)
+                        ?: new DateTime($value);
+                
+                    if (!$parsed) {
+                        $errors[$is_hidden ? "system_message" : $field] =
+                            $messages[$field]['date'] ?? "$display_name must be a valid date.";
+                        break;
+                    }
+                }                
 
                 // 🧩 Date Format
                 if ($rule === 'date_format' && $param !== null) {

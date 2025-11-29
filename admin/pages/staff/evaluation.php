@@ -3,20 +3,10 @@ require_once relative_path("includes/components.php");
 
 $title = 'Evaluation Forms Management'; // Set the page title
 
-// --- PHP Functions for Evaluation Data ---
+// --- PHP Data (Minimal, just helper data) ---
 
-/**
- * Helper function to fetch all evaluation forms for initial display.
- * @return array|string
- */
-function get_all_evaluation_forms() {
-    // Fetch all columns from evaluation_forms table, ordered by ID descending.
-    // Assuming limit: 0 fetches all
-    return fetchData("*", "evaluation_forms", limit: 0, order_by: "id", asc: false); 
-}
-
-$evaluation_forms = get_all_evaluation_forms();
-$current_academic_year = getCurrentAcademicYear();
+// Assuming this function exists and returns the current academic year string (e.g., "2024/2025")
+$current_academic_year = getCurrentAcademicYear(); 
 
 // Start output buffering
 ob_start();
@@ -27,7 +17,9 @@ ob_start();
         <?= td("__TITLE__", attributes: attribute("class", "px-4 py-3 text-sm font-semibold")) ?>
         <?= td("__ACADEMIC_YEAR__", attributes: attribute("class", "px-4 py-3 text-sm")) ?>
         <?= td("__UNIQUE_CODE__", attributes: attribute("class", "px-4 py-3 text-xs italic")) ?>
-        <?= td() //td_badge('__STATUS__', '__STATUS_COLOR__') ?>
+        
+        <?= td("<span class='px-2 py-1 font-semibold leading-tight text-__STATUS_COLOR__-700 bg-__STATUS_COLOR__-100 rounded-full dark:bg-__STATUS_COLOR__-700 dark:text-__STATUS_COLOR__-100'>__STATUS__</span>", attributes: attribute("class", "px-4 py-3 text-sm")) ?>
+        
         <?= td(
             '<span title="Start: __START_TIME_FORMATTED__">__START_DATE_FORMATTED__</span>',
             attributes: attribute("class", "px-4 py-3 text-sm")
@@ -44,35 +36,34 @@ ob_start();
                     "fas fa-edit",
                     "Edit Form Details",
                     array_merge(
-                        attribute("class", "text-purple-500 hover:text-purple-600 cursor-pointer edit-form-details"),
+                        attribute("class", "text-purple-500 hover:text-purple-600 cursor-pointer edit-form-details action-btn"),
                         data_attr("id", "__ID__"),
                         data_attr("title", "__TITLE__"),
                         data_attr("academic-year", "__ACADEMIC_YEAR__"),
                         data_attr("unique-code", "__UNIQUE_CODE__"),
                         data_attr("control-type", "__CONTROL_TYPE__"),
-                        data_attr("start-time", "__START_TIME__"),
-                        data_attr("end-time", "__END_TIME__"),
-                        attribute("@click", "openModal('evaluation-modal')")
+                        data_attr("start-time", "__START_DATETIME__"), // Use DATETIME for JS
+                        data_attr("end-time", "__END_DATETIME__"),     // Use DATETIME for JS
+                        attribute("@click", "openModal"),
+                        data_attr("modal-body", "evaluation-modal-content"),
                     )
                 ),
-                // Manage Questions (Redirect to the next page)
+                // Manage Questions
                 create_td_action(
                     "fas fa-list-ol",
                     "Manage Questions",
-                    array_merge(
-                        attribute("class", "text-blue-500 hover:text-blue-600 cursor-pointer"),
-                        attribute("href", "admin/evaluation/manage-questions.php?form_id=__ID__")
-                    )
+                    attribute("href", "admin/evaluation/__UNIQUE_CODE__")
                 ),
-                // Delete Action (Only if inactive)
+                // Delete Action (Note: Hide/Show delete based on status is handled in JS/backend check)
                 create_td_action(
                     "fas fa-trash-alt",
                     "Delete Form",
                     array_merge(
-                        attribute("class", "text-red-500 hover:text-red-600 cursor-pointer delete-form action-btn"),
+                        attribute("class", "text-red-500 hover:text-red-600 cursor-pointer action-delete action-btn"),
                         data_attr("id", "__ID__"),
+                        data_attr("modal-body", "delete-body"),
                         data_attr("name", "__TITLE__"),
-                        attribute("@click", "openModal('delete-modal')") // Assuming a separate modal for delete
+                        attribute("@click", "openModal")
                     )
                 )
             )
@@ -82,28 +73,31 @@ ob_start();
 
 <div class="flex items-center justify-between mb-6">
     <?= button("button", 
-               "Create New Evaluation", 
-               color: "blue", 
-               attributes: array_merge(
-                   attribute("id", "add-form-btn"),
-                   attribute("@click", "openModal('evaluation-modal')"),
-                   attribute("class", "max-w-xs")
-               )) 
+                "Create New Evaluation", 
+                color: "blue", 
+                attributes: array_merge(
+                    attribute("id", "add-form-btn"),
+                    attribute("@click", "openModal"),
+                    attribute("class", "max-w-xs")
+                )) 
     ?>
 
-    <?= 
-        select("role_type", "Form Status", 
-            options: [
-                "all" => "All Evaluation Forms",
-                "active" => "Active Forms",
-                "pending" => "Pending Forms",
-                "closed" => "Closed Forms"
-            ], 
-            attributes: array_merge(
-                data_attr("filter", "role_type"),
-                attribute("id", "role_type_filter")
-            ))
-    ?>
+    <div class="flex items-center gap-4">
+        <?= 
+            select("status_filter", 
+                options: [
+                    "active" => "Active Forms",
+                    "pending" => "Pending Forms",
+                    "closed" => "Closed Forms"
+                ], 
+                nullable: "All Evaluation Forms",
+                attributes: array_merge(
+                    data_attr("filter", "status"), // Key for AJAX backend
+                    attribute("id", "status_filter"),
+                    attribute("onchange", "loadPaginatedData(1)") // Trigger AJAX reload on change
+                ))
+        ?>
+    </div>
 </div>
 
 <div class="w-full overflow-hidden rounded-lg shadow-xs">
@@ -122,86 +116,32 @@ ob_start();
             <?= thead_end() ?>
             
             <tbody id="forms-table-body" class="bg-white divide-y dark:divide-gray-700 dark:bg-gray-800">
-                <?php if (is_array($evaluation_forms) && count($evaluation_forms) > 0): ?>
-                    <?php foreach ($evaluation_forms as $form): 
-                        // Determine status and badge color
-                        $status = 'Pending';
-                        $status_color = 'gray';
-                        $current_time = time();
-                        $start_time = strtotime($form['start_time']);
-                        $end_time = strtotime($form['end_time']);
-
-                        if ($form['is_active'] && $current_time >= $start_time && $current_time <= $end_time) {
-                            $status = 'Active';
-                            $status_color = 'green';
-                        } elseif ($current_time > $end_time) {
-                            $status = 'Closed';
-                            $status_color = 'red';
-                        }
-                    ?>
-                        <?= tr_start(attribute("class", "text-gray-700 dark:text-gray-400")) ?>
-                            <?= td(htmlspecialchars($form['title']), attributes: attribute("class", "px-4 py-3 text-sm font-semibold")) ?>
-                            <?= td(htmlspecialchars($form['academic_year']), attributes: attribute("class", "px-4 py-3 text-sm")) ?>
-                            <?= td(htmlspecialchars($form['unique_code']), attributes: attribute("class", "px-4 py-3 text-xs italic")) ?>
-                            <?php td(); /*td_badge($status, $status_color)*/ ?>
-                            <?= td(
-                                '<span title="Start: ' . date('H:i', $start_time) . '">' . date('M d, Y', $start_time) . '</span>',
-                                attributes: attribute("class", "px-4 py-3 text-sm")
-                            ) ?>
-                            <?= td(
-                                '<span title="End: ' . date('H:i', $end_time) . '">' . date('M d, Y', $end_time) . '</span>',
-                                attributes: attribute("class", "px-4 py-3 text-sm")
-                            ) ?>
-                            
-                            <?= td_actions(
-                                array_merge(
-                                    // Edit Action
-                                    create_td_action(
-                                        "fas fa-edit",
-                                        "Edit Form Details",
-                                        array_merge(
-                                            attribute("class", "text-purple-500 hover:text-purple-600 cursor-pointer edit-form-details"),
-                                            data_attr("id", $form['id']),
-                                            data_attr("title", htmlspecialchars($form['title'])),
-                                            data_attr("academic-year", htmlspecialchars($form['academic_year'])),
-                                            data_attr("unique-code", htmlspecialchars($form['unique_code'])),
-                                            data_attr("control-type", $form['control_type']),
-                                            // Formatting DATETIME for datetime-local input
-                                            data_attr("start-time", date('Y-m-d\TH:i', $start_time)),
-                                            data_attr("end-time", date('Y-m-d\TH:i', $end_time)),
-                                            attribute("@click", "openModal('evaluation-modal')")
-                                        )
-                                    ),
-                                    // Manage Questions
-                                    create_td_action(
-                                        "fas fa-list-ol",
-                                        "Manage Questions",
-                                        attribute("href", "admin/evaluation/manage-questions.php?form_id={$form['id']}")
-                                    ),
-                                    // Delete Action (Show only if not active/closed)
-                                    create_td_action(
-                                        "fas fa-trash-alt",
-                                        "Delete Form",
-                                        array_merge(
-                                            attribute("class", "text-red-500 hover:text-red-600 cursor-pointer delete-form action-btn"),
-                                            data_attr("id", $form['id']),
-                                            data_attr("name", htmlspecialchars($form['title'])),
-                                            attribute("@click", "openModal('delete-modal')") 
-                                        )
-                                    )
-                                )
-                            ) ?>
-                        <?= tr_end() ?>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <?= td_empty("No evaluation forms found. Click 'Create New Evaluation' to start.", 7) ?>
-                <?php endif; ?>
+                <?= td_empty("Loading evaluation forms...", 7) ?>
             </tbody>
         <?= table_end() ?>
     </div>
+    
+    <div class="grid px-4 py-3 text-xs font-semibold tracking-wide text-gray-500 uppercase border-t dark:border-gray-700 bg-gray-50 sm:grid-cols-9 dark:text-gray-400 dark:bg-gray-800">
+        <p class="flex items-center col-span-3 gap-2">
+            Showing <span id="page-info" class="mx-1">0–0</span> of <span id="total-count">0</span> forms
+        </p>
+        <span class="col-span-2"></span>
+        <span class="flex col-span-4 mt-2 sm:mt-auto sm:justify-end">
+            <nav aria-label="Table navigation">
+                <ul id="pagination" class="inline-flex items-center">
+                    <li>
+                        <button id="prev-page" class="px-3 py-1 rounded-md rounded-l-lg focus:outline-none focus:shadow-outline-purple" aria-label="Previous"></button>
+                    </li>
+                    <li>
+                        <button id="next-page" class="px-3 py-1 rounded-md rounded-r-lg focus:outline-none focus:shadow-outline-purple" aria-label="Next"></button>
+                    </li>
+                </ul>
+            </nav>
+        </span>
+    </div>
 </div>
 
-<?php echo modal_start( attribute("id", "evaluation-modal") ); ?>
+<?php echo modal_start( attribute("id", "modal") ); ?>
     <div id="evaluation-modal-content" class="modal-body">
         <?= modal_body_start() ?>
             <?= modal_title("Create New Evaluation", attributes: attribute("id", "evaluation-modal-title")) ?>
@@ -212,8 +152,7 @@ ob_start();
                 
                 <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                     
-                    <?= input("text", "Evaluation Title", 
-                        "title", 
+                    <?= input("text", "Evaluation Title", "title", 
                         required: true, 
                         attributes: array_merge(
                             attribute("maxlength", 255),
@@ -221,75 +160,110 @@ ob_start();
                         )) 
                     ?>
 
-                    <?= input("text", 
-                            "Academic Year", 
-                            "academic_year", 
+                    <?= input("text", "Academic Year",
+                                    "academic_year", 
+                                    required: true, 
+                                    value: $current_academic_year,
+                                    attributes: attribute("readonly")
+                                ) 
+                    ?>
+                    
+                    <?= input("datetime-local", "Start Date & Time", 
+                            "start_time",
                             required: true, 
-                            value: $current_academic_year,
-                            attributes: attribute("readonly")
+                            attributes: attribute("step", 60)
+                        ) 
+                    ?>
+
+                    <?= input("datetime-local", "End Date & Time",
+                            "end_time", 
+                            required: true, 
+                            attributes: attribute("step", 60)
                         ) 
                     ?>
                     
-                    <?= input("datetime-local", 
-                                "Start Date & Time", 
-                                "start_time", 
-                                required: true, 
-                                attributes: attribute("step", 60)
-                                ) 
-                    ?>
-
-                    <?= input("datetime-local", 
-                                "End Date & Time", 
-                                "end_time", 
-                                required: true, 
-                                attributes: attribute("step", 60)
-                                ) 
-                    ?>
-                    
                     <div class="md:col-span-2">
-                        <?= input_h("text", 
-                                    "Unique Evaluation Code", 
-                                    "unique_code", 
-                                    sub_text: "System identifier. Auto-generated. Cannot be changed after creation.",
-                                    required: true, 
-                                    attributes: array_merge(
-                                        attribute("maxlength", 50),
-                                        placeholder("EVAL-25-XXXX"),
-                                        attribute('readonly')
-                                    )
-                                ) ?>
+                        <?= input_h("text", "Unique Evaluation Code", 
+                            "unique_code", 
+                            sub_text: "System identifier. Auto-generated upon creation.",
+                            required: true, 
+                            attributes: array_merge(
+                                attribute("maxlength", 50),
+                                placeholder("EVAL-25-XXXX"),
+                                attribute('readonly')
+                            )
+                        ) ?>
                     </div>
 
                     <?= select("control_type", 
-                               "Evaluation Control Mechanism", 
-                               [
-                                   ["id" => "auto", "text" => "Automated (System Cron Handles Start/Stop)"],
-                                   ["id" => "manual", "text" => "Manual Start/Stop (Admin Intervention)"]
-                               ], 
-                               nullable: "Select control type",
-                               value: 'auto', // Default value
-                               required: true
-                               ) 
+                            "Evaluation Control Mechanism", 
+                            [
+                                ["id" => "auto", "text" => "Automated (System Cron Handles Start/Stop)"],
+                                ["id" => "manual", "text" => "Manual Start/Stop (Admin Intervention)"]
+                            ], 
+                            nullable: "Select control type",
+                            value: 'auto', // Default value
+                            required: true
+                        ) 
                     ?>
 
                 </div>
 
                 <div class="mt-6 flex justify-end gap-4">
                     <?= button("submit", "Save Form", color: "blue", attributes: attribute("id", "modal-submit-btn")) ?>
-                    <?= button("button", "Cancel", color: "red", attributes: attribute("@click", "closeModal()")) ?>
+                    <?= button("button", "Cancel", color: "red", attributes: array_merge(
+                        attribute("@click", "closeModal()"),
+                        attribute("id", "modal-cancel-btn")
+                    )) ?>
                 </div>
             </form>
         <?= modal_body_end(); ?>
     </div>
 
     <div id="delete-body" class="hidden modal-body">
-        <?= delete_item_component("user_roles", form_action: url("admin/submit.php"), 
-            delete_text: "Are you sure you want to delete this role? This action cannot be undone and may affect users assigned to this role.") ?>
+        <?= delete_item_component("evaluation_forms", form_action: url("admin/submit.php"), 
+            delete_text: "Are you sure you want to delete this evaluation form? This action cannot be undone and will delete all associated questions and settings.") ?>
     </div>
 <?= modal_end() ?>
 
+<?php
+$content = ob_get_clean();
 
-<?php $scripts = <<<HTML
+// ==============================================
+// 5. SCRIPTS
+// ==============================================
+
+// Set up the pagination script call
+$pagination_script = pagination_script(
+    'admin/ajax/evaluation.php',    // Target AJAX file (you need to create this)
+    'form-row-template',            // Template ID
+    'forms',                        // Data key in backend response ($data["forms"])
+    [
+        "ID" => "id",             
+        "TITLE" => "title",         
+        "ACADEMIC_YEAR" => "academic_year",
+        "UNIQUE_CODE" => "unique_code",
+        "CONTROL_TYPE" => "control_type",
+        
+        // Dates for display
+        "START_DATE_FORMATTED" => "start_date_formatted",
+        "END_DATE_FORMATTED" => "end_date_formatted",
+        "START_TIME_FORMATTED" => "start_time_formatted",
+        "END_TIME_FORMATTED" => "end_time_formatted",
+        
+        // DATETIME for JS to populate edit modal
+        "START_DATETIME" => "start_datetime",
+        "END_DATETIME" => "end_datetime",
+
+        // Status data processed in backend
+        "STATUS" => "status",
+        "STATUS_COLOR" => "status_color",
+    ],
+    ["submit" => "fetch_evaluation_forms"], // Default submit action
+);
+
+$extra_script = delete_item_component_script();
+$scripts = <<<HTML
 <script>
     // Helper function to generate a unique code
     function generateUniqueCode() {
@@ -299,6 +273,11 @@ ob_start();
 
     const current_academic_year = "$current_academic_year";
 
+    // function to remove error span
+    function remove_error_span(){
+        $("#evaluation-form-details .error-span").remove();
+    }
+
     // Function to reset the modal form for creation
     function resetEvaluationForm() {
         $('#evaluation-modal-title').text('Create New Evaluation');
@@ -307,17 +286,22 @@ ob_start();
         $('#form-id').val('');
         
         // Populate default values
-        $('#evaluation-form-details input[name=academic_year]').val(current_academic_year).prop('readonly', false);
+        $('#evaluation-form-details input[name=academic_year]').val(current_academic_year).prop('readonly', true);
         $('#evaluation-form-details select[name=control_type]').val('auto');
+
+        remove_error_span();
         
-        // Auto-generate code
-        $('#evaluation-form-details input[name=unique_code]').val(generateUniqueCode()).prop('readonly', false);
+        // Auto-generate code for new forms
+        $('#evaluation-form-details input[name=unique_code]').val(generateUniqueCode()).prop('readonly', true);
         
         // Reset button text
         $('#modal-submit-btn').html('Save Form');
     }
 
     $(document).ready(function() {
+
+        // Initialize pagination on page load
+        $pagination_script
 
         // 1. Handle "Create New Evaluation" click
         $('#add-form-btn').on('click', function() {
@@ -326,6 +310,7 @@ ob_start();
 
         // 2. Handle "Edit Form Details" click (Delegated event)
         $(document).on('click', '.edit-form-details', function() {
+            remove_error_span();
             const formData = $(this).data();
             
             // Set modal for editing
@@ -335,26 +320,26 @@ ob_start();
 
             // Populate form fields
             $('#evaluation-form-details input[name=title]').val(formData.title);
-            $('#evaluation-form-details input[name=academic_year]').val(formData.academicYear).prop('readonly', true); // Block editing after creation
-            $('#evaluation-form-details input[name=unique_code]').val(formData.uniqueCode).prop('readonly', true); // Block editing after creation
+            // Academic year and unique code remain read-only for editing
+            $('#evaluation-form-details input[name=academic_year]').val(formData.academicYear).prop('readonly', true); 
+            $('#evaluation-form-details input[name=unique_code]').val(formData.uniqueCode).prop('readonly', true); 
             $('#evaluation-form-details select[name=control_type]').val(formData.controlType);
             $('#evaluation-form-details input[name=start_time]').val(formData.startTime);
             $('#evaluation-form-details input[name=end_time]').val(formData.endTime);
         });
-        
-        // 3. Handle Delete setup
-        $(document).on('click', '.delete-form', function(){
-            const id = $(this).data('id');
-            const name = $(this).data('name');
-            $("#delete-body input[name=id]").val(id);
-            $("#delete-body input[name=name]").val(name);
-            $("#delete-body input[name=submit]").val('delete_evaluation_form'); // Custom submit action for evaluation forms
+
+        $(document).on("click", ".action-btn", function(){
+            const modal_body = $(this).attr("data-modal-body");
+            $("#modal .modal-body").addClass("hidden");
+            $("#" + modal_body).removeClass("hidden");
         });
         
         // 4. Form Submission (AJAX)
         $('#evaluation-form-details').on('submit', function(e) {
             e.preventDefault();
-            alert_box("Logic not ready", "warning"); return;
+
+            remove_error_span();
+            
             const form = $(this);
             const submitBtn = $('#modal-submit-btn');
             const action = $('#submit-action').val();
@@ -364,11 +349,12 @@ ob_start();
             const endTime = new Date(form.find('[name=end_time]').val());
 
             if (startTime >= endTime) {
+                // Assuming alert_box is available globally
                 alert_box('The "End Date & Time" must be strictly after the "Start Date & Time".', 'error');
                 return;
             }
 
-            // Temporarily enable readonly fields for serialization if needed (for update only)
+            // Temporarily enable readonly fields for serialization
             const readonlyFields = form.find('input[readonly]');
             readonlyFields.prop('readonly', false).addClass("temp_enabled");
 
@@ -381,19 +367,26 @@ ob_start();
                 }
             }).then((response) => {
                 if (response.status) {
-                    closeModal(); 
-                    alert_box(response.message || 'Form saved successfully!', 'success'); 
-                    // Redirect to Questions page on creation, otherwise just reload list
+                    $("#modal-cancel-btn").click(); // Close the modal
+                    const data = response.data;
+
+                    // Assuming alert_box is available globally
+                    alert_box(data.message || 'Form saved successfully!', 'success'); 
+                    
                     if (action === 'create_evaluation_form' && response.data && response.data.new_id) {
-                         window.location.href = 'admin/evaluation/manage-questions.php?form_id=' + response.data.new_id;
+                         // Redirect to Questions page upon successful creation
+                         window.location.href = 'admin/evaluation/' + data.new_id;
                     } else {
-                        window.location.reload(); 
+                        // Reload the table using the AJAX pagination helper
+                        loadPaginatedData(1);
                     }
                 } else {
                     if(response.errors && Object.keys(response.errors).length > 0){
+                        // Assuming display_form_errors is available globally
                         display_form_errors(response.errors, form);
                     } else {
                         alert_box("Error: " + (response.errors.system_message || "An unknown error occurred."), 'error');
+                        console.error("Form Submission Error:", response.errors);
                     }
                 }
             }).catch((error) => {
@@ -405,14 +398,12 @@ ob_start();
                 readonlyFields.prop('readonly', true).removeClass("temp_enabled");
             });
         });
+
+        $extra_script
         
     });
 </script>
 HTML;
 ?>
 <?php
-// Capture the content and assign it to a variable
-$content = ob_get_clean();
-
-// Include the layout, which will render the content dynamically
 require relative_path('layouts/auth.php');

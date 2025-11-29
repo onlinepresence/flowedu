@@ -495,6 +495,78 @@
                 $status = true;
                 $data = "No issues";
             }
+        }elseif ($submit == "create_evaluation_form" || $submit == "update_evaluation_form") {
+            $is_update = ($submit == "update_evaluation_form");
+            $form_id = $_POST['form_id'] ?? null;
+            $code = $_POST["unique_code"];
+            $admin_id = user()["id"];
+        
+            $rules = [
+                "title" => "required|string|max:255",
+                "academic_year" => "required|string|max:9",
+                "unique_code" => "required|string|max:50|unique:evaluation_forms,unique_code,id != $form_id", // Unique code check (excluding current ID on update)
+                "control_type" => "required|in:auto,manual",
+                "start_time" => "required|date",
+                "end_time" => "required|date|after:start_time",
+            ];
+
+            if($is_update){
+                $rules["form_id"] = "required|integer|exists:evaluation_forms,id";
+            }
+        
+            $alias = [
+                "title" => "Evaluation Title",
+                "academic_year" => "Academic Year",
+                "unique_code" => "Unique Code",
+                "start_time" => "Start Time",
+                "end_time" => "End Time",
+            ];
+            
+            // Assuming your validation function handles the `after` rule
+            $errors = validate_form($rules, alias:$alias); 
+        
+            if (!$errors) {
+                $data = form_data(exclude: ["form_id"]);
+        
+                if ($is_update) {
+                    // Only update 'last_edited_by' on update
+                    $data['last_edited_by'] = $admin_id;
+                    $data["id"] = $form_id;
+                    
+                    // Prevent changing academic year after creation
+                    $original_data = fetchData("*", "evaluation_forms", "id = $form_id");
+                    $original_year = $original_data['academic_year'] ?? '';
+                    if ($data['academic_year'] !== $original_year) {
+                         $errors["system_message"] = "The Academic Year cannot be modified after the form has been created.";
+                    } else {
+                         if (update($original_data, $data, "evaluation_forms", ["id"])) {
+                            $new_form_id = $form_id; // Keep the ID for redirection
+                            $status = true;
+                            $data['message'] = "Evaluation Form updated successfully.";
+                         } else {
+                            $errors["system_message"] = "Failed to update form details.";
+                         }
+                    }
+                } else {
+                    // Set auditing fields on creation
+                    $data['created_by'] = $admin_id;
+                    
+                    // Assuming data_insert returns the new ID on success
+                    if ($new_form_id = data_insert("evaluation_forms", $data)) {
+                        $status = true;
+                        $data['message'] = "Evaluation Form created successfully.";
+                    } else {
+                        $errors["system_message"] = "Failed to create new form.";
+                    }
+                }
+            }
+            
+            // If successful, redirect to the question management page
+            if (isset($data['status']) && $data['status']) {
+                // This is the next page in the flow
+                $data['redirect'] = "/admin/evaluation/manage-questions.php?form_id={$new_form_id}";
+            }
+            // Final AJAX response handling (assumed)
         }
 
         // delete an item

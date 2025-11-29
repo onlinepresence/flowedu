@@ -57,8 +57,11 @@
      * @param string $value Input value
      * @return string HTML hidden input element
      */
-    function hidden_input($name = "", $value = ""){
-        return "<input type=\"hidden\" name=\"$name\" value=\"$value\" \>";
+    function hidden_input($name = "", $value = "", $attributes = []){
+        $class = merge_class($attributes);
+        $attr = convert_attributes($attributes);
+
+        return "<input type=\"hidden\" name=\"$name\" value=\"$value\" class=\"$class\" $attr \>";
     }
 
     /**
