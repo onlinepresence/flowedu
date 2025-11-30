@@ -125,77 +125,169 @@ ob_start();
         
     <?php elseif ($current_tab === 'details'): ?>
     
-        <?php 
-            // Reuse the structure from the previous step, simplified for a full page view
-            $academic_year_value = $form_data['academic_year'] ?? getCurrentAcademicYear();
-        ?>
-        <h2 class="text-xl font-semibold dark:text-gray-200 mb-4">Edit Evaluation Details & Scheduling</h2>
+    <?php 
+        $academic_year_value = $form_data['academic_year'] ?? getCurrentAcademicYear();
+        
+        // Re-calculate Status for the Context Panel
+        $status = 'Pending';
+        $status_color = 'gray';
+        $current_time = time();
+        $start_time = strtotime($form_data['start_time']);
+        $end_time = strtotime($form_data['end_time']);
 
-        <form id="details-schedule-form" action="<?= url("admin/submit.php") ?>" method="POST">
-            <?= hidden_input("submit", "update_evaluation_form_details") ?>
-            <?= hidden_input("form_id", $form_id) ?>
+        if ($form_data['is_active'] && $current_time >= $start_time && $current_time <= $end_time) {
+            $status = 'Active';
+            $status_color = 'green';
+        } elseif ($current_time > $end_time) {
+            $status = 'Closed';
+            $status_color = 'red';
+        }
+        
+        // Placeholder: Assume these stats are available or can be fetched quickly
+        $total_questions = count($questions); // Already fetched globally
+        $total_responses = fetchData("COUNT(*)", "evaluation_responses", "form_id = ?", 1, [$form_id])['COUNT(*)'] ?? 0;
+    ?>
 
-            <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-                
-                <?= input("text", "Evaluation Title", 
-                            "title", 
-                            required: true, 
-                            value: $form_data['title'] ?? '',
-                            attributes: array_merge(attribute("maxlength", 255), placeholder("e.g., Semester 1 Lecturer Evaluation"))) 
-                ?>
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        
+        <div class="lg:col-span-2">
+            <h2 class="text-xl font-semibold dark:text-gray-200 mb-4 border-b pb-2">Edit Schedule & Details</h2>
 
-                <?= input("text", 
-                            "Academic Year", 
-                            "academic_year", 
-                            required: true, 
-                            value: $academic_year_value,
-                            attributes: attribute("readonly", "readonly")) 
-                ?>
-                
-                <?= input("datetime-local", 
-                            "Start Date & Time", 
-                            "start_time", 
-                            required: true, 
-                            value: date('Y-m-d\TH:i', strtotime($form_data['start_time'])),
-                            attributes: attribute("step", 60)) 
-                ?>
+            <form id="details-schedule-form" action="<?= url("admin/submit.php") ?>" method="POST" class="max-w-xl">
+                <?= hidden_input("submit", "update_evaluation_form") ?>
+                <?= hidden_input("form_id", $form_id) ?>
 
-                <?= input("datetime-local", 
-                            "End Date & Time", 
-                            "end_time", 
-                            required: true, 
-                            value: date('Y-m-d\TH:i', strtotime($form_data['end_time'])),
-                            attributes: attribute("step", 60)) 
-                ?>
-                
-                <div class="md:col-span-2">
-                    <?= input_h("text", 
-                                "Unique Evaluation Code", 
-                                "unique_code", 
-                                sub_text: "System identifier. Cannot be changed once created.",
+                <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    
+                    <?= input("text", "Evaluation Title", 
+                                "title", 
                                 required: true, 
-                                value: $form_data['unique_code'] ?? '', 
+                                value: $form_data['title'] ?? '',
+                                attributes: array_merge(attribute("maxlength", 255), placeholder("e.g., Semester 1 Lecturer Evaluation"))) 
+                    ?>
+
+                    <?= input("text", 
+                                "Academic Year", 
+                                "academic_year", 
+                                required: true, 
+                                value: $academic_year_value,
                                 attributes: attribute("readonly", "readonly")) 
                     ?>
+                    
+                    <?= input("datetime-local", 
+                                "Start Date & Time", 
+                                "start_time", 
+                                required: true, 
+                                value: date('Y-m-d\TH:i', $start_time),
+                                attributes: attribute("step", 60)) 
+                    ?>
+
+                    <?= input("datetime-local", 
+                                "End Date & Time", 
+                                "end_time", 
+                                required: true, 
+                                value: date('Y-m-d\TH:i', $end_time),
+                                attributes: attribute("step", 60)) 
+                    ?>
+                    
+                    <div class="md:col-span-2">
+                        <?= input_h("text", 
+                                    "Unique Evaluation Code", 
+                                    "unique_code", 
+                                    sub_text: "System identifier. Cannot be changed once created.",
+                                    required: true, 
+                                    value: $form_data['unique_code'] ?? '', 
+                                    attributes: attribute("readonly", "readonly")) 
+                        ?>
+                    </div>
+
+                    <?= select("control_type", 
+                               "Evaluation Control Mechanism", 
+                               [
+                                   ["id" => "auto", "text" => "Automated (System Cron Handles Start/Stop)"],
+                                   ["id" => "manual", "text" => "Manual Start/Stop (Admin Intervention)"]
+                               ], 
+                               nullable: "Select control type",
+                               value: $form_data['control_type'], 
+                               required: true) 
+                    ?>
+                    
+                    <?php if ($form_data['control_type'] === 'manual'): ?>
+                    <div class="md:col-span-2 p-4 border rounded-md bg-yellow-50 dark:bg-yellow-900 dark:border-yellow-700">
+                         <?= checkbox("is_active", $form_data['is_active'], "Manually Activate/Deactivate Evaluation", true) ?>
+                         <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">This switch overrides the start/end times only when **Manual Control** is selected.</p>
+                    </div>
+                    <?php endif; ?>
+
                 </div>
 
-                <?= select("control_type", 
-                           "Evaluation Control Mechanism", 
-                           [
-                               ["id" => "auto", "text" => "Automated (System Cron Handles Start/Stop)"],
-                               ["id" => "manual", "text" => "Manual Start/Stop (Admin Intervention)"]
-                           ], 
-                           nullable: "Select control type",
-                           value: $form_data['control_type'], // Use the value parameter
-                           required: true) 
-                ?>
+                <div class="flex justify-end mt-8 gap-4 border-t pt-4">
+                    <?= button("submit", "Save Schedule & Details", color: "blue", attributes: attribute("id", "save-details-btn")) ?>
+                </div>
+            </form>
+        </div>
+        
+        <div class="lg:col-span-1 xl:my-auto p-6 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-inner h-fit">
+            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
+                <i class="fas fa-info-circle text-indigo-500"></i> Evaluation Overview
+            </h3>
 
-            </div>
+            <dl class="space-y-4 text-sm">
+                <div class="flex gap-8 items-center">
+                    <dt class="font-medium text-gray-600 dark:text-gray-300">Current Status</dt>
+                    <dd class="">
+                        <?= td_badge($status, $status_color) ?>
+                    </dd>
+                </div>
 
-            <div class="flex justify-end mt-8 gap-4 border-t pt-4">
-                <?= button("submit", "Save Schedule & Details", color: "blue", attributes: attribute("id", "save-details-btn")) ?>
-            </div>
-        </form>
+                <div class="grid">
+                    <div class="flex gap-8 items-center">
+                        <dt class="font-medium text-gray-600 dark:text-gray-300">Total Questions</dt>
+                        <dd class="text-xl font-bold"><?= $total_questions ?></dd>
+                    </div>
+                    <p class="text-xs text-indigo-500 hover:text-indigo-600 cursor-pointer" onclick='window.location.href="<?= route("admin.evaluation", ['tab' => '', 'form_code' => $form_code]) ?>"'>
+                        <i class="fas fa-arrow-right"></i> Manage Questions
+                    </p>
+                </div>
+
+                <div class="grid">
+                    <div class="flex gap-8 items-center">
+                        <dt class="font-medium text-gray-600 dark:text-gray-300">Total Responses</dt>
+                        <dd class="text-xl font-bold"><?= $total_responses ?></dd>
+                    </div>
+                    <p class="text-xs text-indigo-500 hover:text-indigo-600 cursor-pointer" onclick="window.location.href='<?= route("admin.evaluation", ['tab' => 'reporting', 'form_code' => $form_code]) ?>'">
+                        <i class="fas fa-chart-bar"></i> View Reports
+                    </p>
+                </div>
+
+                <div>
+                    <dt class="font-medium text-gray-600 dark:text-gray-300">Student Access Code</dt>
+                    <dd class="mt-1 text-2xl font-extrabold tracking-wider bg-white dark:bg-gray-800 p-2 rounded-md border border-dashed border-gray-400 dark:border-gray-500">
+                        <?= htmlspecialchars($form_data['unique_code']) ?>
+                    </dd>
+                </div>
+            </dl>
+        </div>
+        
+    </div>
+
+<?php elseif ($current_tab === 'reporting'): ?>
+
+    <h2 class="text-xl font-semibold dark:text-gray-200 mb-4">Evaluation Reporting</h2>
+    
+    <p class="text-gray-600 dark:text-gray-400">
+        This section will display aggregate statistics, such as average scores per teacher and per question, and allow for downloading individual response data. 
+        Reporting features will be accessible once the evaluation period closes or is manually stopped.
+    </p>
+    
+    <div class="mt-6 p-4 border rounded-md dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
+        <p class="font-medium">Reporting Features To Be Implemented:</p>
+        <ul class="list-disc list-inside text-sm mt-2">
+            <li>Aggregate Scorecard (Overall AVG, AVG per Question/Teacher)</li>
+            <li>Individual Response Viewer (Anonymized or Code-based)</li>
+            <li>Data Export (CSV/Excel)</li>
+        </ul>
+    </div>
 
     <?php elseif ($current_tab === 'reporting'): ?>
     
@@ -263,8 +355,14 @@ ob_start();
                 </div>
 
                 <div class="mt-6 flex justify-end gap-4">
-                    <?= button("submit", "Save Question", color: "blue", attributes: attribute("id", "q-modal-submit-btn")) ?>
-                    <?= button("button", "Cancel", color: "red", attributes: attribute("@click", "closeModal()")) ?>
+                    <?= button("submit", "Save Question", color: "blue", attributes: array_merge(
+                        attribute("id", "q-modal-submit-btn"),
+                        attribute("class", "w-full")
+                    )) ?>
+                    <?= button("button", "Cancel", color: "red", attributes: array_merge(
+                        attribute("@click", "closeModal()"),
+                        attribute("class", "w-full")
+                    )) ?>
                 </div>
             </form>
         <?= modal_body_end(); ?>

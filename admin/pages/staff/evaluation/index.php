@@ -210,10 +210,14 @@ ob_start();
                 </div>
 
                 <div class="mt-6 flex justify-end gap-4">
-                    <?= button("submit", "Save Form", color: "blue", attributes: attribute("id", "modal-submit-btn")) ?>
+                    <?= button("submit", "Save Form", color: "blue", attributes: array_merge(
+                        attribute("id", "modal-submit-btn"),
+                        attribute("class", "w-full")
+                        )) ?>
                     <?= button("button", "Cancel", color: "red", attributes: array_merge(
                         attribute("@click", "closeModal()"),
-                        attribute("id", "modal-cancel-btn")
+                        attribute("id", "modal-cancel-btn"),
+                        attribute("class", "w-full")
                     )) ?>
                 </div>
             </form>
