@@ -16,7 +16,7 @@
         // Example joins: users (u) joins to roles (r)
         $tables = [
             ["join" => "admins users", "on" => "user_id id", "alias" => "a u"],
-            ["join" => "admins user_roles", "on" => "type id", "alias" => "u r"],
+            ["join" => "admins user_roles", "on" => "type id", "alias" => "a r"],
         ]; 
         
         // Columns must match the keys in your pagination_script mapping
@@ -24,7 +24,7 @@
             "u.id",          // Maps to ID
             "CONCAT(a.lastname, ' ', a.othernames) AS full_name", // Maps to NAME
             "u.email",       // Maps to EMAIL
-            "r.name AS admin_type", // Maps to TYPE
+            "r.display_name AS admin_type", // Maps to TYPE
         ];
 
         // Filter to show only 'Admin' roles (assuming role_id = 2 is Admin)

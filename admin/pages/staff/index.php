@@ -20,7 +20,7 @@ ob_start();
         <?= td("__TYPE__") ?>
 
         <?= td_actions(
-            [
+            array_merge(
                 create_td_action(
                     "fas fa-trash-can",
                     "Delete",
@@ -32,7 +32,7 @@ ob_start();
                         attribute("@click", "openModal")
                     )
                 )
-            ]
+            )
         ) ?>
     <?= tr_end() ?>
 </template>

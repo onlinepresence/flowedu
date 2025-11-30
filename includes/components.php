@@ -610,7 +610,7 @@
         foreach ($actions as $action) {
             $icon = $action["icon"] ?? "";
             $title = $action["title"] ?? "";
-            $element = array_key_exists("href", $action["attributes"]) ? "a" : "button";
+            $element = array_key_exists("href", $action["attributes"] ?? []) ? "a" : "button";
             $classes = merge_class($action["attributes"] ?? []);
             $attributes_ = convert_attributes($action["attributes"] ?? []);
 

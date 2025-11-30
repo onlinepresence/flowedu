@@ -114,7 +114,7 @@
             if(!$errors){
                 $data = [
                     "email" => $email,
-                    "type" => in_array($type, [2,3,4]) ? "admin" : $type,
+                    "type" => is_numeric($type) ? "admin" : $type,
                     "password" => password_hash($password, PASSWORD_DEFAULT),
                     "user_secret" => generate_user_secret()
                 ];
