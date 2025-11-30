@@ -88,7 +88,7 @@ ob_start();
             <!-- PERSONAL INFORMATION -->
             <?= fieldset_start(attribute("class")); ?>
                     <?= fieldset_legend("Personal Information"); ?>
-                    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                         <!-- Profile Photo -->
                         <div>
                             <?php
@@ -110,7 +110,7 @@ ob_start();
                         <?= input("text", "Other Names", "othernames", $user["othernames"] ?? "", true, placeholder("Enter your other names")); ?>
                         
                         <!-- Username -->
-                        <?php echo input("text","Username","username",$user["username"] ?? '',true,array_merge(placeholder("Enter your username"), attribute("readonly"))); ?>
+                        <?php echo input("text","Username","username",$user["username"] ?? '',true,array_merge(placeholder("Enter your username"))); ?>
                         
                         <!-- Gender -->
                         <?= select("gender", "Gender", ["male" => "Male", "female" => "Female"], true, value: $user["gender"] ?? ""); ?>
@@ -126,7 +126,7 @@ ob_start();
                 <!-- PROFESSIONAL DETAILS -->
                 <?= fieldset_start(); ?>
                     <?= fieldset_legend("Professional Details"); ?>
-                    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                         <!-- Position Title -->
                         <?= input("text", "Position Title", "position_title", $user["position_title"] ?? "", true, placeholder("e.g., Registrar, Dean, HOD")); ?>
                         
@@ -167,7 +167,7 @@ ob_start();
                 <!-- DOCUMENTS -->
                 <?= fieldset_start(); ?>
                     <?= fieldset_legend("Supporting Documents"); ?>
-                    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                         <?php 
                             $sub_text = !empty($admin["id_document"])
                                 ? "<a href=\"".asset($admin['id_document'], false)."\" target=\"_blank\">View ID</a>"

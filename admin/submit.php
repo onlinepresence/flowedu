@@ -9,6 +9,8 @@
         $_SESSION["old_input"] = $_REQUEST;
 
         if($submit == "create_admin" || $submit == "update_admin"){
+            $is_update = $submit == "update_admin";
+
             $user_id = $_POST["user_id"] ?? null;
             $username = $_POST["username"] ?? null;
             $lastname = $_POST["lastname"] ?? null;
@@ -23,7 +25,7 @@
                 "ghana_card" => "required|string|ghana_card"
             ];
 
-            if($submit == "create_admin"){
+            if(!$is_update){
                 $extra_rules = [
                     "type" => "required", 
                 ];
@@ -32,7 +34,7 @@
                     "profile_pic" => "nullable|file|accepts:jpg,jpeg,png,gif",
                     "gender" => "nullable|string|in:male,female",
                     "phone_number" => "required|string|phone|unique:admins,phone_number,phone_number IS NOT NULL,user_id != $user_id",
-                    "position_title" => "required|string|",
+                    "position_title" => "required|string",
                     "type" => "required|integer|exists:admin_types,id",
                     "department_id" => "required_if:type,3",
                     "faculty_id" => "required_if:type,4",
@@ -59,11 +61,13 @@
             $errors = validate_form($rules, $messages, alias: $alias);
 
             if(!$errors){
+                $user_first_update = empty(user()["username"]) && $is_update;
+
                 $data = form_data("admins/profile", exclude: ["username"]);
-                $response = empty(user()["username"]) ? data_insert("admins", $data) : update(user(), $data, "admins", ["user_id"]);             
+                $response = empty(user()["username"]) && !$is_update ? data_insert("admins", $data) : update(user(), $data, "admins", ["user_id"]);             
 
                 if($response === true){
-                    if($submit === "create_admin"){
+                    if(!$is_update || $user_first_update){
                         $response = update(user(true), ["username" => $username], "users", ["id"]);
                     }
 
@@ -72,7 +76,7 @@
                         user(true);     // reflect new changes
                     }
 
-                    if($type == 2 && $submit === "create_admin"){
+                    if($type == 2 && $submit === "create_admin" || $user_first_update){
                         $next_request = "admin/dashboard";
                         send_verification_email();
                     }
