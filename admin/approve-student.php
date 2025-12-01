@@ -1,5 +1,8 @@
 <?php
-    list($index_number, $guardian_status, $user_id) = $params;
+    // gotten from parameters
+    $user_id = $id;
+    $guardian_status = $guardian;
+
     $last_request = $_SERVER["HTTP_REFERER"];
     $student = get_user_details($user_id);
     $program = programs($student["program_id"]);

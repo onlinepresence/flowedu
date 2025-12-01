@@ -32,7 +32,7 @@
             'middleware' => ['auth', 'valid_admin', 'check_school_status'],
             'routes' => [
                 '/dashboard' => ['file' => 'admin/dashboard.php'],
-                '/approve-student/{indexnumber}/{guardian}/{id}' => ['file' => 'admin/approve-student.php'],
+                '/approve-student/{index_number}/{guardian}/{id}' => ['file' => 'admin/approve-student.php'],
                 '/students' => ['file' => 'admin/pages/students/index.php'],
                 '/profile' => ['file' => 'admin/setup/personal.php']
             ]
@@ -101,6 +101,7 @@
                 '/dashboard' => ['file' => 'student/dashboard.php'],
                 '/profile' => ['file' => 'student/profile.php'],
                 '/evaluation' => ['file' => 'student/pages/evaluation.php'],
+                '/evaluation/perform/{code}' => ['file' => 'student/pages/perform-evaluation.php', 'name' => "student.evaluation.perform"],
                 '/allowance' => ['file' => 'student/pages/fees/allowance.php'],
                 '/fees' => ['file' => 'student/pages/fees/index.php'],
                 '/payment-history' => ['file' => 'student/pages/fees/history.php']

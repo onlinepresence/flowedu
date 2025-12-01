@@ -1,94 +1,171 @@
 <?php
 require_once relative_path("includes/components.php");
 
-$title = 'Lecturer Evaluation';
+$title = 'Lecturer Evaluation Dashboard';
+$current_tab = $_GET['tab'] ?? 'ongoing'; // Default to ongoing
+
+// --- 1. Tab Navigation Helper ---
+
+/**
+ * Generates the HTML for a navigation tab link.
+ * @param string $tab_name The unique name of the tab (e.g., 'ongoing').
+ * @param string $current_tab The currently active tab name.
+ * @param string $label The display label for the tab.
+ * @return string The rendered HTML link.
+ */
+function student_tab_link(string $tab_name, string $current_tab, string $label): string {
+    $active_classes = 'border-indigo-500 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400';
+    $inactive_classes = 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600';
+    
+    $active = ($tab_name === $current_tab) ? $active_classes : $inactive_classes;
+    // Assuming the route function for the student dashboard is 'student.evaluation'
+    $url = route("student.evaluation", ["tab" => $tab_name]); 
+
+    // Use javascript:void(0) if it's the current tab to prevent unnecessary navigation
+    $href = $tab_name === $current_tab ? "javascript:void(0)" : $url;
+    
+    return "<a href='{$href}' class='whitespace-nowrap px-4 py-2 border-b-2 font-medium text-sm {$active}'>{$label}</a>";
+}
+
+// --- 2. Dummy Data Fetching (Replace with actual DB queries) ---
+
+// Dummy student ID (replace with actual session user ID)
+$student_id = user()["id"];
+
+/**
+ * Simulates fetching evaluation forms based on student's status.
+ * @param string $type 'ongoing', 'in_progress', 'submitted'
+ * @return array
+ */
+function fetch_evaluations(string $type, int $student_id): array {
+    $data = [
+        'ongoing' => [
+            ['id' => 1, 'title' => 'Semester 1 - Calculus I Evaluation', 'code' => 'CALC-S1-25', 'due_date' => '2025-12-15 23:59:59', 'status' => 'New'],
+            ['id' => 2, 'title' => 'Introduction to Programming Evaluation', 'code' => 'PROG-S1-25', 'due_date' => '2025-12-20 23:59:59', 'status' => 'Ongoing'],
+        ],
+        'in_progress' => [
+            ['id' => 3, 'title' => 'Networking Fundamentals Survey', 'code' => 'NET-S1-25', 'due_date' => '2025-12-18 23:59:59', 'status' => 'Draft', 'progress' => '4/10 Questions'],
+        ],
+        'submitted' => [
+            ['id' => 4, 'title' => 'Database Systems Feedback', 'code' => 'DB-S1-25', 'submitted_date' => '2025-11-25 10:30:00', 'status' => 'Completed'],
+        ],
+    ];
+    return $data[$type] ?? [];
+}
+
+$evaluations = fetch_evaluations($current_tab, $student_id);
 
 // Start output buffering to capture the content
 ob_start();
-
-// Dummy check for evaluation period - replace with actual logic
-$evaluation_open = false; // This should come from your database or settings
-$lecturer_name = "Dr. John Smith"; // This should come from your database
 ?>
 
-<div class="container px-6 mx-auto grid">
-    <?php if ($evaluation_open): ?>
-        <div class="px-4 py-3 mb-8 bg-white rounded-lg shadow-md dark:bg-gray-800">
-            <div class="mb-6">
-                <p class="text-lg font-semibold text-gray-700 dark:text-gray-200"><?php echo $lecturer_name; ?></p>
-            </div>
-            
-            <form action="submit.php" method="POST">
-                <input type="hidden" name="lecturer_id" value="1">
-                
-                <div class="space-y-6">
-                    <!-- Teaching Effectiveness -->
-                    <div class="mb-4">
-                        <label class="block text-sm text-gray-700 dark:text-gray-400">The lecturer explains concepts clearly and effectively</label>
-                        <div class="mt-2 flex space-x-4">
-                            <?php for($i = 1; $i <= 5; $i++): ?>
-                                <label class="inline-flex items-center">
-                                    <input type="radio" name="teaching_effectiveness" value="<?php echo $i; ?>" class="text-purple-600 form-radio focus:border-purple-400 focus:outline-none focus:shadow-outline-purple dark:focus:shadow-outline-gray">
-                                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-400"><?php echo $i; ?></span>
-                                </label>
-                            <?php endfor; ?>
-                        </div>
-                    </div>
+<div class="container grid px-6 mx-auto">
+    <div class="mb-6 border-b border-gray-200 dark:border-gray-700">
+        <nav class="flex -mb-px space-x-8" aria-label="Tabs">
+            <?= student_tab_link('ongoing', $current_tab, 'Upcoming/Ongoing') ?>
+            <?= student_tab_link('in_progress', $current_tab, 'In Progress') ?>
+            <?= student_tab_link('submitted', $current_tab, 'Submitted') ?>
+        </nav>
+    </div>
 
-                    <!-- Course Organization -->
-                    <div class="mb-4">
-                        <label class="block text-sm text-gray-700 dark:text-gray-400">The course materials and lectures are well organized</label>
-                        <div class="mt-2 flex space-x-4">
-                            <?php for($i = 1; $i <= 5; $i++): ?>
-                                <label class="inline-flex items-center">
-                                    <input type="radio" name="course_organization" value="<?php echo $i; ?>" class="text-purple-600 form-radio focus:border-purple-400 focus:outline-none focus:shadow-outline-purple dark:focus:shadow-outline-gray">
-                                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-400"><?php echo $i; ?></span>
-                                </label>
-                            <?php endfor; ?>
-                        </div>
-                    </div>
+    <div class="w-full overflow-hidden rounded-lg shadow-xs">
+        <div class="w-full overflow-x-auto">
+            <?= table_start() ?>
+                <?= thead_start() ?>
+                    <?= tr_start() ?>
+                    <!-- <tr class="text-xs font-semibold tracking-wide text-left text-gray-500 uppercase border-b dark:border-gray-700 bg-gray-50 dark:text-gray-400 dark:bg-gray-800"> -->
+                        <?= th("Evaluation Title", attribute("class", "px-4 py-3")) ?>
+                        <?= th("Code", attribute("class", "px-4 py-3")) ?>
+                        <?= th(($current_tab === 'submitted') ? 'Submitted Date' : 'Deadline') ?>
+                        <?= th("Status", attribute("class", "px-4 py-3")) ?>
+                        <?= th("Action", attribute("class", "px-4 py-3")) ?>
+                    <?= tr_end() ?>
+                <?= thead_end() ?>
+                <!-- <tbody class="bg-white divide-y dark:divide-gray-700 dark:bg-gray-800"> -->
+                <?= tbody_start() ?>
+                    <?php if (count($evaluations) > 0): ?>
+                        <?php foreach ($evaluations as $evaluation): 
+                            
+                            $status = 'N/A';
+                            $badge_color = 'gray';
+                            $action_text = 'View';
+                            $action_color = 'gray';
+                            $date_display = '';
 
-                    <!-- Student Engagement -->
-                    <div class="mb-4">
-                        <label class="block text-sm text-gray-700 dark:text-gray-400">The lecturer encourages student participation and questions</label>
-                        <div class="mt-2 flex space-x-4">
-                            <?php for($i = 1; $i <= 5; $i++): ?>
-                                <label class="inline-flex items-center">
-                                    <input type="radio" name="student_engagement" value="<?php echo $i; ?>" class="text-purple-600 form-radio focus:border-purple-400 focus:outline-none focus:shadow-outline-purple dark:focus:shadow-outline-gray">
-                                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-400"><?php echo $i; ?></span>
-                                </label>
-                            <?php endfor; ?>
-                        </div>
-                    </div>
-
-                    <!-- Additional Comments -->
-                    <div class="mb-4">
-                        <label class="block text-sm text-gray-700 dark:text-gray-400">Additional Comments (Optional)</label>
-                        <textarea name="comments" rows="3" class="block w-full mt-1 text-sm dark:text-gray-300 dark:border-gray-600 dark:bg-gray-700 form-textarea focus:border-purple-400 focus:outline-none focus:shadow-outline-purple dark:focus:shadow-outline-gray"></textarea>
-                    </div>
-
-                    <div class="mt-6">
-                        <button type="submit" class="px-4 py-2 text-sm font-medium leading-5 text-white transition-colors duration-150 bg-purple-600 border border-transparent rounded-lg active:bg-purple-600 hover:bg-purple-700 focus:outline-none focus:shadow-outline-purple">Submit Evaluation</button>
-                    </div>
-                </div>
-            </form>
+                            switch ($current_tab) {
+                                case 'ongoing':
+                                    $status = 'New';
+                                    $badge_color = 'green';
+                                    $action_text = 'Start Evaluation';
+                                    $action_color = 'blue';
+                                    $date_display = date('M d, Y', strtotime($evaluation['due_date']));
+                                    break;
+                                case 'in_progress':
+                                    $status = 'Draft';
+                                    $badge_color = 'yellow';
+                                    $action_text = 'Continue Editing';
+                                    $action_color = 'purple';
+                                    $date_display = date('M d, Y', strtotime($evaluation['due_date']));
+                                    break;
+                                case 'submitted':
+                                    $status = 'Completed';
+                                    $badge_color = 'red';
+                                    $action_text = 'View Results';
+                                    $action_color = 'gray';
+                                    $date_display = date('M d, Y H:i', strtotime($evaluation['submitted_at']));
+                                    break;
+                            }
+                        ?>
+                            <!-- <tr class="text-gray-700 dark:text-gray-400"> -->
+                            <?= tr_start() ?>
+                                <?= td(
+                                    htmlspecialchars($evaluation['title']), 
+                                    sub_text: ($current_tab === 'in_progress' ? "Status: $status" : ""), 
+                                    attributes: attribute("class", "px-4 py-3 text-sm font-semibold")
+                                ) ?>
+                                <?= td(htmlspecialchars($evaluation['code']), attributes: attribute("class", "px-4 py-3 text-xs")) ?>
+                                <?= td($date_display, attributes: attribute("class", "px-4 py-3 text-sm")) ?>
+                                <?= td_badge($status, $badge_color) ?>
+                                <?= td(
+                                    button(
+                                        "button", 
+                                        $action_text, 
+                                        color: $action_color, 
+                                        attributes: array_merge(
+                                            attribute("class", "text-xs"),
+                                            attribute("onclick", "window.location.href='" . route('student.evaluation.perform', ['code' => $evaluation['code']]) . "'")
+                                        )
+                                    ),
+                                    attributes: attribute("class", "px-4 py-3")
+                                ) ?>
+                            <?= tr_end() ?>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <?php 
+                            $message = "No evaluations found.";
+                            switch ($current_tab) {
+                                case 'ongoing': $message = "No ongoing or upcoming evaluations assigned to you."; break;
+                                case 'in_progress': $message = "You have no evaluations currently saved as drafts."; break;
+                                case 'submitted': $message = "You have not submitted any evaluations yet."; break;
+                            }
+                        ?>
+                        <?= td_empty($message, 5) ?>
+                    <?php endif; ?>
+                <?= tbody_end() ?>
+            <?= table_end() ?>
         </div>
-    <?php else: ?>
-        <?php echo placeholder_element(
-            'Evaluation Period Closed',
-            'The lecturer evaluation period is currently closed. Please check back during the designated evaluation period.',
-            'fas fa-exclamation-triangle'
-        ); ?>
-    <?php endif; ?>
+    </div>
 </div>
+
+<?php 
+// Placeholder for a detailed evaluation page route (student/evaluation/perform.php)
+// We will need to create this next.
+?>
 
 <?php $scripts = <<<HTML
 <script>
     $(document).ready(function(){
-        // Add form validation if needed
-        $('form').on('submit', function(e) {
-            // Add your validation logic here
-        });
+        // Any client-side logic specific to the student dashboard
     });
 </script>
 HTML;

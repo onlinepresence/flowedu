@@ -384,7 +384,20 @@
         global $namedRoutes;
 
         if (!isset($namedRoutes[$name])) {
-            throw new Exception("Route '{$name}' not found.");
+            $matched = false;
+
+            // if name contains dot, convert to slash and check again
+            if(str_contains($name, '.')){
+                $converted_name = str_replace('.', '/', $name);
+                if(isset($namedRoutes[$converted_name])){
+                    $name = $converted_name;
+                    $matched = true;
+                }
+            }
+
+            if(!$matched){
+                throw new Exception("Route '{$name}' not found.");
+            }
         }
 
         $path = $namedRoutes[$name];
