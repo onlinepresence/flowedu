@@ -9,5 +9,8 @@
     // run email queues
     run_worker("email");
 
+    // run automatic jobs
+    run_automatic_jobs();
+
     // remove temp files
     run_worker("delete_tmp");

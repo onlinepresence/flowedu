@@ -240,3 +240,5 @@
 
         return $ok;
     }
+
+    require_once "auto-jobs.php";

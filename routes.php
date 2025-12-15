@@ -101,6 +101,7 @@
                 '/dashboard' => ['file' => 'student/dashboard.php'],
                 '/profile' => ['file' => 'student/profile.php'],
                 '/evaluation' => ['file' => 'student/pages/evaluation.php'],
+                '/evaluation/{tab}' => ['file' => 'student/pages/evaluation.php', 'name' => 'student.evaluation'],
                 '/evaluation/perform/{code}' => ['file' => 'student/pages/perform-evaluation.php', 'name' => "student.evaluation.perform"],
                 '/allowance' => ['file' => 'student/pages/fees/allowance.php'],
                 '/fees' => ['file' => 'student/pages/fees/index.php'],
