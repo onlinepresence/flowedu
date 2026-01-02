@@ -18,7 +18,7 @@ $current_time = date('Y-m-d H:i:s');
  * @param string $label The display label for the tab.
  * @return string The rendered HTML link.
  */
-function student_tab_link(string $tab_name, string $current_tab, string $label): string {
+function student_tab_link(string $tab_name, string $current_tab, string $label, $count = 0): string {
     $active_classes = 'border-indigo-500 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400';
     $inactive_classes = 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600';
     
@@ -28,6 +28,10 @@ function student_tab_link(string $tab_name, string $current_tab, string $label):
 
     // Use javascript:void(0) if it's the current tab to prevent unnecessary navigation
     $href = $tab_name === $current_tab ? "javascript:void(0)" : $url;
+
+    if($count > 0){
+        $label .= " ({$count})";
+    }
     
     return "<a href='{$href}' class='whitespace-nowrap px-4 py-2 border-b-2 font-medium text-sm {$active}'>{$label}</a>";
 }
@@ -124,7 +128,7 @@ ob_start();
     <div class="mb-6 border-b border-gray-200 dark:border-gray-700">
         <nav class="flex -mb-px space-x-8" aria-label="Tabs">
             <?= student_tab_link('ongoing', $current_tab, 'Upcoming/Ongoing') ?>
-            <?= student_tab_link('in_progress', $current_tab, 'In Progress (Drafts)') ?>
+            <?= student_tab_link('in_progress', $current_tab, 'In Progress/Drafts', count($filtered_evaluations["in_progress"])) ?>
             <?= student_tab_link('submitted', $current_tab, 'Submitted') ?>
         </nav>
     </div>
@@ -167,7 +171,6 @@ ob_start();
                                     $is_upcoming = ($evaluation['start_time'] > $current_time);
                                     $is_overdue = ($evaluation['due_date'] < $current_time);
                                     
-
                                     if ($is_overdue) {
                                         // Case 1: Overdue
                                         

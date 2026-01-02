@@ -428,6 +428,7 @@ function formatColumns(array $columns, array $tables): array {
         global $connect, $errors;
         $response = false;
 
+        $connect->begin_transaction();
         try{
             $stmt = $connect->prepare($prepared_statement);
             $stmt->bind_param($types, ...$values);
@@ -436,8 +437,11 @@ function formatColumns(array $columns, array $tables): array {
             if(!$response){
                 throw new Exception($stmt->error);
             }
+
+            $connect->commit();
         }catch(Throwable $th){
             $errors["system_message"] = $th->getMessage();
+            $connect->rollback();
         }
 
         return $response;

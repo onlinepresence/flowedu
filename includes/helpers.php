@@ -80,6 +80,14 @@
     }
 
     /**
+     * retrieves the previous url
+     * @return string
+     */
+    function back() {
+        return $_SERVER['HTTP_REFERER'] ?? url();
+    }    
+
+    /**
      * Creates a path to an assets file
      * @param string $path The path to the file (from the assets directory)
      * @param bool $live set to true if it should have current changes per reload

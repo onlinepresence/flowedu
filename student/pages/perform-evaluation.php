@@ -3,6 +3,55 @@ require_once relative_path("includes/components.php");
 
 $title = 'Complete Lecturer Evaluation';
 
+$evaluation_info = fetchData("f.id AS form_id, e.id AS evaluation_id, e.status, e.teacher_id, e.response_code", [
+    "join" => "evaluation_forms evaluation_responses",
+    "on" => "id form_id",
+    "alias" => "f e",
+    "add_on" => ["e.student_id = ".user()["id"]]
+], ["f.unique_code" => $code], join_type: "LEFT");
+
+if(!$evaluation_info) {
+    session('errors.system_message', "Evaluation form not found.");
+    header("Location: ".url("student/evaluation"));
+    exit;
+}elseif($evaluation_info['status'] === 'submitted') {
+    session('system_message', "You have already submitted this evaluation.");
+    header("Location: ".back());
+    exit;
+}elseif(!$evaluation_info['evaluation_id']){
+    // get questions
+    $questions = fetchData("*", "evaluation_questions", ["form_id" => $evaluation_info['form_id']], 0, order_by: "question_order", asc: true);
+
+    // redirect if there are no questions set
+    if(!$questions){
+        session('errors.system_message', "No questions have been set for this evaluation form. Please contact the administrator.");
+        header("Location: ".back());
+        exit;
+    }
+    
+    // create a new response entry
+    $response_details = create_evaluation_response($evaluation_info['form_id']);
+    
+    if(is_null($response_details)){
+        session('errors.system_message', "No teachers were found for your courses. Please contact the administrator.");
+        header("Location: ".url("student/evaluation"));
+        exit;
+    }elseif(is_array($response_details)){
+        $answers = [];
+        $evaluation_info["teacher_id"] = $response_details["teacher_id"];
+        $evaluation_info["response_code"] = $response_details["response_code"];
+    }
+}else{
+    // get questions
+    $questions = fetchData("*", "evaluation_questions", ["form_id" => $evaluation_info['form_id']], 0, order_by: "question_order", asc: true);
+}
+
+// get the form
+$form = fetchData("*", "evaluation_forms", ["id" => $evaluation_info['form_id']]);
+
+// get the teacher being evaluated
+$teacher = fetchData("CONCAT(lastname, ' ', othernames) AS fullname", "teachers", ["user_id" => $evaluation_info['teacher_id']]);
+
 // --- MOCK DATA SIMULATION ---
 // In a real application, this data would be fetched from the database based on the 'code' parameter
 // e.g., $evaluation_code = $_GET['code'] ?? '';

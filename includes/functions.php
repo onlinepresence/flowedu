@@ -899,6 +899,46 @@
         return $result;
     }
 
+    /**
+     * A function that generates a unique code
+     */
+    function generate_unique_code(int $length = 8, bool $use_letters = true, bool $use_numbers = true, bool $use_special_chars = false): string {
+        if ($length <= 0) {
+            throw new InvalidArgumentException('Length must be greater than 0');
+        }
+    
+        $letters  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+        $numbers  = '0123456789';
+        $specials = '!@#$%^&*()_-+=<>?';
+    
+        $pool = '';
+    
+        if ($use_letters) {
+            $pool .= $letters;
+        }
+    
+        if ($use_numbers) {
+            $pool .= $numbers;
+        }
+    
+        if ($use_special_chars) {
+            $pool .= $specials;
+        }
+    
+        if ($pool === '') {
+            throw new RuntimeException('No character set selected');
+        }
+    
+        $code = '';
+        $maxIndex = strlen($pool) - 1;
+    
+        for ($i = 0; $i < $length; $i++) {
+            $code .= $pool[random_int(0, $maxIndex)];
+        }
+    
+        return $code;
+    }
+
     require_once "mailer_functions.php";
     require_once "jobs.php";
     require_once "student_function.php";
