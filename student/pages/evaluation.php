@@ -135,6 +135,7 @@ ob_start();
 
     <div class="w-full overflow-hidden rounded-lg shadow-xs">
         <div class="w-full overflow-x-auto">
+            <?php if (count($evaluations) > 0): ?>
             <?= table_start() ?>
                 <?= thead_start() ?>
                     <?= tr_start() ?>
@@ -147,7 +148,6 @@ ob_start();
                 <?= thead_end() ?>
                 
                 <?= tbody_start(attribute("class", "bg-white divide-y dark:divide-gray-700 dark:bg-gray-800")) ?>
-                    <?php if (count($evaluations) > 0): ?>
                         <?php foreach ($evaluations as $evaluation): 
                             
                             // Initialize default values for Active state
@@ -274,19 +274,20 @@ ob_start();
                                 ) ?>
                             <?= tr_end() ?>
                         <?php endforeach; ?>
-                    <?php else: ?>
-                        <?php 
-                            $message = "No evaluations found.";
-                            switch ($current_tab) {
-                                case 'ongoing': $message = "No active, upcoming, or overdue evaluations assigned to you."; break;
-                                case 'in_progress': $message = "You have no evaluations currently saved as drafts."; break;
-                                case 'submitted': $message = "You have not submitted any evaluations yet."; break;
-                            }
-                        ?>
-                        <?= td_empty($message, 5) ?>
-                    <?php endif; ?>
                 <?= tbody_end() ?>
             <?= table_end() ?>
+            <?php else: ?>
+                <?php 
+                    $message = "No evaluations found.";
+                    $icon = "fas fa-file";
+                    switch ($current_tab) {
+                        case 'ongoing': $message = "No active, upcoming, or overdue evaluations assigned to you."; break;
+                        case 'in_progress': $message = "You have no evaluations currently saved as drafts."; break;
+                        case 'submitted': $message = "You have not submitted any evaluations yet."; $icon = "fas fa-file-contract"; break;
+                    }
+                ?>
+                <?= placeholder_element("No Evaluations Found", $message, $icon) ?>
+            <?php endif; ?>
         </div>
     </div>
 </div>
