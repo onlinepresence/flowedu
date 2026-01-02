@@ -48,6 +48,7 @@
 
                 // evaluation routes
                 '/evaluations' => ['file' => 'admin/pages/staff/evaluation/index.php', 'name' => 'admin.evaluations'],
+                '/evaluation/demo/{form_code}' => ['file' => 'pages/preview-evaluation.php', 'name' => 'admin.evaluation.preview'],
                 '/evaluation/{form_code}' => ['file' => 'admin/pages/staff/evaluation/manage.php'],
                 '/evaluation/{form_code}/{tab}' => ['file' => 'admin/pages/staff/evaluation/manage.php', 'name' => 'admin.evaluation'],
             ]

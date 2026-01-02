@@ -58,14 +58,27 @@ ob_start();
     
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-xl font-semibold dark:text-gray-200">Evaluation Questions</h2>
-            <?= button("button", 
-                       "Add New Question", 
-                       color: "green", 
-                       attributes: array_merge(
-                        attribute("@click", "openModal('question-modal')"),
-                        attribute("class", "add-new-question")
-                    )) 
-            ?>
+
+            <div class="flex gap-2">
+                <?php
+                    $url = route('admin.evaluation.preview', ['form_code' => $form_data['unique_code']]); 
+                    echo button("button", 
+                        "View Demo", 
+                        color: "blue", 
+                        attributes: array_merge(
+                            attribute("onclick", "location.href='{$url}'")
+                        )) 
+                ?>
+                <?= button("button", 
+                        "Add New Question", 
+                        color: "green", 
+                        attributes: array_merge(
+                            attribute("@click", "openModal('question-modal')"),
+                            attribute("class", "add-new-question")
+                        )) 
+                ?>
+            </div>
+            
         </div>
         
         <div class="w-full overflow-hidden rounded-lg shadow-xs mt-6">

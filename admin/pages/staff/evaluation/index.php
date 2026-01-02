@@ -31,6 +31,16 @@ ob_start();
         
         <?= td_actions(
             array_merge(
+                // view questions demo
+                create_td_action(
+                    "fas fa-eye",
+                    "View Questions",
+                    array_merge(
+                        attribute("href", route('admin.evaluation.preview', ['form_code' => '__UNIQUE_CODE__'])),
+                        attribute("target", "_blank")
+                    )
+                ),
+
                 // Edit Action
                 create_td_action(
                     "fas fa-edit",

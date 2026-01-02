@@ -11,6 +11,11 @@
         $attr = "";
 
         if($attributes){
+            // remove any empty arrays
+            $attributes = array_filter($attributes, function($value) {
+                return !is_array($value) || !empty($value);
+            });
+            
             $attr = [];
             $exclude = $exclude ?? ["class", "type", "name", "value", "required"];
 

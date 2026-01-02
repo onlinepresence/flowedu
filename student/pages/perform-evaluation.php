@@ -32,6 +32,15 @@ if(!$evaluation_info) {
         $evaluation_info["teacher_id"] = $response_details["teacher_id"];
         $evaluation_info["response_code"] = $response_details["response_code"];
     }
+}else{
+    // fetch answers if any for this form
+    $answers = fetchData("*", "response_details", ["response_id" => $evaluation_info['evaluation_id']], 0);
+
+    if(!$answers){
+        $answers = [];
+    }else{
+        $answers = pluck($answers, "question_id", "array", true);
+    }
 }
 
 // get the form
@@ -48,7 +57,7 @@ ob_start();
 ?>
 
 <div class="container grid px-6 mx-auto">
-    <h1 class="mb-2 text-3xl font-extrabold text-gray-800 dark:text-gray-100">Evaluation Form</h1>
+    <h1 class="mb-2 text-xl font-extrabold text-gray-800 dark:text-gray-100">Evaluation Form</h1>
     <h2 class="mb-4 text-xl font-semibold text-indigo-600 dark:text-indigo-400"><?= htmlspecialchars($form['title'] . " - " . $teacher["fullname"]) ?></h2>
     
     <div class="flex items-center justify-between mb-6 text-sm text-gray-600 dark:text-gray-400">
@@ -56,40 +65,9 @@ ob_start();
         <p>Due Date: <span class="font-semibold text-red-600 dark:text-red-400"><?= date('M d, Y H:i', strtotime($form['end_time'])) ?></span></p>
     </div>
 
-    <?php if($questions): ?>
-    <form method="POST" action="javascript:alert('Form submitted/saved!');">
-        <div class="grid gap-6 xl:grid-cols-2">
-            <?php foreach ($questions as $key => $question): ?>
-                <?php echo render_evaluation_question($question, $answers[$question["id"]] ?? null, $key + 1) ?>
-            <?php endforeach; ?>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="sticky bottom-0 flex flex-col justify-end p-4 pt-6 space-y-4 rounded-lg shadow-xl sm:flex-row sm:space-y-0 sm:space-x-4 bg-gray-50 dark:bg-gray-900">
-            <?= 
-                button(
-                    "submit", 
-                    "Save Draft", 
-                    color: 'yellow', 
-                    attributes: attribute("class", "w-full sm:w-auto text-sm font-semibold py-3 px-6 transition duration-150 ease-in-out transform hover:scale-105")
-                ) 
-            ?>
-            <?= 
-                button(
-                    "submit", 
-                    "Submit Evaluation", 
-                    color: 'green', 
-                    attributes: array_merge(
-                        attribute("class", "w-full sm:w-auto text-sm font-semibold py-3 px-6 transition duration-150 ease-in-out transform hover:scale-105"),
-                        attribute("onclick", "event.preventDefault(); alert('Submission simulated! Thank you for your feedback.');")
-                    )
-                ) 
-            ?>
-        </div>
-    </form>
-    <?php else: ?>
-        <?php echo placeholder_element("No Questions Available", "It seems there are no evaluation questions for this form.", "fas fa-question-circle") ?>
-    <?php endif ?>
+    <?php 
+        include_once relative_path("pages/views/question-section.php");
+    ?>
 
 </div>
 

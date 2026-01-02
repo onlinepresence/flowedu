@@ -9,25 +9,24 @@
      */
     function render_evaluation_question(array $question, mixed $answer = null, int $index = 1): string {
         $type = $question['rating_type'] ?? 'text_short';
-        $current_answer = $answer;
 
         // Dispatch to specific rendering functions based on database IDs
         switch ($type) {
             case 'scale_5':
-                return render_scale_component($question, $current_answer, $index, 5);
+                return render_scale_component($question, $answer, $index, 5);
             case 'scale_10':
-                return render_scale_component($question, $current_answer, $index, 10);
+                return render_scale_component($question, $answer, $index, 10);
             case 'boolean':
-                return render_boolean_component($question, $current_answer, $index);
+                return render_boolean_component($question, $answer, $index);
             case 'select_single':
-                return render_choice_component($question, $current_answer, $index, false);
+                return render_choice_component($question, $answer, $index, false);
             case 'select_multiple':
-                return render_choice_component($question, $current_answer, $index, true);
+                return render_choice_component($question, $answer, $index, true);
             case 'text_long':
-                return render_text_input_component($question, $current_answer, $index, true);
+                return render_text_input_component($question, $answer, $index, true);
             case 'text_short':
             default:
-                return render_text_input_component($question, $current_answer, $index, false);
+                return render_text_input_component($question, $answer, $index, false);
         }
     }
 
@@ -36,7 +35,7 @@
      */
     function render_scale_component(array $question, $answer, int $index, int $max): string {
         $q_id = $question['id'];
-        $text = htmlspecialchars($question['question_text']);
+        $text = htmlspecialchars($answer["question_text_snapshot"] ?? $question['question_text']);
         $required = ($question['is_required'] ?? false) ? '<span class="text-red-500 ml-1">*</span>' : '';
         
         // Labels for 5-point Likert
@@ -47,6 +46,8 @@
             4 => 'Agree',
             5 => 'Strongly Agree'
         ];
+
+        $answer = extract_answer_value($answer);
 
         $options_html = "";
         for ($i = 1; $i <= $max; $i++) {
@@ -82,7 +83,7 @@
      */
     function render_boolean_component(array $question, $answer, int $index): string {
         $q_id = $question['id'];
-        $text = htmlspecialchars($question['question_text']);
+        $text = htmlspecialchars($answer["question_text_snapshot"] ?? $question['question_text']);
         $name = "q_{$q_id}";
         $required = ($question['is_required'] ?? false) ? '<span class="text-red-500 ml-1">*</span>' : '';
 
@@ -90,6 +91,8 @@
             ['val' => '1', 'label' => 'Yes'],
             ['val' => '0', 'label' => 'No']
         ];
+
+        $answer = extract_answer_value($answer);
 
         $options_html = "";
         foreach ($options as $opt) {
@@ -122,9 +125,11 @@
      */
     function render_choice_component(array $question, $answer, int $index, bool $is_multiple): string {
         $q_id = $question['id'];
-        $text = htmlspecialchars($question['question_text']);
+        $text = htmlspecialchars($answer["question_text_snapshot"] ?? $question['question_text']);
         $name = $is_multiple ? "q_{$q_id}[]" : "q_{$q_id}";
         $required = ($question['is_required'] ?? false) ? '<span class="text-red-500 ml-1">*</span>' : '';
+
+        $answer = extract_answer_value($answer);
         
         // Assume options is a JSON string or array in the database
         $options = is_array($question['options']) ? $question['options'] : json_decode($question['options'] ?? '[]', true);
@@ -170,9 +175,11 @@
      */
     function render_text_input_component(array $question, $answer, int $index, bool $is_long): string {
         $q_id = $question['id'];
-        $text = htmlspecialchars($question['question_text']);
+        $text = htmlspecialchars($answer["question_text_snapshot"] ?? $question['question_text']);
         $name = "q_{$q_id}";
         $required = ($question['is_required'] ?? false) ? '<span class="text-red-500 ml-1">*</span>' : '';
+        
+        $answer = extract_answer_value($answer);
         $val = htmlspecialchars($answer ?? '');
 
         $input_html = $is_long 
@@ -196,4 +203,17 @@
                 {$input_html}
             </div>
     HTML;
+    }
+
+    /**
+     * Extracts the actual answer from the saved answer record.
+     * @param ?array $answer The answer array
+     * @return mixed The extracted answer value
+     */
+    function extract_answer_value(?array $answer): mixed {
+        if(!$answer){
+            return null;
+        }
+
+        return $answer['answer_value'] ?? $answer['answer_text'];
     }
