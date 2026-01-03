@@ -326,7 +326,7 @@ ob_start();
 
 <?php echo modal_start( attribute("id", "question-modal") ); ?>
     <div id="question-modal-content" class="modal-body">
-        <?= modal_body_start(attribute("class", "max-h-96")) ?>
+        <?= modal_body_start() ?>
             <?= modal_title("Add New Question", attributes: attribute("id", "question-modal-title")) ?>
             
             <form id="question-form" action="<?= url("admin/submit.php") ?>" method="POST">

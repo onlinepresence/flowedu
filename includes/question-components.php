@@ -57,12 +57,12 @@
             $label = ($max === 5) ? ($likert_labels[$i] ?? $i) : $i;
             
             $options_html .= <<<HTML
-                <label class="flex flex-col items-center space-y-2 cursor-pointer group flex-1">
+                <label class="flex flex-col items-center hover:bg-slate-100 dark:hover:bg-gray-800 p-2 rounded-sm space-y-2 cursor-pointer group flex-1">
                     <input type="radio" id="{$html_id}" name="{$name}" value="{$i}" {$checked}
                         class="w-5 h-5 text-indigo-600 transition duration-150 ease-in-out form-radio border-gray-300 dark:bg-gray-700 dark:border-gray-600 focus:ring-indigo-500">
-                    <span class="text-[10px] font-bold text-gray-500 uppercase transition-colors group-hover:text-indigo-600 dark:text-gray-400">{$label}</span>
+                    <span class="text-[10px] font-bold text-gray-500 uppercase transition-colors group-hover:text-indigo-600 dark:group-hover:text-indigo-200 dark:text-gray-400">{$label}</span>
                 </label>
-    HTML;
+            HTML;
         }
 
         return <<<HTML
@@ -75,7 +75,7 @@
                     {$options_html}
                 </div>
             </div>
-    HTML;
+        HTML;
     }
 
     /**
@@ -104,7 +104,7 @@
                         class="w-5 h-5 text-indigo-600 border-gray-300 focus:ring-indigo-500">
                     <span class="ml-3 font-semibold text-gray-700 dark:text-gray-300">{$opt['label']}</span>
                 </label>
-    HTML;
+            HTML;
         }
 
         return <<<HTML
@@ -117,7 +117,7 @@
                     {$options_html}
                 </div>
             </div>
-    HTML;
+        HTML;
     }
 
     /**
@@ -154,7 +154,7 @@
                         class="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600">
                     <span class="ml-3 text-gray-700 dark:text-gray-300">{$opt_val}</span>
                 </label>
-    HTML;
+            HTML;
         }
 
         return <<<HTML
@@ -167,7 +167,7 @@
                     {$options_html}
                 </div>
             </div>
-    HTML;
+        HTML;
     }
 
     /**
@@ -187,12 +187,12 @@
                 <textarea id="{$name}" name="{$name}" rows="4" 
                     class="w-full p-4 mt-1 border border-gray-200 rounded-xl shadow-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent" 
                     placeholder="Type your detailed feedback here...">{$val}</textarea>
-        HTML
+            HTML
             : <<<HTML
                 <input type="text" id="{$name}" name="{$name}" value="{$val}"
-                    class="w-full p-4 mt-1 border border-gray-200 rounded-xl shadow-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent" 
+                    class="w-full px-4 py-3 mt-1 border border-gray-200 rounded-xl shadow-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent" 
                     placeholder="Type your response here...">
-        HTML;
+            HTML;
 
         return <<<HTML
             <div class="p-6 mb-6 bg-white border border-gray-100 rounded-2xl shadow-sm dark:bg-gray-800 dark:border-gray-700 transition-all hover:shadow-md">
@@ -202,7 +202,7 @@
                 </h4>
                 {$input_html}
             </div>
-    HTML;
+        HTML;
     }
 
     /**
