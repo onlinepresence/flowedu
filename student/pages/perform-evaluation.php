@@ -56,11 +56,11 @@ $questions = fetchData("*", "evaluation_questions", ["form_id" => $evaluation_in
 ob_start();
 ?>
 
-<div class="container grid px-6 mx-auto">
+<div class="container grid md:px-6 mx-auto">
     <h1 class="mb-2 text-xl font-extrabold text-gray-800 dark:text-gray-100">Evaluation Form</h1>
     <h2 class="mb-4 text-xl font-semibold text-indigo-600 dark:text-indigo-400"><?= htmlspecialchars($form['title'] . " - " . $teacher["fullname"]) ?></h2>
     
-    <div class="flex items-center justify-between mb-6 text-sm text-gray-600 dark:text-gray-400">
+    <div class="flex items-center justify-between flex-wrap mb-6 text-sm text-gray-600 dark:text-gray-400">
         <p>Form Code: <span class="font-mono font-bold text-gray-700 dark:text-gray-300"><?= htmlspecialchars($form['unique_code']) ?></span></p>
         <p>Due Date: <span class="font-semibold text-red-600 dark:text-red-400"><?= date('M d, Y H:i', strtotime($form['end_time'])) ?></span></p>
     </div>

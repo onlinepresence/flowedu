@@ -1,0 +1,7 @@
+{
+    "builder.serverUrl": "https://college-school.test",
+    "builder.command": "",
+    "builder.runDevServer": false,
+    "builder.autoDetectDevServer": true,
+    "builder.launchType": "browser"
+}

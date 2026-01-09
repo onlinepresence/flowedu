@@ -57,21 +57,21 @@
             $label = ($max === 5) ? ($likert_labels[$i] ?? $i) : $i;
             
             $options_html .= <<<HTML
-                <label class="flex flex-col items-center hover:bg-slate-100 dark:hover:bg-gray-800 p-2 rounded-sm space-y-2 cursor-pointer group flex-1">
+                <label class="flex flex-row gap-2 md:flex-col md:gap-0.5 items-center hover:bg-slate-100 dark:hover:bg-gray-800 p-2 rounded-sm cursor-pointer group flex-1">
                     <input type="radio" id="{$html_id}" name="{$name}" value="{$i}" {$checked}
                         class="w-5 h-5 text-indigo-600 transition duration-150 ease-in-out form-radio border-gray-300 dark:bg-gray-700 dark:border-gray-600 focus:ring-indigo-500">
-                    <span class="text-[10px] font-bold text-gray-500 uppercase transition-colors group-hover:text-indigo-600 dark:group-hover:text-indigo-200 dark:text-gray-400">{$label}</span>
+                    <span class="text-[10px] md:text-center font-bold text-gray-500 uppercase transition-colors group-hover:text-indigo-600 dark:group-hover:text-indigo-200 dark:text-gray-400">{$label}</span>
                 </label>
             HTML;
         }
 
         return <<<HTML
             <div class="p-6 mb-6 bg-white border border-gray-100 rounded-2xl shadow-sm dark:bg-gray-800 dark:border-gray-700 transition-all hover:shadow-md">
-                <h4 class="mb-6 text-lg font-bold text-gray-800 dark:text-gray-200">
+                <h4 class="mb-6 md:text-lg font-bold text-gray-800 dark:text-gray-200">
                     <span class="inline-flex items-center justify-center w-7 h-7 mr-2 text-xs text-white bg-indigo-500 rounded-full">{$index}</span>
                     {$text} {$required}
                 </h4>
-                <div class="flex flex-wrap items-center justify-between bg-gray-50 dark:bg-gray-900/30 p-5 rounded-xl border border-gray-200 dark:border-gray-600">
+                <div class="flex flex-col md:flex-row flex-wrap md:items-center md:justify-between bg-gray-50 dark:bg-gray-900/30 p-5 rounded-xl border border-gray-200 dark:border-gray-600">
                     {$options_html}
                 </div>
             </div>
@@ -99,7 +99,7 @@
             $html_id = "{$name}_{$opt['val']}";
             $checked = ($answer !== null && $answer == $opt['val']) ? 'checked' : '';
             $options_html .= <<<HTML
-                <label class="flex items-center p-4 border border-gray-200 rounded-xl cursor-pointer hover:bg-indigo-50 dark:hover:bg-gray-700 dark:border-gray-600 transition-colors flex-1">
+                <label class="sflex items-center p-4 border border-gray-200 rounded-xl cursor-pointer hover:bg-indigo-50 dark:hover:bg-gray-700 dark:border-gray-600 transition-colors flex-1">
                     <input type="radio" id="{$html_id}" name="{$name}" value="{$opt['val']}" {$checked}
                         class="w-5 h-5 text-indigo-600 border-gray-300 focus:ring-indigo-500">
                     <span class="ml-3 font-semibold text-gray-700 dark:text-gray-300">{$opt['label']}</span>
@@ -109,11 +109,11 @@
 
         return <<<HTML
             <div class="p-6 mb-6 bg-white border border-gray-100 rounded-2xl shadow-sm dark:bg-gray-800 dark:border-gray-700 transition-all hover:shadow-md">
-                <h4 class="mb-4 text-lg font-bold text-gray-800 dark:text-gray-200">
+                <h4 class="mb-4 md:text-lg font-bold text-gray-800 dark:text-gray-200">
                     <span class="inline-flex items-center justify-center w-7 h-7 mr-2 text-xs text-white bg-indigo-500 rounded-full">{$index}</span>
                     {$text} {$required}
                 </h4>
-                <div class="flex space-x-4">
+                <div class="flex flex-col md:flex-row gap-4">
                     {$options_html}
                 </div>
             </div>
@@ -159,7 +159,7 @@
 
         return <<<HTML
             <div class="p-6 mb-6 bg-white border border-gray-100 rounded-2xl shadow-sm dark:bg-gray-800 dark:border-gray-700 transition-all hover:shadow-md">
-                <h4 class="mb-4 text-lg font-bold text-gray-800 dark:text-gray-200">
+                <h4 class="mb-4 md:text-lg font-bold text-gray-800 dark:text-gray-200">
                     <span class="inline-flex items-center justify-center w-7 h-7 mr-2 text-xs text-white bg-indigo-500 rounded-full">{$index}</span>
                     {$text} {$required}
                 </h4>
@@ -196,7 +196,7 @@
 
         return <<<HTML
             <div class="p-6 mb-6 bg-white border border-gray-100 rounded-2xl shadow-sm dark:bg-gray-800 dark:border-gray-700 transition-all hover:shadow-md">
-                <h4 class="mb-4 text-lg font-bold text-gray-800 dark:text-gray-200">
+                <h4 class="mb-4 md:text-lg font-bold text-gray-800 dark:text-gray-200">
                     <span class="inline-flex items-center justify-center w-7 h-7 mr-2 text-xs text-white bg-indigo-500 rounded-full">{$index}</span>
                     {$text} {$required}
                 </h4>
