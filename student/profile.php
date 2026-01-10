@@ -7,7 +7,7 @@ $title = 'My Profile'; // Set the page title
 ob_start();
 ?>
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div class="flex flex-col gap-6 lg:gap-8 col-span-1">
+        <div class="flex flex-col col-span-1 gap-6 lg:gap-8">
             <!-- Profile Picture Section -->
             <div class="relative p-6 bg-white rounded-lg shadow-md h-max dark:bg-gray-800">
                 <div class="relative w-32 h-32 m-auto overflow-hidden rounded-full">
@@ -32,13 +32,13 @@ ob_start();
                     <div class="text-gray-600 dark:text-gray-300">
                         <p class="">
                             <span class="font-medium">
-                                <?= get_program(user()['program_id'], "name"); ?> | 
+                                <?= $program_name = get_program(user()['program_id'], "name"); ?> | 
                                 <?= user()['current_year'] ?>
                             </span>
                         </p>
                         <p class="mt-2">
                             <span class="font-medium">
-                                <i class="fas fa-bed mr-2"></i> <?= get_hall(user()['hall_id'], "name"); ?>
+                                <i class="mr-2 fas fa-bed"></i> <?= get_hall(user()['hall_id'], "name"); ?>
                             </span>
                         </p>
                     </div>
@@ -90,7 +90,7 @@ ob_start();
 
                         <!-- Submit Button -->
                         <div class="mt-4">
-                            <?= button("submit", "Update Guardian Info", "submit", "save_guardian", "blue") ?>
+                            <?= button("submit", "Update Guardian Info", "submit", "save_guardian", "blue", attribute("class", "w-full")) ?>
                         </div>
                     </div>
                 </form>
@@ -142,10 +142,14 @@ ob_start();
                     <!-- Academic information fieldset -->
                     <?= fieldset_start(attributes: attribute("class", "grid gap-4 md:grid-cols-2")) ?>
                     <?= fieldset_legend("Academic Information") ?>
+                        <!-- Program Name -->
+                        <?= input("text", "Program Name", required: true, value: $program_name, attributes: array_merge(
+                            placeholder("Program name"), attribute("readonly"))
+                        ); ?>
 
                         <!-- Current Year -->
                         <?= 
-                            select("current_year", "Program Year", [
+                            select("current_year", "Program Level", [
                                 100,200,300,400
                             ], required: true, value: user()["current_year"], attributes: attribute("disabled"));
                         ?>
@@ -252,7 +256,7 @@ ob_start();
 
                 <!-- Submit Button -->
                 <div class="mt-4 sm:w-48">
-                    <?= button("submit", "Save Changes", "submit", "update_student", "blue") ?>
+                    <?= button("submit", "Save Changes", "submit", "update_student", "blue", attribute("class", "w-full md:wmax-48")) ?>
                 </div>
             </form>
         </div>

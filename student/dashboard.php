@@ -1,8 +1,11 @@
 <?php
 require_once relative_path("includes/components.php");
 
-$title = 'Dashboard'; // Set the page title
+$title = 'Dashboard'; // Set the document title
 $user = user();
+
+$page_title = "Welcome {$user['lastname']},";
+
 $cgpa = "0.00";
 
 // Start output buffering to capture the content
@@ -11,6 +14,7 @@ ob_start();
 
  <!-- cards -->
  <?= card_container_start() ?>
+    <?= dashboard_card_btn("Index Number", $user["index_number"], "fas fa-id-card", "purple") ?>
     <?= dashboard_card_btn("Current Level", $user["graduated"] ? "Graduated" : "Level ".$user["current_year"], "fas fa-user-graduate") ?>
     <?= dashboard_card_btn("CGPA", $cgpa, "fas fa-star", "blue") ?>
     <?= dashboard_card_btn("Outstanding Fees", "GHC 0.00", "fas fa-wallet", "green") ?>

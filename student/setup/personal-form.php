@@ -267,7 +267,7 @@
 
             <div>
                 <?= 
-                    select("current_year", "Program Year", [
+                    select("current_year", "Program Level", [
                         100,200,300,400
                     ], required: true, value: $is_student ? $user["current_year"] ?? "" : "")
                 ?>

@@ -214,7 +214,7 @@
           <!-- Remove everything INSIDE this div to a really blank page -->
           <div class="container grid px-6 mx-auto">
             <div class="container px-4 py-6 mx-auto space-y-4">
-                <?= page_header($title); ?>
+                <?= page_header($page_title ?? $title); ?>
                 <?= system_message(); ?>
                 <?= $content ?? "" ?>
             </div>
