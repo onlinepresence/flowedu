@@ -106,7 +106,8 @@
                 '/evaluation/perform/{code}' => ['file' => 'student/pages/perform-evaluation.php', 'name' => "student.evaluation.perform"],
                 '/allowance' => ['file' => 'student/pages/fees/allowance.php'],
                 '/fees' => ['file' => 'student/pages/fees/index.php'],
-                '/payment-history' => ['file' => 'student/pages/fees/history.php']
+                '/payment-history' => ['file' => 'student/pages/fees/history.php'],
+                '/courses' => ['file' => 'student/pages/courses.php'],
             ]
         ],
 
