@@ -1,12 +1,10 @@
 <?php
 require_once relative_path("includes/components.php");
 
-$title = 'Courses'; // Set the page title
+$program = programs($program_id);
 
-// --- Fetch necessary data once ---
-// Get program options for the form/modal
-$programs_data = programs();
-$program_options = $programs_data ? pluck($programs_data, "id", "name") : ["" => "No Programs created"];
+$title = $program['name'] . (isset($form_level) ? ' Courses' : ""); // Set the page title
+$page_title = isset($form_level) ? "Courses for {$program['name']} Level ".($form_level * 100) : "{$program['name']}: Manage Program Structure";
 
 // Define static options for course level and semester
 $course_semesters = [
@@ -25,6 +23,85 @@ $year_levels = [
 // Start output buffering to capture the content
 ob_start();
 ?>
+
+<?php if(!isset($form_level)): ?>
+    <!-- Page Header -->
+<div class="mb-10">
+    <p class="mt-2 text-gray-600 dark:text-gray-400">
+        Select an academic year and choose what you want to manage for the 
+        <span class="font-medium text-gray-900 dark:text-gray-200">
+            <?= $program["name"] ?>
+        </span> program.
+    </p>
+</div>
+
+<!-- Program Years Grid -->
+<div class="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+    <?php for ($level = 1; $level <= $program["program_length"]; $level++): ?>
+        <div
+            class="relative flex flex-col justify-between p-6 transition-all duration-200 bg-white border border-gray-200 shadow-sm rounded-xl hover:-translate-y-1 hover:shadow-lg dark:border-gray-700 dark:bg-gray-900">
+
+            <!-- Accent Bar -->
+            <span class="absolute top-0 left-0 w-full h-1 bg-blue-500 rounded-t-xl"></span>
+
+            <!-- Card Header -->
+            <div>
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center justify-center w-12 h-12 text-blue-600 rounded-lg bg-blue-50 dark:bg-blue-500/10 dark:text-blue-400">
+                        <i class="text-xl fa-solid fa-graduation-cap"></i>
+                    </div>
+
+                    <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                        Level <?= $level * 100 ?>
+                    </span>
+                </div>
+
+                <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                    Year <?= $level ?>
+                </h3>
+
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    Manage academic and administrative settings for this year level.
+                </p>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="mt-6 space-y-2">
+                <!-- Manage Courses -->
+                <a href="<?= route("program.manage", ["program_id" => $program_id, "form_level" => $level]) ?>"
+                   class="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white transition bg-blue-600 rounded-lg hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600">
+                    <i class="fa-solid fa-book-open"></i>
+                    Manage Courses
+                </a>
+
+                <!-- Manage Classes -->
+                <a href="javascript:void(0)"
+                   class="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white transition rounded-lg bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600">
+                    <i class="fa-solid fa-users"></i>
+                    Manage Classes
+                </a>
+
+                <!-- Assessments / Exams -->
+                <a href="javascript:void(0)"
+                   class="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white transition bg-purple-600 rounded-lg hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600">
+                    <i class="fa-solid fa-file-lines"></i>
+                    Assessments
+                </a>
+
+                <!-- Settings -->
+                <a href="javascript:void(0)"
+                   class="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 transition border border-gray-300 rounded-lg hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800">
+                    <i class="fa-solid fa-gear"></i>
+                    Year Settings
+                </a>
+            </div>
+        </div>
+    <?php endfor; ?>
+</div>
+
+</div>
+
+<?php else: ?>
 
 <template id="course-row-template">
     <?= tr_start(
@@ -146,7 +223,8 @@ ob_start();
 
                     <?= input_h("text", "Course Code", "code", sub_text:"Keep blank if you want the system to manually define the code", attributes: placeholder("Enter course code")); ?>
 
-                    <?= select("program_id", "Course Program", $program_options, "Select A Program", required:true) ?>
+                    <?= input("hidden", name: "program_id", value: $program_id) ?>
+                    <?= input("text", "Course Program", value: $program["name"], attributes: attribute("readonly")) ?>
 
                     <?= 
                         select_h(
@@ -157,11 +235,12 @@ ob_start();
                     ?>
 
                     <?= 
-                        select_h("year_level", "Year Level", $year_levels,
-                        "This will be used to automate course registrations for students",
-                        "Select Year Level"
+                        select_h(text: "Year Level", options: $year_levels, value: $form_level,
+                        sub_text: "This will be used to automate course registrations for students",
+                        nullable: "Select Year Level", attributes: attribute("disabled")
                         )
                     ?>
+                    <?= input("hidden", name: "year_level", value: $form_level) ?>
                     
                 </div>
 
@@ -178,90 +257,90 @@ ob_start();
             delete_text: "This will remove all associated records for this course. Proceed to delete this course?") ?>
     </div>
 <?= modal_end() ?>
+<?php endif; ?>
 
-<?php 
-// ==============================================
-// 5. SCRIPTS
-// ==============================================
-
-// Set up the pagination script call
-$pagination_script = pagination_script(
-    'admin/ajax/school.php',    // Target AJAX file (you need to create this)
-    'course-row-template',      // Template ID
-    'courses',                  // Data key in backend response ($data["courses"])
-    [
-        "ID" => "id",             
-        "NAME" => "name",         
-        "CODE" => "code",
-        "PROGRAM_ID" => "program_id",
-        "PROGRAM_NAME" => "program_name",
-        "SEMESTER_ID" => "course_semester", // maps to data-semester
-        "LEVEL_ID" => "year_level",         // maps to data-year-level
-    ],
-    ["submit" => "fetch_courses"] // The action to trigger
-);
+<?php
+if(isset($form_level)){
+    // Set up the pagination script call
+    $pagination_script = pagination_script(
+        'admin/ajax/school.php',    // Target AJAX file (you need to create this)
+        'course-row-template',      // Template ID
+        'courses',                  // Data key in backend response ($data["courses"])
+        [
+            "ID" => "id",             
+            "NAME" => "name",         
+            "CODE" => "code",
+            "PROGRAM_ID" => "program_id",
+            "PROGRAM_NAME" => "program_name",
+            "SEMESTER_ID" => "course_semester", // maps to data-semester
+            "LEVEL_ID" => "year_level",         // maps to data-year-level
+        ],
+        ["submit" => "fetch_courses", "year_level" => $form_level, "program_id" => $program_id] // The action to trigger
+    );
 
 
-$extra_script = delete_item_component_script();
-$scripts = <<<HTML
-<script>
-    $(document).ready(function(){
-        // Initialize pagination on page load
-        $pagination_script
+    $extra_script = delete_item_component_script();
+    $scripts = <<<HTML
+    <script>
+        $(document).ready(function(){
+            // Initialize pagination on page load
+            $pagination_script
 
-        // Existing modal control logic
-        $(document).on("click", ".action-btn", function(){
-            const modal_body = $(this).attr("data-modal-body");
-            $("#modal .modal-body").addClass("hidden");
-            $("#" + modal_body).removeClass("hidden");
-        });
+            // Existing modal control logic
+            $(document).on("click", ".action-btn", function(){
+                const modal_body = $(this).attr("data-modal-body");
+                $("#modal .modal-body").addClass("hidden");
+                $("#" + modal_body).removeClass("hidden");
+            });
 
-        // Handler for the Add New Course button (Reset form for creation)
-        $("#add-course-button").click(function(){
-            $("#form-body form")[0].reset();
-            $("#form-body input[name=course_id]").val("");
-            
-            // Set fields to editable for new entry
-            $("#form-body input[name=code]").attr("readonly", false);
-            $("#form-body input[name=name]").attr("readonly", false);
+            // Handler for the Add New Course button (Reset form for creation)
+            $("#add-course-button").click(function(){
+                $("#form-body form")[0].reset();
+                $("#form-body input[name=course_id]").val("");
+                
+                // Set fields to editable for new entry
+                $("#form-body input[name=code]").attr("readonly", false);
+                $("#form-body input[name=name]").attr("readonly", false);
 
-            $("#form-body select[name=year_level]").removeClass("pointer-events-none bg-gray-100");
-            
-            // Reset titles and button for ADD operation
-            $("#modal-title").text("Add New Course");
-            $("#form-body button[name=submit]").val("create_course").html("Add Course");
-        });
+                $("#form-body select[name=year_level]").removeClass("pointer-events-none bg-gray-100");
+                
+                // Reset titles and button for ADD operation
+                $("#modal-title").text("Add New Course");
+                $("#form-body button[name=submit]").val("create_course").html("Add Course");
+            });
 
-        // Handler for Edit action
-        $(document).on("click", ".action-edit", function(){
-            $("#modal-title").text("Update Course");
-            $("#form-body button[name=submit]").val("update_course").html("Update Course");
+            // Handler for Edit action
+            $(document).on("click", ".action-edit", function(){
+                $("#modal-title").text("Update Course");
+                $("#form-body button[name=submit]").val("update_course").html("Update Course");
 
-            const parent = $(this).closest("tr");
-            
-            // Extract data from the row (Name and Code are stored in their respective TD data attributes)
-            const id = $(this).attr("data-id");
-            const name = parent.find('td.name').data('name');
-            const code = parent.find('td.code').data('code');
+                const parent = $(this).closest("tr");
+                
+                // Extract data from the row (Name and Code are stored in their respective TD data attributes)
+                const id = $(this).attr("data-id");
+                const name = parent.find('td.name').data('name');
+                const code = parent.find('td.code').data('code');
 
-            // Extract hidden data from the Program Name TD
-            const program_id = parent.data('program-id') || "";
-            const course_semester = parent.data('semester') || "";
-            const year_level = parent.data('year-level') || "";
+                // Extract hidden data from the Program Name TD
+                const program_id = parent.data('program-id') || "";
+                const course_semester = parent.data('semester') || "";
+                const year_level = parent.data('year-level') || "";
 
-            // Populate the modal form fields
-            $("#form-body input[name=name]").val(name).attr("readonly", true); // Should be read-only on edit
-            $("#form-body input[name=code]").val(code).attr("readonly", true); // Should be read-only on edit
-            $("#form-body select[name=program_id]").val(program_id).change();
-            $("#form-body select[name=course_semester]").val(course_semester).change();
-            $("#form-body select[name=year_level]").val(year_level).change().addClass("pointer-events-none bg-gray-100");
-            $("#form-body input[name=course_id]").val(id);
-        });
+                // Populate the modal form fields
+                $("#form-body input[name=name]").val(name).attr("readonly", true); // Should be read-only on edit
+                $("#form-body input[name=code]").val(code).attr("readonly", true); // Should be read-only on edit
+                $("#form-body select[name=program_id]").val(program_id).change();
+                $("#form-body select[name=course_semester]").val(course_semester).change();
+                $("#form-body select[name=year_level]").val(year_level).change().addClass("pointer-events-none bg-gray-100");
+                $("#form-body input[name=course_id]").val(id);
+            });
 
-        $extra_script
-    })
-</script>
-HTML;
+            $extra_script
+        })
+    </script>
+    HTML;
+}
+
 ?>
 
 <?php

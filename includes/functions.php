@@ -156,9 +156,9 @@
         }
 
         if(!$complete && !$columns){
-            $columns = ["id", "name", "department_id", "certificate", "cost"];
+            $columns = ["id", "name", "department_id", "certificate", "cost", "program_length"];
         }elseif($complete && !$columns){
-            $columns = ["p.id", "p.name", "department_id", "certificate", "cost", "d.name as department_name"];
+            $columns = ["p.id", "p.name", "department_id", "certificate", "cost", "program_length", "d.name as department_name"];
         }else{
             $columns = formatColumns($columns, [["programs" => "p"]]);
         }
@@ -239,10 +239,14 @@
      * @return string|false
      */
     function create_course_code(int $program_id, int $year, int $semester): string|false {
+        if($year > 20){
+            $year /= 100;
+        }
+
         // Get program name and existing courses for this semester
         $program = fetchData(
-            ["p.name", "COUNT(c.id) as course_count"],
-            ["join" => "programs courses", "on" => "id program_id", "alias" => "p c"],
+            ["p.name", "program_length", "COUNT(c.id) as course_count"],
+            ["join" => "programs courses", "on" => "id program_id", "alias" => "p c", "add_on" => ["c.year_level = $year"]],
             "p.id = $program_id",
             join_type: "left", 
             group_by: "p.id"
@@ -256,9 +260,9 @@
         $program_code = shorten_to_code($program["name"]);
         
         // Calculate level (100, 200, 300, 400)
-        if(in_array($year, [1, 2, 3, 4])){
+        if(in_array($year, range(1, $program["program_length"]))){
             $level = $year * 100;
-        }elseif(!in_array($year, [100,200,300,400])){
+        }else{
             return false;
         }
         

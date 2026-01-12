@@ -72,8 +72,7 @@
                     ["text" => "Faculties", "url" => "/admin/academic/faculty"],
                     ["text" => "Departments", "url" => "/admin/academic/department"],
                     ["text" => "Programs", "url" => "/admin/academic/program"],
-                    ["text" => "Courses", "url" => "/admin/academic/course"],
-                    ["text" => "Class Levels & Sections", "url" => "/admin/academic/levels"],
+                    // ["text" => "Class Levels & Sections", "url" => "/admin/academic/levels"],
                     ["text" => "Academic Sessions / Terms", "url" => "/admin/academic/sessions"],
                     ["text" => "Timetable", "url" => "/admin/academic/timetable"]
                 ]

@@ -33,6 +33,14 @@ ob_start();
                     )
                 ),
                 create_td_action(
+                    "fas fa-server",
+                    "Manage Courses",
+                    array_merge(
+                        attribute("class", "text-green-500 cursor-pointer hover:text-green-600"),
+                        attribute("href", route("program.classes", ["program_id" => "__ID__"]))
+                    )
+                ),
+                create_td_action(
                     "fas fa-trash-can",
                     "Delete",
                     array_merge(
@@ -114,7 +122,7 @@ ob_start();
             <?= modal_title("Add New Program", attribute("id", "modal-title")) ?>
             
             <form action="<?= url("admin/submit.php") ?>" name="program-form" method="POST">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     
                     <?= input("hidden", name: "program_id") ?>
 
@@ -126,6 +134,7 @@ ob_start();
 
                     <?= select("department_id", "Program Department", $department_options, required: true) ?>
                     
+                    <?= input("text", "Program Length", "program_length", 4, attributes: placeholder("Eg. Bachelor of Education (B.Ed)")); ?>
                 </div>
 
                 <div class="mt-4 sm:w-48">

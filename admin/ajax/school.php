@@ -131,7 +131,7 @@
                 "c.year_level AS year_level" // Maps to LEVEL_ID
             ];
 
-            $where = buildWhereClause($filters); 
+            $where = buildWhereClause($filters, ["year_level", "program_id"]); 
 
             // Fetch paginated data
             $data["courses"] = fetchData($columns, $tables, $where, $limit, offset: $offset);

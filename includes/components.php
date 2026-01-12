@@ -539,7 +539,10 @@
      * @return string HTML td element
      */
     function td_empty($text, $col_count){
-        return td($text, attributes:attribute("class", "text-center w-full"));
+        return td($text, attributes: 
+            array_merge(attribute("class", "text-center"),
+            attribute("colspan", $col_count))
+        );
     }
 
     /**
@@ -1406,7 +1409,7 @@
                     dataType: "json",
 
                     beforeSend: function() {
-                        $('tbody').html('<tr><td colspan="100%" class="text-center p-4">Loading...</td></tr>');
+                        $('tbody').html('<tr><td colspan="100%" class="p-4 text-center">Loading...</td></tr>');
                     }
 
                 }).done(function(response) {
@@ -1441,7 +1444,7 @@
                         if (emptyTemplate.length > 0) {
                             tbody.append(emptyTemplate.html());
                         } else {
-                            tbody.append('<tr><td colspan="100%" class="text-center p-4">' + emptyMsg + '</td></tr>');
+                            tbody.append('<tr><td colspan="100%" class="p-4 text-center">' + emptyMsg + '</td></tr>');
                         }
 
                         if (!response.status) console.error(response.error);
@@ -1471,8 +1474,8 @@
     
                 $('#prev-page').prop('disabled', currentPage === 1)
                     .toggleClass('opacity-50 cursor-not-allowed', currentPage === 1);
-                $('#next-page').prop('disabled', currentPage === totalPages)
-                    .toggleClass('opacity-50 cursor-not-allowed', currentPage === totalPages);
+                $('#next-page').prop('disabled', currentPage === totalPages || totalPages === 0)
+                    .toggleClass('opacity-50 cursor-not-allowed', currentPage === totalPages || totalPages === 0);
             }
     
             // Pagination buttons

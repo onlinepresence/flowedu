@@ -182,7 +182,7 @@ ob_start();
                 // Note: The download logic still uses a blocking AJAX call, 
                 // which is acceptable for file downloads.
                 $.ajax({
-                    url: relative_path("admin/pages/students/submit.php"),
+                    url: relative_path("admin/ajax/student.php"),
                     type: "POST",
                     data: {
                         level: level,

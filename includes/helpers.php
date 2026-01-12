@@ -320,11 +320,21 @@
         }
 
         if(!empty($mapping)){
-            foreach ($mapping as $key => $column) {
-                if (!empty($filters[$key])) {
-                    $where[] = "$column = '{$filters[$key]}'";
+            if(!array_is_list($mapping)){
+                foreach ($mapping as $key => $column) {
+                    if (!empty($filters[$key])) {
+                        $value = is_numeric($filters[$key]) ? $filters[$key] : "'".addslashes($filters[$key])."'";
+                        $where[] = "$column = '{$filters[$key]}'";
+                    }
                 }
-            }
+            }else{
+                foreach ($mapping as $column) {
+                    if (!empty($filters[$column])) {
+                        $value = is_numeric($filters[$column]) ? $filters[$column] : "'".addslashes($filters[$column])."'";
+                        $where[] = "$column = $value";
+                    }
+                }
+            }            
         }
         
 

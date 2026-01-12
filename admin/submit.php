@@ -352,19 +352,24 @@
                 "name" => "required|string|unique:programs,name",
                 "cost" => "required|numeric|positive",
                 "certificate" => "required|string",
-                "department_id" => "required|integer|exists:departments,id"
+                "department_id" => "required|integer|exists:departments,id",
+                "program_length" => "nullable|integer|positive|min:1|max:4"
             ];
             $alias = [
                 "name" => "Program Name",
                 "cost" => "Cost Fee",
                 "certificate" => "Program Certification",
-                "department_id" => "Department"
+                "department_id" => "Department",
             ];
 
             $errors = validate_form($rules, alias: $alias);
 
             if(!$errors){
                 $data = form_data(exclude: ["program_id"]);
+                if(empty($data["program_length"])){
+                    unset($data["program_length"]);
+                }
+
                 if(data_insert("programs", $data)){
                     $_SESSION["system_message"] = "Program '{$_POST['name']}' has been added";
                 }
@@ -379,7 +384,8 @@
                 "program_id" => "required|integer|exists:programs,id",
                 "name" => "required|string|unique:programs,name,id != $program_id",
                 "cost" => "required|numeric|positive",
-                "department_id" => "required|integer|exists:departments,id"
+                "department_id" => "required|integer|exists:departments,id",
+                "program_length" => "nullable|integer|positive|min:1|max:4"
             ];
             $alias = [
                 "program_id" => "Program",
@@ -388,10 +394,15 @@
                 "department_id" => "Department"
             ];
 
-            $errors = validate_form($rules, alias: $alias);
+            $errors = validate_form($rules, alias: $alias, hidden: ["program_id"]);
 
             if(!$errors){
                 $data = form_data(key_change: ["program_id" => "id"]);
+
+                if(empty($data["program_length"])){
+                    unset($data["program_length"]);
+                }
+
                 $program = programs($program_id);
 
                 if(update($program, $data, "programs", ["id"])){
