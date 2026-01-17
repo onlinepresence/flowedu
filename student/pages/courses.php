@@ -4,6 +4,8 @@ require_once relative_path("includes/components.php");
 $title = 'Courses'; // Set the page title
 $program_id = user()["program_id"];
 
+$semester = 1;
+
 // Start output buffering to capture the content
 ob_start();
 ?>
@@ -32,7 +34,11 @@ ob_start();
     <?= td_empty("No courses found", 4) ?>
 </template>
 
-<div class="mt-8"></div>
+<?= card_container_start() ?>
+    <?= dashboard_card_btn("Current Semester", $semester, "fa-solid fa-layer-group", "purple") ?>
+    <?= dashboard_card_btn("Courses Offered", $semester, "fa-solid fa-chalkboard-user", "purple") ?>
+<?= card_container_end() ?>
+
 <div class="w-full mt-3 overflow-hidden rounded-lg shadow-xs">
     <div class="w-full overflow-x-auto">
         <?= table_start(); ?>
