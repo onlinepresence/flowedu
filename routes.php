@@ -109,6 +109,14 @@
                 '/fees' => ['file' => 'student/pages/fees/index.php'],
                 '/payment-history' => ['file' => 'student/pages/fees/history.php'],
                 '/courses' => ['file' => 'student/pages/courses.php'],
+                '/timetable' => ['file' => 'student/pages/timetable.php'],
+                '/results' => ['file' => 'student/pages/results.php'],
+                '/clearance' => ['file' => 'student/pages/clearance.php'],
+                '/transcript' => ['file' => 'student/pages/transcript.php'],
+                '/attendance' => ['file' => 'student/pages/attendance.php'],
+                '/medical' => ['file' => 'student/pages/medical.php'],
+                '/discipline' => ['file' => 'student/pages/discipline.php'],
+                '/job-alerts' => ['file' => 'student/pages/job-alerts.php']
             ]
         ],
 
