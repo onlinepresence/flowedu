@@ -93,7 +93,7 @@
                 // create a deletion job
                 add_job("delete_tmp", create_payload("delete_tmp_file", [relative_path($file_url)]), 120);
             } catch (Exception $e) {
-                $errors[] = $e->getMessage();
+                $errors["system_error"] = $e->getMessage();
             }
         }elseif($submit == "fetch_unapproved_students") {
             $filters = form_data();
@@ -132,6 +132,94 @@
             }
         
             $status = true;
+        }elseif($submit == "fetch_promotions"){
+            $filters = form_data();
+            $tables = [
+                ["join" => "promotions students", "on" => "student_id id", "alias" => "p s"]
+            ];
+            $columns = ["p.id", "CONCAT(s.lastname, ' ', s.othernames) as student_name", "p.from_level", "p.to_level", "p.status"];
+            $where = buildWhereClause($filters);
+            $data["promotions"] = fetchData($columns, $tables, $where, 50);
+            $status = true;
+        }elseif($submit == "promote_student"){
+            $input = form_data();
+            $promo_data = [
+                'student_id' => $input['student_id'],
+                'from_level' => $input['from_level'],
+                'to_level' => $input['to_level'],
+                'academic_session_id' => $input['academic_session_id'],
+                'status' => 'approved'
+            ];
+            if(data_insert('promotions', $promo_data)){
+                update(['id' => $input['student_id']], ['current_year' => $input['to_level']], 'students', ['id']);
+                $status = true;
+                $data["message"] = "Student promoted";
+            }
+        }elseif($submit == "fetch_graduations"){
+            $filters = form_data();
+            $tables = [
+                ["join" => "graduations students", "on" => "student_id id", "alias" => "g s"]
+            ];
+            $columns = ["g.id", "CONCAT(s.lastname, ' ', s.othernames) as student_name", "g.graduation_year", "g.class_of_honors"];
+            $where = buildWhereClause($filters);
+            $data["graduations"] = fetchData($columns, $tables, $where, 50);
+            $status = true;
+        }elseif($submit == "graduate_student"){
+            $input = form_data();
+            $grad_data = [
+                'student_id' => $input['student_id'],
+                'graduation_year' => $input['graduation_year'],
+                'class_of_honors' => $input['class_of_honors'],
+                'status' => 'approved'
+            ];
+            if(data_insert('graduations', $grad_data)){
+                 $status = true;
+                 $data["message"] = "Student graduated";
+            }
+        }elseif($submit == "fetch_medical"){
+            $filters = form_data();
+            $tables = [
+                ["join" => "medical_records students", "on" => "student_id id", "alias" => "m s"]
+            ];
+            $columns = ["m.id", "CONCAT(s.lastname, ' ', s.othernames) as student_name", "m.condition_name", "m.date_reported"];
+            $where = buildWhereClause($filters);
+            $data["medical"] = fetchData($columns, $tables, $where, 50);
+            $status = true;
+        }elseif($submit == "add_medical"){
+            $input = form_data();
+            $med_data = [
+                'student_id' => $input['student_id'],
+                'condition_name' => $input['condition_name'],
+                'description' => $input['description'],
+                'date_reported' => $input['date_reported'],
+                'status' => 'Active'
+            ];
+            if(data_insert('medical_records', $med_data)){
+                $status = true;
+                $data["message"] = "Medical record added";
+            }
+        }elseif($submit == "fetch_discipline"){
+            $filters = form_data();
+             $tables = [
+                ["join" => "discipline_records students", "on" => "student_id id", "alias" => "d s"]
+            ];
+            $columns = ["d.id", "CONCAT(s.lastname, ' ', s.othernames) as student_name", "d.offense", "d.punishment", "d.date_committed"];
+            $where = buildWhereClause($filters);
+            $data["discipline"] = fetchData($columns, $tables, $where, 50);
+            $status = true;
+        }elseif($submit == "add_discipline"){
+            $input = form_data();
+            $dis_data = [
+                'student_id' => $input['student_id'],
+                'offense' => $input['offense'],
+                'punishment' => $input['punishment'],
+                'date_committed' => $input['date_committed'],
+                'status' => 'active'
+            ];
+            if(data_insert('discipline_records', $dis_data)){
+                $status = true;
+                $data["message"] = "Discipline record added";
+            }
         }
         
     }

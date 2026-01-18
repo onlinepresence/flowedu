@@ -176,6 +176,15 @@ ob_start();
 <?php $scripts = <<<HTML
 <script>
 $(document).ready(function(){
+    // Helper function to display alert box
+    function showAlert(message, type = 'danger') {
+        if (typeof alert_box === "function") {
+            alert_box(message, type); // custom alert function if defined elsewhere
+        } else {
+            alert(message); // fallback for now
+        }
+    }
+
     // Load timetable
     $("#load-timetable-btn").click(function() {
         const programId = $("#program_id").val();
@@ -183,7 +192,7 @@ $(document).ready(function(){
         const sessionId = $("#session_id").val();
         
         if(!programId || !level || !sessionId) {
-            alert("Please select program, level, and session");
+            showAlert("Please select program, level, and session", "warning");
             return;
         }
         
@@ -201,7 +210,13 @@ $(document).ready(function(){
                 if(response.status) {
                     $("#timetable-schedule").removeClass("hidden");
                     // Populate timetable schedule
+                } else {
+                    let msg = response.errors && response.errors.system_error ? response.errors.system_error : "Failed to load timetable";
+                    showAlert(msg, "danger");
                 }
+            },
+            error: function(xhr) {
+                showAlert("A system error occurred while loading the timetable. Please try again.", "danger");
             }
         });
     });

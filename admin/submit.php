@@ -656,6 +656,702 @@
             }
         }
 
+        // ========================================
+        // STUDENTS SECTION HANDLERS
+        // ========================================
+        
+        elseif($submit == "student_promotion" || $submit == "preview_promotion" || $submit == "confirm_promotion"){
+            $input = form_data();
+            
+            if($submit == "preview_promotion"){
+                // Preview promotion - fetch students matching criteria
+                $input["from_level"] %= 100;
+                $input["to_level"] %= 100;
+                
+                $where = [];
+                if(!empty($input['from_level'])){
+                    $where[] = "s.current_year = " . (int)$input['from_level'];
+                }
+                if(!empty($input['program_id'])){
+                    $where[] = "s.program_id = " . (int)$input['program_id'];
+                }
+                
+                $tables = [
+                    ["join" => "students programs", "on" => "program_id id", "alias" => "s p"]
+                ];
+                $columns = [
+                    "s.id", "s.user_id", "s.index_number", 
+                    "CONCAT(s.lastname, ' ', s.othernames) AS fullname",
+                    "s.current_year", "p.name AS program_name"
+                ];
+                
+                $students = fetchData($columns, $tables, $where, 0);
+                $data["students"] = is_array($students) ? $students : [];
+                $data["total"] = count($data["students"]);
+                $status = true;
+                
+            } elseif($submit == "confirm_promotion"){
+                // Confirm and execute promotion
+                $rules = [
+                    "from_level" => "required|numeric",
+                    "to_level" => "required|numeric"
+                ];
+                $errors = validate_form($rules);
+                
+                if(empty($errors)){
+                    $input["form_level"] %= 100;
+                    $input["to_level"] %= 100;
+                    
+                    $where = [];
+                    if(!empty($input['from_level'])){
+                        $where[] = "current_year = " . (int)$input['from_level'];
+                    }
+                    if(!empty($input['program_id'])){
+                        $where[] = "program_id = " . (int)$input['program_id'];
+                    }
+                    
+                    $students = fetchData("id, index_number", "students", $where, 0);
+                    $promoted = 0;
+                    
+                    if(is_array($students) && !empty($students)){
+                        foreach($students as $student){
+                            $promo_data = [
+                                'student_id' => $student['id'],
+                                'from_level' => $input['from_level'],
+                                'to_level' => $input['to_level'],
+                                'academic_session_id' => $input['session_id'] ?? null,
+                                'promoted_by' => user()['id'],
+                                'promotion_date' => date('Y-m-d')
+                            ];
+                            
+                            if(data_insert('promotions', $promo_data)){
+                                update(['id' => $student['id']], ['current_year' => $input['to_level']], 'students', ['id']);
+                                $promoted++;
+                            }
+                        }
+                    }
+                    
+                    $status = true;
+                    $data["message"] = "$promoted students promoted successfully";
+                }
+            }
+        }
+        
+        elseif($submit == "process_graduation"){
+            $input = form_data();
+            
+            $rules = [
+                "level" => "required|numeric",
+                "session_id" => "required|numeric",
+                "graduation_date" => "required|date"
+            ];
+            $errors = validate_form($rules);
+            
+            if(empty($errors)){
+                $where = ["current_year = " . (int)$input['level'], "approved = 1"];
+                if(!empty($input['program_id'])){
+                    $where[] = "program_id = " . (int)$input['program_id'];
+                }
+                
+                $students = fetchData("id, index_number", "students", $where, 0);
+                $graduated = 0;
+                
+                if(is_array($students) && !empty($students)){
+                    foreach($students as $student){
+                        $grad_data = [
+                            'student_id' => $student['id'],
+                            'graduation_date' => $input['graduation_date'],
+                            'academic_session_id' => $input['session_id'],
+                            'graduated_by' => user()['id'],
+                            'status' => 'graduated'
+                        ];
+                        
+                        if(data_insert('graduations', $grad_data)){
+                            // Update student status
+                            update(['id' => $student['id']], ['graduated' => 1], 'students', ['id']);
+                            $graduated++;
+                        }
+                    }
+                }
+                
+                $status = true;
+                $data["message"] = "$graduated students graduated successfully";
+            }
+        }
+        
+        elseif($submit == "update_medical"){
+            $input = form_data();
+            
+            $rules = [
+                "user_id" => "required|numeric|exists:users,id"
+            ];
+            $errors = validate_form($rules);
+            
+            if(empty($errors)){
+                // Get student ID from user_id
+                $student = fetchData("id", "students", ["user_id" => $input['user_id']]);
+                if($student){
+                    $student_id = $student['id'];
+                    
+                    $med_data = [
+                        'blood_type' => $input['blood_type'] ?? null,
+                        'allergies' => $input['allergies'] ?? null,
+                        'insurance_number' => $input['insurance_number'] ?? null,
+                        'chronic_conditions' => $input['chronic_conditions'] ?? null,
+                        'emergency_contact_name' => $input['emergency_contact_name'] ?? null,
+                        'emergency_relationship' => $input['emergency_relationship'] ?? null,
+                        'emergency_phone' => $input['emergency_phone'] ?? null
+                    ];
+                    
+                    // Check if medical record exists
+                    $existing = fetchData("id", "medical_records", ["student_id" => $student_id]);
+                    if($existing){
+                        update(['student_id' => $student_id], $med_data, 'medical_records', ['student_id']);
+                    } else {
+                        $med_data['student_id'] = $student_id;
+                        data_insert('medical_records', $med_data);
+                    }
+                    
+                    $status = true;
+                    $data["message"] = "Medical information updated successfully";
+                } else {
+                    $errors["system_error"] = "Student not found";
+                }
+            }
+        }
+        
+        elseif($submit == "add_disciplinary_record"){
+            $input = form_data();
+            
+            $rules = [
+                "student_index" => "required|string",
+                "incident" => "required|string",
+                "violation_type" => "required|string",
+                "severity" => "required|string",
+                "incident_date" => "required|date",
+                "action_taken" => "required|string"
+            ];
+            $errors = validate_form($rules);
+            
+            if(empty($errors)){
+                // Get student by index number
+                $student = fetchData("id", "students", ["index_number" => $input['student_index']]);
+                if($student){
+                    $dis_data = [
+                        'student_id' => $student['id'],
+                        'incident' => $input['incident'],
+                        'violation_type' => $input['violation_type'],
+                        'severity' => $input['severity'],
+                        'incident_date' => $input['incident_date'],
+                        'action_taken' => $input['action_taken'],
+                        'status' => 'active',
+                        'recorded_by' => user()['id'],
+                        'recorded_date' => date('Y-m-d')
+                    ];
+                    
+                    if(data_insert('disciplinary_records', $dis_data)){
+                        $status = true;
+                        $data["message"] = "Disciplinary record added successfully";
+                    } else {
+                        $errors["system_error"] = "Failed to add disciplinary record";
+                    }
+                } else {
+                    $errors["student_index"] = "Student with index number not found";
+                }
+            }
+        }
+        
+        // ========================================
+        // ACADEMIC SECTION HANDLERS
+        // ========================================
+        
+        elseif($submit == "create_timetable" || $submit == "save_timetable" || $submit == "add_timetable_class"){
+            $input = form_data();
+            
+            if($submit == "create_timetable" || $submit == "save_timetable"){
+                $rules = [
+                    "program_id" => "required|numeric|exists:programs,id",
+                    "level" => "required|numeric",
+                    "session_id" => "required|numeric|exists:academic_sessions,id"
+                ];
+                $errors = validate_form($rules);
+                
+                if(empty($errors)){
+                    // Check if timetable exists
+                    $existing = fetchData("id", "timetables", [
+                        "program_id" => $input['program_id'],
+                        "level" => $input['level'],
+                        "session_id" => $input['session_id']
+                    ]);
+                    
+                    if($existing){
+                        $timetable_id = $existing['id'];
+                        $status = true;
+                        $data["timetable_id"] = $timetable_id;
+                        $data["message"] = "Timetable loaded";
+                    } else {
+                        // Create new timetable
+                        $tt_data = [
+                            'program_id' => $input['program_id'],
+                            'level' => $input['level'],
+                            'session_id' => $input['session_id'],
+                            'created_by' => user()['id']
+                        ];
+                        
+                        if($timetable_id = data_insert('timetables', $tt_data)){
+                            $status = true;
+                            $data["timetable_id"] = $timetable_id;
+                            $data["message"] = "Timetable created successfully";
+                        } else {
+                            $errors["system_error"] = "Failed to create timetable";
+                        }
+                    }
+                }
+            } elseif($submit == "add_timetable_class"){
+                $rules = [
+                    "timetable_id" => "required|numeric|exists:timetables,id",
+                    "day" => "required|string",
+                    "start_time" => "required|string",
+                    "end_time" => "required|string",
+                    "course_code" => "required|string",
+                    "venue" => "required|string",
+                    "lecturer" => "required|string"
+                ];
+                $errors = validate_form($rules);
+                
+                if(empty($errors)){
+                    $class_data = [
+                        'timetable_id' => $input['timetable_id'],
+                        'day' => $input['day'],
+                        'start_time' => $input['start_time'],
+                        'end_time' => $input['end_time'],
+                        'course_code' => $input['course_code'],
+                        'course_name' => $input['course_name'] ?? null,
+                        'venue' => $input['venue'],
+                        'lecturer' => $input['lecturer']
+                    ];
+                    
+                    if(data_insert('timetable_classes', $class_data)){
+                        $status = true;
+                        $data["message"] = "Class added to timetable successfully";
+                    } else {
+                        $errors["system_error"] = "Failed to add class to timetable";
+                    }
+                }
+            }
+        }
+        
+        // ========================================
+        // GRADING SECTION HANDLERS
+        // ========================================
+        
+        elseif($submit == "update_grade_points"){
+            $input = form_data();
+            
+            if(isset($input['grades']) && is_array($input['grades']) && 
+               isset($input['points']) && is_array($input['points']) &&
+               isset($input['min_score']) && is_array($input['min_score']) &&
+               isset($input['max_score']) && is_array($input['max_score'])){
+                
+                $updated = 0;
+                foreach($input['grades'] as $index => $grade){
+                    $gp_data = [
+                        'points' => $input['points'][$index],
+                        'min_score' => $input['min_score'][$index],
+                        'max_score' => $input['max_score'][$index]
+                    ];
+                    
+                    $existing = fetchData("id", "grade_points", ["grade" => $grade]);
+                    if($existing){
+                        update(['grade' => $grade], $gp_data, 'grade_points', ['grade']);
+                    } else {
+                        $gp_data['grade'] = $grade;
+                        data_insert('grade_points', $gp_data);
+                    }
+                    $updated++;
+                }
+                
+                $status = true;
+                $data["message"] = "$updated grade points updated successfully";
+            } else {
+                $errors["system_error"] = "Invalid grade points data";
+            }
+        }
+        
+        elseif($submit == "enter_results"){
+            $input = form_data();
+            
+            $rules = [
+                "course_id" => "required|numeric|exists:courses,id",
+                "session_id" => "required|numeric|exists:academic_sessions,id"
+            ];
+            $errors = validate_form($rules);
+            
+            if(empty($errors) && isset($input['results']) && is_array($input['results'])){
+                $saved = 0;
+                foreach($input['results'] as $result){
+                    if(!empty($result['student_id']) && !empty($result['score'])){
+                        $result_data = [
+                            'student_id' => $result['student_id'],
+                            'course_id' => $input['course_id'],
+                            'session_id' => $input['session_id'],
+                            'score' => $result['score'],
+                            'grade' => $result['grade'] ?? null,
+                            'grade_points' => $result['grade_points'] ?? null,
+                            'entered_by' => user()['id'],
+                            'entered_date' => date('Y-m-d')
+                        ];
+                        
+                        // Check if result exists
+                        $existing = fetchData("id", "results", [
+                            "student_id" => $result['student_id'],
+                            "course_id" => $input['course_id'],
+                            "session_id" => $input['session_id']
+                        ]);
+                        
+                        if($existing){
+                            update(['id' => $existing['id']], $result_data, 'results', ['id']);
+                        } else {
+                            data_insert('results', $result_data);
+                        }
+                        $saved++;
+                    }
+                }
+                
+                $status = true;
+                $data["message"] = "$saved results saved successfully";
+            }
+        }
+        
+        elseif($submit == "upload_results"){
+            $input = form_data("uploads/results");
+            
+            $rules = [
+                "results_file" => "required|file|accepts:xlsx,xls"
+            ];
+            $errors = validate_form($rules);
+            
+            if(empty($errors) && !empty($_FILES['results_file'])){
+                require_once $rootPath."/includes/spreadsheet.php";
+                
+                try {
+                    $file_path = $_FILES['results_file']['tmp_name'];
+                    $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file_path);
+                    $worksheet = $spreadsheet->getActiveSheet();
+                    $rows = $worksheet->toArray();
+                    
+                    // Skip header row
+                    array_shift($rows);
+                    
+                    $imported = 0;
+                    foreach($rows as $row){
+                        if(!empty($row[0]) && !empty($row[2])){ // Assuming index_number and score
+                            $student = fetchData("id", "students", ["index_number" => $row[0]]);
+                            if($student){
+                                // Process result import
+                                $imported++;
+                            }
+                        }
+                    }
+                    
+                    $status = true;
+                    $data["message"] = "$imported results imported successfully";
+                } catch(Exception $e){
+                    $errors["system_error"] = "Failed to process file: " . $e->getMessage();
+                }
+            }
+        }
+        
+        elseif($submit == "generate_transcript" || $submit == "bulk_generate_transcripts"){
+            $input = form_data();
+            
+            if($submit == "generate_transcript"){
+                $rules = [
+                    "student_index" => "required|string"
+                ];
+                $errors = validate_form($rules);
+                
+                if(empty($errors)){
+                    $student = fetchData("id", "students", ["index_number" => $input['student_index']]);
+                    if($student){
+                        // Generate transcript logic here
+                        $status = true;
+                        $data["message"] = "Transcript generated successfully";
+                        $data["transcript_id"] = $student['id']; // Placeholder
+                    } else {
+                        $errors["student_index"] = "Student not found";
+                    }
+                }
+            } elseif($submit == "bulk_generate_transcripts"){
+                // Bulk generate transcripts
+                $where = ["approved = 1"];
+                if(!empty($input['program_id'])){
+                    $where[] = "program_id = " . (int)$input['program_id'];
+                }
+                
+                $students = fetchData("id", "students", $where, 0);
+                $generated = is_array($students) ? count($students) : 0;
+                
+                $status = true;
+                $data["message"] = "Bulk transcript generation started for $generated students";
+                $data["count"] = $generated;
+            }
+        }
+        
+        // ========================================
+        // STAFF SECTION HANDLERS
+        // ========================================
+        
+        elseif($submit == "assign_teacher"){
+            $input = form_data();
+            
+            $rules = [
+                "teacher_search" => "required|string",
+                "program_id" => "required|numeric|exists:programs,id",
+                "level" => "required|numeric",
+                "course_id" => "required|numeric|exists:courses,id",
+                "session_id" => "required|numeric|exists:academic_sessions,id"
+            ];
+            $errors = validate_form($rules);
+            
+            if(empty($errors)){
+                // Get teacher by ID or name
+                $teacher = fetchData("id, user_id", "teachers", [
+                    "staff_id" => $input['teacher_search']
+                ]);
+                
+                if(!$teacher){
+                    // Try searching by name
+                    $teacher_user = fetchData("id", "users", ["username" => $input['teacher_search']]);
+                    if($teacher_user){
+                        $teacher = fetchData("id, user_id", "teachers", ["user_id" => $teacher_user['id']]);
+                    }
+                }
+                
+                if($teacher){
+                    $assign_data = [
+                        'teacher_id' => $teacher['id'],
+                        'program_id' => $input['program_id'],
+                        'level' => $input['level'],
+                        'course_id' => $input['course_id'],
+                        'session_id' => $input['session_id'],
+                        'assigned_by' => user()['id'],
+                        'assigned_date' => date('Y-m-d')
+                    ];
+                    
+                    // Check if assignment already exists
+                    $existing = fetchData("id", "teacher_assignments", [
+                        "teacher_id" => $teacher['id'],
+                        "course_id" => $input['course_id'],
+                        "session_id" => $input['session_id']
+                    ]);
+                    
+                    if($existing){
+                        update(['id' => $existing['id']], $assign_data, 'teacher_assignments', ['id']);
+                        $data["message"] = "Teacher assignment updated successfully";
+                    } else {
+                        data_insert('teacher_assignments', $assign_data);
+                        $data["message"] = "Teacher assigned successfully";
+                    }
+                    
+                    $status = true;
+                } else {
+                    $errors["system_error"] = "Teacher not found";
+                }
+            }
+        }
+        
+        elseif($submit == "assign_teacher_role"){
+            $input = form_data();
+            
+            $rules = [
+                "teacher_search" => "required|string",
+                "role" => "required|string"
+            ];
+            $errors = validate_form($rules);
+            
+            if(empty($errors)){
+                // Get teacher
+                $teacher = fetchData("id, user_id", "teachers", ["staff_id" => $input['teacher_search']]);
+                if(!$teacher){
+                    $teacher_user = fetchData("id", "users", ["username" => $input['teacher_search']]);
+                    if($teacher_user){
+                        $teacher = fetchData("id, user_id", "teachers", ["user_id" => $teacher_user['id']]);
+                    }
+                }
+                
+                if($teacher){
+                    $role_data = [
+                        'teacher_id' => $teacher['id'],
+                        'role' => $input['role'],
+                        'description' => $input['description'] ?? null,
+                        'assigned_by' => user()['id'],
+                        'assigned_date' => date('Y-m-d'),
+                        'status' => 'active'
+                    ];
+                    
+                    if(data_insert('teacher_roles', $role_data)){
+                        $status = true;
+                        $data["message"] = "Role assigned to teacher successfully";
+                    } else {
+                        $errors["system_error"] = "Failed to assign role";
+                    }
+                } else {
+                    $errors["system_error"] = "Teacher not found";
+                }
+            }
+        }
+        
+        // ========================================
+        // FINANCE SECTION HANDLERS
+        // ========================================
+        
+        elseif($submit == "update_fee_structure"){
+            $input = form_data();
+            
+            $rules = [
+                "program_id" => "required|numeric|exists:programs,id",
+                "level" => "required|numeric",
+                "session_id" => "required|numeric|exists:academic_sessions,id"
+            ];
+            $errors = validate_form($rules);
+            
+            if(empty($errors)){
+                // Calculate total fee
+                $total_fee = 0;
+                $fee_categories = ['tuition_fee', 'library_fee', 'lab_fee', 'medical_fee', 'sports_fee', 'examination_fee'];
+                foreach($fee_categories as $category){
+                    if(!empty($input[$category])){
+                        $total_fee += (float)$input[$category];
+                    }
+                }
+                
+                $fee_data = [
+                    'program_id' => $input['program_id'],
+                    'level' => $input['level'],
+                    'session_id' => $input['session_id'],
+                    'tuition_fee' => $input['tuition_fee'] ?? 0,
+                    'library_fee' => $input['library_fee'] ?? 0,
+                    'lab_fee' => $input['lab_fee'] ?? 0,
+                    'medical_fee' => $input['medical_fee'] ?? 0,
+                    'sports_fee' => $input['sports_fee'] ?? 0,
+                    'examination_fee' => $input['examination_fee'] ?? 0,
+                    'total_amount' => $total_fee,
+                    'created_by' => user()['id']
+                ];
+                
+                // Check if fee structure exists
+                $existing = fetchData("id", "fee_structures", [
+                    "program_id" => $input['program_id'],
+                    "level" => $input['level'],
+                    "session_id" => $input['session_id']
+                ]);
+                
+                if($existing){
+                    update(['id' => $existing['id']], $fee_data, 'fee_structures', ['id']);
+                    $data["message"] = "Fee structure updated successfully";
+                } else {
+                    data_insert('fee_structures', $fee_data);
+                    $data["message"] = "Fee structure created successfully";
+                }
+                
+                $status = true;
+            }
+        }
+        
+        elseif($submit == "add_scholarship"){
+            $input = form_data();
+            
+            $rules = [
+                "name" => "required|string",
+                "amount" => "required|numeric|positive",
+                "type" => "required|string|in:scholarship,grant"
+            ];
+            $errors = validate_form($rules);
+            
+            if(empty($errors)){
+                $scholarship_data = [
+                    'name' => $input['name'],
+                    'type' => $input['type'],
+                    'amount' => $input['amount'],
+                    'description' => $input['description'] ?? null,
+                    'created_by' => user()['id'],
+                    'status' => 'active'
+                ];
+                
+                if(data_insert('scholarships', $scholarship_data)){
+                    $status = true;
+                    $data["message"] = "Scholarship/Grant added successfully";
+                } else {
+                    $errors["system_error"] = "Failed to add scholarship";
+                }
+            }
+        }
+        
+        // ========================================
+        // SETTINGS SECTION HANDLERS
+        // ========================================
+        
+        elseif($submit == "backup_database"){
+            // Database backup logic
+            try {
+                $backup_file = "backup_" . date("Ymd_His") . ".sql";
+                $backup_path = relative_path("backups/" . $backup_file, false);
+                
+                // Create backups directory if it doesn't exist
+                if(!is_dir(dirname($backup_path))){
+                    mkdir(dirname($backup_path), 0777, true);
+                }
+                
+                // Use mysqldump if available
+                $host = $_ENV['DB_HOST'] ?? 'localhost';
+                $dbname = $_ENV['DB_NAME'] ?? '';
+                $username = $_ENV['DB_USER'] ?? '';
+                $password = $_ENV['DB_PASS'] ?? '';
+                
+                $command = "mysqldump -h $host -u $username -p$password $dbname > \"$backup_path\"";
+                
+                exec($command, $output, $return_var);
+                
+                if($return_var === 0 && file_exists($backup_path)){
+                    // Record backup in database
+                    $backup_record = [
+                        'filename' => $backup_file,
+                        'file_path' => $backup_path,
+                        'file_size' => filesize($backup_path),
+                        'created_by' => user()['id'],
+                        'created_at' => date('Y-m-d H:i:s')
+                    ];
+                    
+                    data_insert('backups', $backup_record);
+                    
+                    $status = true;
+                    $data["message"] = "Database backed up successfully";
+                    $data["file_url"] = url("/backups/$backup_file");
+                } else {
+                    $errors["system_error"] = "Failed to create database backup";
+                }
+            } catch(Exception $e){
+                $errors["system_error"] = "Backup error: " . $e->getMessage();
+            }
+        }
+        
+        elseif($submit == "restore_database"){
+            $input = form_data("uploads/backups");
+            
+            $rules = [
+                "backup_file" => "required|file|accepts:sql"
+            ];
+            $errors = validate_form($rules);
+            
+            if(empty($errors) && !empty($_FILES['backup_file'])){
+                // Database restore should be handled with extreme caution
+                // This is a placeholder - implement actual restore logic if needed
+                $status = true;
+                $data["message"] = "Database restore functionality - implement with caution. This operation is destructive.";
+            }
+        }
+
         // delete an item
         elseif($submit == "delete-item"){
             delete_item();

@@ -72,7 +72,7 @@
         ],
 
         '/admin/students' => [
-            'prefix' => '/admin/student',
+            'prefix' => '/admin/students',
             'middleware' => ['auth', 'valid_admin', 'check_school_status'],
             'routes' => [
                 '/promotion' => ['file' => 'admin/pages/students/promotion.php'],
