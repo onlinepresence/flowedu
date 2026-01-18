@@ -12,11 +12,11 @@ ob_start();
     <!-- Assign Teacher to Class/Course -->
     <div class="mb-6 p-6 bg-white rounded-lg shadow-md dark:bg-gray-800">
         <h3 class="mb-4 text-lg font-semibold text-gray-700 dark:text-gray-200">
-            <i class="fas fa-user-plus mr-2"></i>Assign Teacher to Class/Course
+            <i class="fas fa-user-plus mr-2"></i>Assign Teacher to Course
         </h3>
         
         <form action="<?= url('admin/submit.php') ?>" method="POST" id="assignment-form">
-            <?= input("hidden", "", "request_type", "assign_teacher") ?>
+            <?= input("hidden", "", "submit", "assign_teacher") ?>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <!-- Teacher Selection -->
@@ -39,11 +39,11 @@ ob_start();
                 <?= select("course_id", "Course/Subject", [["id" => "", "text" => "Select Course"]], "Select Course", required: true) ?>
                 
                 <?php 
-                    $sessions = fetchData("*", "academic_sessions", "", 0, "", "", "", "session_name", true);
+                    $sessions = fetchData("*", "academic_sessions", "", 0, "", "", "", "name", true);
                     $session_options = [];
                     if(is_array($sessions) && !empty($sessions)) {
                         foreach($sessions as $session) {
-                            $session_options[] = ["id" => $session['id'], "text" => $session['session_name']];
+                            $session_options[] = ["id" => $session['id'], "text" => $session['name']];
                         }
                     }
                 ?>
@@ -66,7 +66,7 @@ ob_start();
     <!-- Current Assignments -->
     <div class="mb-6">
         <h3 class="mb-4 text-lg font-semibold text-gray-700 dark:text-gray-200">
-            <i class="fas fa-list mr-2"></i>Current Assignments
+            <i class="fas fa-list mr-2"></i>Current Teacher Assignments
         </h3>
         
         <!-- Filters -->

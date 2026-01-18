@@ -1184,6 +1184,7 @@
                     $role_data = [
                         'teacher_id' => $teacher['id'],
                         'role' => $input['role'],
+                        'program_id' => $input['program_id'] ?? null,
                         'description' => $input['description'] ?? null,
                         'assigned_by' => user()['id'],
                         'assigned_date' => date('Y-m-d'),
@@ -1198,6 +1199,130 @@
                     }
                 } else {
                     $errors["system_error"] = "Teacher not found";
+                }
+            }
+        }
+        
+        elseif($submit == "assign_staff"){
+            $input = form_data();
+            
+            $rules = [
+                "staff_search" => "required|string",
+                "department_id" => "required|numeric|exists:departments,id",
+                "office" => "required|string",
+                "position_title" => "required|string"
+            ];
+            $errors = validate_form($rules);
+            
+            if(empty($errors)){
+                // Get staff by search term (non-teaching staff)
+                $staff = fetchData("id", "users", ["email" => $input['staff_search']]);
+                if(!$staff){
+                    // Try searching by name or ID
+                    $staff = fetchData("id", "users", ["id" => $input['staff_search']]);
+                }
+                
+                if($staff){
+                    $assignment_data = [
+                        'staff_id' => $staff['id'],
+                        'department_id' => $input['department_id'],
+                        'office' => $input['office'],
+                        'position_title' => $input['position_title'],
+                        'assignment_date' => $input['assignment_date'] ?? date('Y-m-d'),
+                        'assigned_by' => user()['id'],
+                        'status' => 'active'
+                    ];
+                    
+                    if(data_insert('staff_assignments', $assignment_data)){
+                        $status = true;
+                        $data["message"] = "Staff assigned successfully";
+                    } else {
+                        $errors["system_error"] = "Failed to assign staff";
+                    }
+                } else {
+                    $errors["system_error"] = "Staff member not found";
+                }
+            }
+        }
+        
+        elseif($submit == "assign_staff_role"){
+            $input = form_data();
+            
+            $rules = [
+                "staff_search" => "required|string",
+                "role" => "required|string"
+            ];
+            $errors = validate_form($rules);
+            
+            if(empty($errors)){
+                // Get staff by search term
+                $staff = fetchData("id", "users", ["email" => $input['staff_search']]);
+                if(!$staff){
+                    $staff = fetchData("id", "users", ["id" => $input['staff_search']]);
+                }
+                
+                if($staff){
+                    $role_data = [
+                        'staff_id' => $staff['id'],
+                        'role' => $input['role'],
+                        'department_id' => $input['department_id'] ?? null,
+                        'description' => $input['description'] ?? null,
+                        'assigned_by' => user()['id'],
+                        'assigned_date' => date('Y-m-d'),
+                        'status' => 'active'
+                    ];
+                    
+                    if(data_insert('staff_roles', $role_data)){
+                        $status = true;
+                        $data["message"] = "Role assigned to staff successfully";
+                    } else {
+                        $errors["system_error"] = "Failed to assign role";
+                    }
+                } else {
+                    $errors["system_error"] = "Staff member not found";
+                }
+            }
+        }
+        
+        elseif($submit == "add_non_teaching_staff"){
+            $input = form_data();
+            
+            $rules = [
+                "email" => "required|email|unique:users,email",
+                "position" => "required|string",
+                "department_id" => "required|numeric|exists:departments,id",
+                "phone_number" => "required|phone",
+                "password" => "required|string|min:8"
+            ];
+            $errors = validate_form($rules);
+            
+            if(empty($errors)){
+                // Create user account
+                $user_data = [
+                    'email' => $input['email'],
+                    'password' => password_hash($input['password'], PASSWORD_DEFAULT),
+                    'type' => 'staff',
+                    'created_at' => date('Y-m-d H:i:s')
+                ];
+                
+                if($user_id = data_insert('users', $user_data)){
+                    // Create staff profile
+                    $staff_data = [
+                        'user_id' => $user_id,
+                        'position' => $input['position'],
+                        'department_id' => $input['department_id'],
+                        'phone_number' => $input['phone_number'],
+                        'status' => 'active'
+                    ];
+                    
+                    if(data_insert('non_teaching_staff', $staff_data)){
+                        $status = true;
+                        $data["message"] = "Non-teaching staff added successfully";
+                    } else {
+                        $errors["system_error"] = "Failed to create staff profile";
+                    }
+                } else {
+                    $errors["system_error"] = "Failed to create user account";
                 }
             }
         }

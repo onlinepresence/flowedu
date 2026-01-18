@@ -45,8 +45,19 @@
                 '/' => ['file' => 'admin/pages/staff/index.php'],
                 '/teachers' => ['file' => 'admin/pages/staff/teachers.php'],
                 '/non-teaching' => ['file' => 'admin/pages/staff/non-teaching.php'],
-                '/assignments' => ['file' => 'admin/pages/staff/assignments.php'],
-                '/roles' => ['file' => 'admin/pages/staff/roles.php'],
+                
+                // Teacher assignments and roles
+                '/assignments' => ['file' => 'admin/pages/staff/assignments.php'], // Keep for backward compatibility, redirects to teacher-assignments
+                '/teacher-assignments' => ['file' => 'admin/pages/staff/teacher-assignments.php'],
+                '/teacher-roles' => ['file' => 'admin/pages/staff/teacher-roles.php'],
+                
+                // Staff assignments and roles
+                '/staff-assignments' => ['file' => 'admin/pages/staff/staff-assignments.php'],
+                '/staff-roles' => ['file' => 'admin/pages/staff/staff-roles.php'],
+                
+                // Legacy routes (keep for backward compatibility)
+                '/roles' => ['file' => 'admin/pages/staff/roles.php'], // Keep for backward compatibility, redirects to teacher-roles
+                
                 '/materials' => ['file' => 'admin/pages/staff/materials.php'],
                 '/announcements' => ['file' => 'admin/pages/staff/announcements.php'],
 

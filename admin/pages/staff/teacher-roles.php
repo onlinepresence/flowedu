@@ -12,30 +12,38 @@ ob_start();
     <!-- Assign Roles to Teachers -->
     <div class="mb-6 p-6 bg-white rounded-lg shadow-md dark:bg-gray-800">
         <h3 class="mb-4 text-lg font-semibold text-gray-700 dark:text-gray-200">
-            <i class="fas fa-user-tag mr-2"></i>Manage Teacher Roles
+            <i class="fas fa-user-tag mr-2"></i>Assign Roles to Teachers
         </h3>
         
         <form action="<?= url('admin/submit.php') ?>" method="POST" id="role-assignment-form">
-            <?= input("hidden", "", "request_type", "assign_teacher_role") ?>
+            <?= input("hidden", "", "submit", "assign_teacher_role") ?>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <?= input("text", "Teacher Name/ID", "teacher_search", "", true, attribute("placeholder", "Search teacher by name or ID")) ?>
                 
                 <?php 
-                    // Common teacher roles - would typically fetch from database
+                    // Teacher-specific roles
                     $roles = [
                         ["id" => "class_teacher", "text" => "Class Teacher"],
                         ["id" => "head_of_department", "text" => "Head of Department"],
                         ["id" => "dean", "text" => "Dean"],
                         ["id" => "examinations_officer", "text" => "Examinations Officer"],
                         ["id" => "level_coordinator", "text" => "Level Coordinator"],
-                        ["id" => "program_coordinator", "text" => "Program Coordinator"]
+                        ["id" => "program_coordinator", "text" => "Program Coordinator"],
+                        ["id" => "course_coordinator", "text" => "Course Coordinator"],
+                        ["id" => "research_supervisor", "text" => "Research Supervisor"]
                     ];
                 ?>
                 <?= select("role", "Role", $roles, "Select Role", required: true) ?>
             </div>
             
             <?= textarea("description", "Description (Optional)", "", false, attribute("rows", "3"), attribute("placeholder", "Additional notes about this role assignment")) ?>
+            
+            <?php 
+                // Scope for the role (which program, level, course, etc.)
+                $programs = programs();
+            ?>
+            <?= select("program_id", "Program (Optional)", $programs, "All Programs", keys: select_keys("id", "name"), attributes: attribute("id", "role-program")) ?>
             
             <div class="mt-6">
                 <?= button("submit", "Assign Role", "submit", "assign_teacher_role", "purple") ?>
@@ -46,7 +54,7 @@ ob_start();
     <!-- Current Role Assignments -->
     <div class="mb-6">
         <h3 class="mb-4 text-lg font-semibold text-gray-700 dark:text-gray-200">
-            <i class="fas fa-list mr-2"></i>Current Role Assignments
+            <i class="fas fa-list mr-2"></i>Current Teacher Role Assignments
         </h3>
         
         <!-- Filters -->
@@ -78,13 +86,14 @@ ob_start();
             <?= thead_start() ?>
                 <?= th("Teacher") ?>
                 <?= th("Role") ?>
+                <?= th("Program/Scope") ?>
                 <?= th("Description") ?>
                 <?= th("Assigned Date") ?>
                 <?= th("Status") ?>
                 <?= th("Actions") ?>
             <?= thead_end() ?>
             <?= tbody_start(attribute('class', 'bg-white divide-y dark:divide-gray-700 dark:bg-gray-800')) ?>
-                <?= td_empty("Loading role assignments...", 6) ?>
+                <?= td_empty("Loading role assignments...", 7) ?>
             <?= tbody_end() ?>
         <?= table_end() ?>
     </div>

@@ -91,15 +91,26 @@
                 ]
             ],
 
-            "staff" => [
-                "text" => "Staff / Teachers",
-                "icon" => "fas fa-chalkboard-teacher",
+            "administration" => [
+                "text" => "Administration",
+                "icon" => "fas fa-user-tie",
                 "group" => true,
                 "items" => [
                     ["text" => "Admin Staff", "url" => "/admin/staff"],
-                    ["text" => "Teachers/Lecturers", "url" => "/admin/staff/teachers"],
-                    ["text" => "Assign Classes & Subjects", "url" => "/admin/staff/assignments"],
-                    ["text" => "Teacher Roles", "url" => "/admin/staff/roles"],
+                    ["text" => "Non-Teaching Staff", "url" => "/admin/staff/non-teaching"],
+                    ["text" => "Staff Assignments", "url" => "/admin/staff/staff-assignments"],
+                    ["text" => "Staff Roles", "url" => "/admin/staff/staff-roles"]
+                ]
+            ],
+
+            "teachers" => [
+                "text" => "Teachers / Lecturers",
+                "icon" => "fas fa-chalkboard-teacher",
+                "group" => true,
+                "items" => [
+                    ["text" => "All Teachers", "url" => "/admin/staff/teachers"],
+                    ["text" => "Teacher Assignments", "url" => "/admin/staff/teacher-assignments"],
+                    ["text" => "Teacher Roles", "url" => "/admin/staff/teacher-roles"],
                     ["text" => "Teacher Evaluations", "url" => "/admin/staff/evaluations"],
                     ["text" => "Course Materials Review", "url" => "/admin/staff/materials"],
                     ["text" => "Teacher Announcements", "url" => "/admin/staff/announcements"]
