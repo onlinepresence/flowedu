@@ -27,7 +27,7 @@
                     "index_number",
                     $is_student ? $student_indexnumber : "",
                     $is_student,
-                    array_merge(attribute("readonly", ""))
+                    !$is_student ? array_merge(attribute("readonly", "")) : []
                 ); ?>
             </div>
 
@@ -174,6 +174,38 @@
                     $is_student ? ($user["phone_number"] ?? '') : "",
                     true,
                     placeholder("Phone Number")
+                ); ?>
+            </div>
+        </div>
+    <?= fieldset_end(); ?>
+
+    <!-- disability information details -->
+    <?= fieldset_start() ?>
+        <?= fieldset_legend("Disability Information") ?>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 <?= $is_student ? "lg:grid-cols-3" : "" ?> gap-6">
+            <div>
+                <?php echo select(
+                    "disability_status",
+                    "Do you have a disability?",
+                    [
+                        "no" => "No",
+                        "yes" => "Yes"
+                    ],
+                    true,
+                    value: $is_student ? ($user["disability_status"] ?? "no") : "no",
+                    required: true
+                ); ?>
+            </div>
+
+            <div>
+                <?php echo select(
+                    "disability_type",
+                    "Type of Disability",
+                    disability_types(),
+                    false, // not required
+                    value: $is_student ? ($user["disability_type"] ?? "") : "",
+                    keys: select_keys("value", "text")
                 ); ?>
             </div>
         </div>

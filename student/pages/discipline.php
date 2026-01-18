@@ -26,6 +26,8 @@ $disciplinary_records = [
     ]
 ];
 
+$disciplinary_records = [];
+
 $has_records = !empty($disciplinary_records);
 $active_cases = array_filter($disciplinary_records, function($record) {
     return $record['status'] === 'Active';

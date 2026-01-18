@@ -490,7 +490,7 @@
                     "date_of_birth", "firstname", "gender", "nationality", "ghana_card", "religion", "denomination", 
                     "current_year", "contact_address", "phone_number", "admission_date", "graduated", "account_bank",
                     "account_number", "allergy", "insurance_number", "hall_id", "is_new", "approved",
-                    "s.created_at", "s.updated_at"
+                    "s.created_at", "s.updated_at", "disability_status", "disability_type"
                 ];
                 break;
             case "teacher":
@@ -941,6 +941,24 @@
         }
     
         return $code;
+    }
+
+    /**
+     * Provides a list of disability types
+     * @return array
+     */
+    function disability_types() :array{
+        return [
+            ["value" => "visual_impairment", "text" => "Visual Impairment"],
+            ["value" => "hearing_impairment", "text" => "Hearing Impairment"],
+            ["value" => "mobility_impairment", "text" => "Mobility Impairment"],
+            ["value" => "learning_disability", "text" => "Learning Disability"],
+            ["value" => "speech_impairment", "text" => "Speech Impairment"],
+            ["value" => "autism_spectrum_disorder", "text" => "Autism Spectrum Disorder"],
+            ["value" => "chronic_illness", "text" => "Chronic Illness"],
+            ["value" => "mental_health_condition", "text" => "Mental Health Condition"],
+            ["value" => "other", "text" => "Other"]
+        ];
     }
 
     require_once "mailer_functions.php";

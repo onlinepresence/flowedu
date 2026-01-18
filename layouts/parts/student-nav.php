@@ -61,7 +61,7 @@
                 "items" => [
                     ["text" => "Fee Details", "url" => "/student/fees"],
                     ["text" => "Payment History", "url" => "/student/payment-history"],
-                    ["text" => "My Allowances", "url" => "/student/allowance"]
+                    // ["text" => "My Allowances", "url" => "/student/allowance"]
                 ]
             ],
 
@@ -83,10 +83,10 @@
                 "link" => "/student/discipline"
             ],
 
-            "alerts" => [
-                "text" => "Job Alerts",
-                "icon" => "fas fa-bell",
-                "link" => "/student/job-alerts"
-            ],
+            // "alerts" => [
+            //     "text" => "Job Alerts",
+            //     "icon" => "fas fa-bell",
+            //     "link" => "/student/job-alerts"
+            // ],
         ];
     }

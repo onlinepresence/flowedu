@@ -6,7 +6,7 @@ $user = user();
 
 // Mock medical data - replace with actual database queries
 $medical_info = [
-    'insurance_number' => $user['insurance_number'] ?? 'INS-2024-001234',
+    'insurance_number' => $user['insurance_number'] ?? $user['ghana_card'],
     'blood_type' => 'O+',
     'allergies' => $user['allergy'] ?? 'None recorded',
     'chronic_conditions' => 'None',
@@ -32,6 +32,8 @@ $medical_info = [
         ]
     ]
 ];
+
+$medical_info["medical_records"] = [];
 
 // Start output buffering to capture the content
 ob_start();

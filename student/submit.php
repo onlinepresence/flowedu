@@ -26,6 +26,8 @@
                 "phone_number" => "required|string|phone|unique:students,phone_number,user_id != {$_POST['user_id']}",
                 "religion" => "nullable|string",
                 "denomination" => "nullable|string",
+                "disability_status" => "nullable|string",
+                "disability_type" => "nullable|required_if:disability_status,yes|string",
             ];
             
             // other creation account validations
@@ -47,6 +49,7 @@
                 $rules = array_merge($rules, [
                     "account_bank" => "nullable|required_if:account_number",
                     "account_number" => "nullable|required_if:account_bank|unique:students,account_number, user_id != ".user()['user_id'],
+                    "ssnit_number" => "nullable|numeric",
                 ]);
             }
 
@@ -54,6 +57,11 @@
             
             if(!$errors){
                 $data = form_data("students/profiles/", ['username', 'prev_profile_pic']);
+
+                if($submit == "update_student"){
+                    $data["username"] = $data["index_number"];
+                }
+
                 $response = user()["username"] || $submit == "update_student" ? update(user(), $data, "students", ["user_id"]) : data_insert("students", array_merge($data, ["admission_index" => $data["index_number"]]));
 
                 if($response){

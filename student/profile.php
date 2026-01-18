@@ -117,8 +117,13 @@ ob_start();
                             placeholder("Enter Last Name"), attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"))
                         ); ?>
 
+                        <!-- First Name -->
+                        <?= input("text", "First Name", "firstname", required: true, value: user()['firstname'], attributes: array_merge(
+                            placeholder("Enter First Name"), attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"))
+                        ); ?>
+
                         <!-- Other Names -->
-                        <?= input("text", "Other Names", "othernames", required: true, value: user()['othernames'], attributes: array_merge(
+                        <?= input("text", "Other Names", "othernames", value: user()['othernames'], attributes: array_merge(
                             placeholder("Enter Other Names"), attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"))
                         ); ?>
 
@@ -135,6 +140,39 @@ ob_start();
                                 attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"),
                                 attribute("disabled")
                             )
+                        ); ?>
+
+                    <?= fieldset_end() ?>
+
+                    <!-- Disability Information Fieldset -->
+                    <?= fieldset_start(attributes: attribute("class", "grid gap-4 md:grid-cols-2")) ?>
+                        <?= fieldset_legend("Disability Information") ?>
+
+                        <!-- Disability Status (Yes/No Select, editable) -->
+                        <?= select(
+                            "disability_status",
+                            "Do you have a disability?",
+                            [
+                                ["value" => "no", "text" => "No"],
+                                ["value" => "yes", "text" => "Yes"]
+                            ],
+                            true,
+                            value: user()['disability_status'] ?? "no",
+                            required: true,
+                            keys: select_keys("value", "text"),
+                            attributes: attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500")
+                        ); ?>
+
+                        <!-- Disability Type (select), always editable -->
+                        <?= select(
+                            "disability_type",
+                            "Type of Disability",
+                            disability_types(),
+                            required: false,
+                            nullable: "Select type of disability",
+                            value: user()['disability_type'] ?? "",
+                            keys: select_keys("value", "text"),
+                            attributes: attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500")
                         ); ?>
 
                     <?= fieldset_end() ?>
@@ -225,9 +263,46 @@ ob_start();
                             value: user()["religion"] ?? ''
                         ); ?>
 
+                        <!-- Denomination -->
+                        <?php echo select(
+                            "denomination",
+                            "Denomination",
+                            [
+                                "catholic" => "Catholic",
+                                "presbyterian" => "Presbyterian",
+                                "methodist" => "Methodist",
+                                "anglican" => "Anglican",
+                                "pentecost" => "Pentecost",
+                                "baptist" => "Baptist",
+                                "apostolic" => "Apostolic",
+                                "seventh_day_adventist" => "Seventh Day Adventist",
+                                "assembly_of_god" => "Assembly of God",
+                                "other" => "Other"
+                            ],
+                            true,
+                            value: $user["denomination"] ?? ''
+                        ); ?>
+
                         <!-- Insurance Number -->
-                        <?= input_h("text", "Insurance Number", "insurance_number", sub_text: "Valid NHIS or Ghana Card", required: false, value: user()['insurance_number'], attributes: array_merge(
+                        <?= input_h("text", "Insurance Number", "insurance_number", required: false, value: user()['insurance_number'], attributes: array_merge(
                             placeholder("Enter Insurance Number"), attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"))
+                        ); ?>
+
+                        <!-- Ghana Card Information -->
+                        <?= input(
+                            "text",
+                            "Ghana Card Number",
+                            "ghana_card",
+                            user()["ghana_card"] ?? "",
+                            true,
+                            array_merge(
+                                placeholder("Enter your Ghana Card Number"),
+                                attribute("required"),
+                                attribute("pattern", "GHA-[0-9]{9}-[0-9]"),
+                                attribute("minlength", 15),
+                                attribute("maxlength", 15),
+                                attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500")
+                            )
                         ); ?>
 
                     <?= fieldset_end() ?>
@@ -249,6 +324,19 @@ ob_start();
                         <!-- Account Number -->
                         <?= input("text", "E-zwitch Account", "account_number", required: true, value: user()['account_number'] ?? "", attributes: array_merge(
                             placeholder("Enter Account Number"), attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"))
+                        ); ?>
+
+                        <!-- SSNIT Number -->
+                        <?= input_h(
+                            "text",
+                            "SSNIT Number",
+                            "ssnit_number",
+                            required: false,
+                            value: user()["ssnit_number"] ?? "",
+                            attributes: array_merge(
+                                placeholder("Enter SSNIT Number"),
+                                attribute("class", "w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500")
+                            )
                         ); ?>
 
                     <?= fieldset_end() ?>
