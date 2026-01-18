@@ -13,12 +13,21 @@ ob_start();
   </h1>
   <p class="text-gray-700 dark:text-gray-300">
     Page not found. Check the address or
-    <a
-      class="text-purple-600 hover:underline dark:text-purple-300"
-      href="<?= $_SERVER["HTTP_REFERER"] ?? "/" ?>"
-    >
-      <?= !empty($_SERVER["HTTP_REFERER"]) ? "go back" : "go to home" ?>
-    </a>
+    <?php if (!empty($_SERVER['HTTP_REFERER'])): ?>
+      <a
+        class="text-purple-600 hover:underline dark:text-purple-300"
+        href="javascript:history.back()"
+      >
+        go back
+      </a>
+    <?php else: ?>
+      <a
+        class="text-purple-600 hover:underline dark:text-purple-300"
+        href="/"
+      >
+        go to home
+      </a>
+    <?php endif; ?>
     .
   </p>
 </div>

@@ -45,6 +45,8 @@
                 '/' => ['file' => 'admin/pages/staff/index.php'],
                 '/teachers' => ['file' => 'admin/pages/staff/teachers.php'],
                 '/non-teaching' => ['file' => 'admin/pages/staff/non-teaching.php'],
+                '/assignments' => ['file' => 'admin/pages/staff/assignments.php'],
+                '/roles' => ['file' => 'admin/pages/staff/roles.php'],
 
                 // evaluation routes
                 '/evaluations' => ['file' => 'admin/pages/staff/evaluation/index.php', 'name' => 'admin.evaluations'],
@@ -65,6 +67,7 @@
                 '/program/{program_id}' => ['file' => 'admin/pages/course.php', "name" => "program.classes"],
                 '/program/{program_id}/{form_level}' => ['file' => 'admin/pages/course.php', "name" => "program.manage"],
                 '/sessions' => ['file' => 'admin/pages/session.php'],
+                '/timetable' => ['file' => 'admin/pages/academic/timetable.php'],
             ]
         ],
 
@@ -72,7 +75,10 @@
             'prefix' => '/admin/student',
             'middleware' => ['auth', 'valid_admin', 'check_school_status'],
             'routes' => [
-                // '/' => ['file' => 'admin/pages/students/index.php'],
+                '/promotion' => ['file' => 'admin/pages/students/promotion.php'],
+                '/graduation' => ['file' => 'admin/pages/students/graduation.php'],
+                '/medical' => ['file' => 'admin/pages/students/medical.php'],
+                '/discipline' => ['file' => 'admin/pages/students/discipline.php'],
             ]
         ],
 
@@ -82,6 +88,40 @@
             'routes' => [
                 '/roles' => ['file' => 'admin/pages/settings/roles.php'],
                 '/school' => ['file' => 'admin/setup/school.php'],
+                '/users' => ['file' => 'admin/pages/settings/users.php'],
+                '/backup' => ['file' => 'admin/pages/settings/backup.php'],
+            ]
+        ],
+
+        '/admin/grading' => [
+            'prefix' => '/admin/grading',
+            'middleware' => ['auth', 'valid_admin', 'check_school_status'],
+            'routes' => [
+                '/points' => ['file' => 'admin/pages/grading/points.php'],
+                '/enter' => ['file' => 'admin/pages/grading/enter.php'],
+                '/upload' => ['file' => 'admin/pages/grading/upload.php'],
+                '/transcripts' => ['file' => 'admin/pages/grading/transcripts.php'],
+            ]
+        ],
+
+        '/admin/finance' => [
+            'prefix' => '/admin/finance',
+            'middleware' => ['auth', 'valid_admin', 'check_school_status'],
+            'routes' => [
+                '/fees' => ['file' => 'admin/pages/finance/fees.php'],
+                '/payments' => ['file' => 'admin/pages/finance/payments.php'],
+                '/outstanding' => ['file' => 'admin/pages/finance/outstanding.php'],
+                '/scholarships' => ['file' => 'admin/pages/finance/scholarships.php'],
+            ]
+        ],
+
+        '/admin/reports' => [
+            'prefix' => '/admin/reports',
+            'middleware' => ['auth', 'valid_admin', 'check_school_status'],
+            'routes' => [
+                '/academic' => ['file' => 'admin/pages/reports/academic.php'],
+                '/payments' => ['file' => 'admin/pages/reports/payments.php'],
+                '/attendance' => ['file' => 'admin/pages/reports/attendance.php'],
             ]
         ],
 
