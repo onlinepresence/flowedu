@@ -88,7 +88,7 @@ ob_start();
                 <?= tbody_start(attribute('class', 'bg-white divide-y dark:divide-gray-700 dark:bg-gray-800')) ?>
                     <?php foreach ($pending_results as $result): ?>
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
-                            <?= td(htmlspecialchars($result['course_code'] . ' - ' . $result['course_name']), attribute('class', 'font-medium')) ?>
+                            <?= td(htmlspecialchars($result['course_code'] . ' - ' . $result['course_name']), attributes: attribute('class', 'font-medium')) ?>
                             <?= td(htmlspecialchars($result['teacher_name'])) ?>
                             <?= td('Level ' . $result['level']) ?>
                             <?= td(htmlspecialchars($result['session_name'])) ?>

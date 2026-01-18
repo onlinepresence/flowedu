@@ -196,7 +196,7 @@ ob_start();
                     ?>
                     <?= select("department_id", "Department", $dept_options, "Select Department", required: true, keys: select_keys("id", "text")) ?>
                     
-                    <?= input("text", "Phone Number", "phone_number", required: true, attribute("placeholder", "Enter phone number")) ?>
+                    <?= input("tel", "Phone Number", "phone_number", required: true, attributes: attribute("placeholder", "Enter phone number")) ?>
                     
                     <?= input("password", "Password", "password", required: true, attributes: array_merge(
                         placeholder("Enter password"),
