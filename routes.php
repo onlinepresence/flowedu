@@ -176,7 +176,25 @@
             'middleware' => ['auth', 'valid_teacher', 'check_school_status'],
             'routes' => [
                 '/dashboard' => ['file' => 'teacher/dashboard.php'],
-                '/profile' => ['file' => 'teacher/setup-personal.php']
+                '/profile' => ['file' => 'teacher/setup-personal.php'],
+                
+                // Courses section
+                '/courses' => ['file' => 'teacher/pages/courses.php'],
+                '/courses/materials' => ['file' => 'teacher/pages/materials.php'],
+                '/timetable' => ['file' => 'teacher/pages/timetable.php'],
+                
+                // Students section
+                '/students' => ['file' => 'teacher/pages/students.php'],
+                '/attendance' => ['file' => 'teacher/pages/attendance.php'],
+                '/performance' => ['file' => 'teacher/pages/performance.php'],
+                
+                // Assessments section
+                '/results/upload' => ['file' => 'teacher/pages/results-upload.php'],
+                '/grades' => ['file' => 'teacher/pages/grades.php'],
+                
+                // Communication section
+                '/announcements' => ['file' => 'teacher/pages/announcements.php'],
+                '/messages' => ['file' => 'teacher/pages/messages.php']
             ]
         ]
 
