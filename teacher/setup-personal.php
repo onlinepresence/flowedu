@@ -9,22 +9,104 @@ $isProfilePage = $teacher["is_onboarded"];
 
 $title = $isProfilePage ? 'Update Profile' : 'Setup Account'; // Set the page title
 
+// Get department name if available
+$department_name = "";
+if(!empty($teacher["department_id"])) {
+    $dept = fetchData("name", "departments", "id = " . $teacher["department_id"]);
+    $department_name = $dept ? $dept["name"] : "";
+}
+
 // Start output buffering to capture the content
 ob_start();
 ?>
-    <div class="p-6 space-y-6 bg-white rounded-lg shadow-md dark:bg-gray-800">
-        <?php if($isProfilePage): ?>
-            <div class="flex gap-4 pb-2 mb-4 text-sm font-medium text-gray-700 border-b dark:text-gray-200">
-                <a href="#" class="text-blue-600 menu-link dark:text-blue-300" data-view="details">Change Details</a>
-                <a href="#" class="menu-link" data-view="password">Change Password</a>
+<?php if($isProfilePage): ?>
+    <!-- Profile Mode: Two-column layout similar to student profile -->
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <!-- Left Column: Profile Picture and Quick Info -->
+        <div class="flex flex-col col-span-1 gap-6 lg:gap-8">
+            <!-- Profile Picture Section -->
+            <div class="relative p-6 bg-white rounded-lg shadow-md h-max dark:bg-gray-800">
+                <div class="relative w-32 h-32 m-auto overflow-hidden rounded-full">
+                    <img id="profile-pic" src="<?= asset($teacher['profile_pic'] ?? 'default-avatar.png') ?>" class="object-cover w-full h-full cursor-pointer" alt="Profile Picture" onclick="$('#file-input').click()">
+                    <input type="file" id="file-input" class="hidden" accept="image/*">
+                </div>
+                <div class="absolute flex-col items-center hidden gap-1 text-center top-6 right-10 lg:right-14" id="save-button-container">
+                    <button id="save-button" class="px-2 py-1 text-white bg-blue-500 rounded hover:bg-blue-600" title="Save">
+                        <i class="fas fa-save"></i>
+                    </button>
+                    <button id="cancel-edit" type="button" class="px-2 py-1 text-white bg-red-500 rounded hover:bg-red-600" title="Cancel">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <!-- Other user information -->
+                <div class="mt-6 text-center">
+                    <h3 class="text-xl font-semibold text-gray-800 dark:text-white">
+                        <?= ($teacher['lastname'] ?? '') . ' ' . ($teacher['othernames'] ?? '') ?>
+                    </h3>
+                    
+                    <div class="text-gray-600 dark:text-gray-300">
+                        <p class="">
+                            <span class="font-medium">
+                                <?= $department_name ?: 'Department not assigned' ?>
+                            </span>
+                        </p>
+                        <?php if(!empty($teacher['staff_id'])): ?>
+                        <p class="mt-2">
+                            <span class="font-medium">
+                                <i class="mr-2 fas fa-id-badge"></i> <?= $teacher['staff_id'] ?>
+                            </span>
+                        </p>
+                        <?php endif; ?>
+                        <?php if(!empty($teacher['rank'])): ?>
+                        <p class="mt-2">
+                            <span class="font-medium">
+                                <i class="mr-2 fas fa-award"></i> <?= ucfirst($teacher['rank']) . " | " . $teacher['qualification'] ?>
+                            </span>
+                        </p>
+                        <?php endif; ?>
+                    </div>
+                </div>
             </div>
-        <?php endif; ?>
+
+            <!-- Change Password Section (Profile Mode Only) -->
+            <?php if($isProfilePage): ?>
+            <div class="p-6 bg-white rounded-lg shadow-md h-max dark:bg-gray-800">
+                <?= h3("Change Password") ?>
+                <form action="<?= url('teacher/submit.php') ?>" method="POST" id="change-password-form">
+                    <!-- Hidden User ID -->
+                    <?= hidden_input("user_id", $teacher['user_id']); ?>
+                    
+                    <div class="grid grid-cols-1 gap-4 mt-4">
+                        <?= input("password", "New Password", "password", "", true, placeholder("Enter new password")); ?>
+                        <?= input("password", "Confirm Password", "confirm_password", "", true, placeholder("Confirm new password")); ?>
+
+                        <!-- Password helper text -->
+                        <div>
+                            <?= password_hint_component() ?>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <?= button("submit", "Change Password", "submit", "set_password", "blue", attribute("class", "w-full")) ?>
+                    </div>
+                </form>
+            </div>
+            <?php endif; ?>
+        </div>
+
+        <!-- Right Column: Profile Form -->
+        <div class="col-span-1 p-6 bg-white rounded-lg shadow-md dark:bg-gray-800 lg:col-span-2">
+<?php else: ?>
+    <!-- Setup Mode: Single column layout (existing design) -->
+    <div class="p-6 space-y-6 bg-white rounded-lg shadow-md dark:bg-gray-800">
+<?php endif; ?>
 
         <div id="view-container">
-            <?php if($isProfilePage || $requiresReset): ?>
-                <!-- reset password -->
+            <?php if(!$isProfilePage && $requiresReset): ?>
+                <!-- reset password (Setup Mode Only) -->
                 <form action="<?= url('teacher/submit.php') ?>" method="POST" 
-                    id="view-password" class="<?= $isProfilePage ? "hidden" : "" ?>">
+                    id="view-password">
                     <!-- Hidden User ID -->
                     <?= hidden_input("user_id", $teacher['user_id']); ?>
                     
@@ -75,8 +157,8 @@ ob_start();
                         <?php endif; ?>
 
                         <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                            
-                            <!-- Profile Picture -->
+                            <?php if(!$isProfilePage): ?>
+                            <!-- Profile Picture (only shown in setup mode, profile mode has it in left sidebar) -->
                             <div>
                                 <?php
                                     $sub_text = $teacher["profile_pic"] 
@@ -86,6 +168,7 @@ ob_start();
                                         sub_text: $sub_text, attributes: attribute("accept", "image/*"));
                                 ?>
                             </div>
+                            <?php endif; ?>
 
                             <!-- Last Name -->
                             <div>
@@ -222,11 +305,71 @@ ob_start();
                 </form>
             <?php endif; ?>
         </div>
+<?php if($isProfilePage): ?>
+        </div>
     </div>
+<?php else: ?>
+    </div>
+<?php endif; ?>
 
-<?php $scripts = <<<HTML
-<script>
-    $(document).ready(function(){
+<?php 
+$profilePicScript = "";
+if($isProfilePage) {
+    $user_id = $teacher['user_id'];
+    $submit_url = url("teacher/submit.php");
+    $profilePicScript = <<<JS
+        // Profile picture change functionality (similar to student profile)
+        var original_path = $("#profile-pic").attr("src");
+
+        $('#file-input').on('change', function (event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    $('#profile-pic').attr('src', e.target.result);
+                    $('#save-button-container').removeClass("hidden").addClass("flex");
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        $('#save-button').on('click', function () {
+            const formData = new FormData();
+            const fileInput = $('#file-input')[0];
+            if (fileInput.files[0]) {
+                formData.append('profile_pic', fileInput.files[0]);
+                formData.append("submit", "change_picture");
+                formData.append("user_id", "$user_id");
+
+                ajaxCall({
+                    url: "$submit_url",
+                    method: 'POST',
+                    sendRaw: true,
+                    data: formData
+                }).then(response => {
+                    if(response.status){
+                        original_path = $("#profile-pic").attr('src');
+                        $("#cancel-edit").click();
+                        alert_box("Profile picture updated successfully", "success");
+                    }else{
+                        alert_box(response.message || "Failed to update profile picture", "error");
+                    }
+                })
+            }
+        });
+
+        $("#cancel-edit").click(function () {
+            $("#profile-pic").attr("src", original_path);
+            $('#save-button-container').addClass("hidden").removeClass("flex");
+            $('#file-input').val(''); // Clear the file input
+        });
+JS;
+}
+
+$menuLinkScript = "";
+if(!$isProfilePage && $requiresReset) {
+    // Only need tab navigation in setup mode when password reset is required
+    $menuLinkScript = <<<JS
         $('.menu-link').on('click', function(e){
             e.preventDefault();
             $('.menu-link').removeClass('text-blue-600 dark:text-blue-300');
@@ -236,6 +379,15 @@ ob_start();
             $('#view-container > form').addClass('hidden');
             $('#view-' + view).removeClass('hidden');
         });
+JS;
+}
+
+$scripts = <<<HTML
+<script>
+    $(document).ready(function(){
+        $menuLinkScript
+        
+        $profilePicScript
     })
 </script>
 HTML;
