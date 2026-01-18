@@ -40,7 +40,7 @@ ob_start();
                         }
                     }
                 ?>
-                <?= select("session_id", "Academic Session", $session_options, "Select Session", required: true) ?>
+                <?= select("session_id", "Academic Session", $session_options, "Select Session") ?>
             </div>
             
             <div class="mt-6">
@@ -191,10 +191,14 @@ $(document).ready(function(){
         const level = $("#level").val();
         const sessionId = $("#session_id").val();
         
-        if(!programId || !level || !sessionId) {
-            showAlert("Please select program, level, and session", "warning");
+        if(!programId) {
+            showAlert("Please select a program", "warning");
+            return;
+        } else if(!level) {
+            showAlert("Please select a level", "warning");
             return;
         }
+        // sessionId is optional
         
         $.ajax({
             url: relative_path("admin/ajax/academic.php"),
