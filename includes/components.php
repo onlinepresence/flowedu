@@ -657,6 +657,25 @@
     }
 
     /**
+     * Starts a table data cell
+     * @param array $attributes Additional HTML attributes
+     * @return string Opening HTML td tag
+     */
+    function td_start($attributes = []){
+        $attr = convert_attributes($attributes);
+        $class_ = merge_class($attributes);
+        return "<td class=\"px-4 py-3 $class_\" $attr>";
+    }
+
+    /**
+     * Ends a table data cell
+     * @return string Closing HTML td tag
+     */
+    function td_end(){
+        return "</td>";
+    }
+
+    /**
      * Creates a table data cell
      * @param string $text Cell text
      * @param string $icon Icon URL

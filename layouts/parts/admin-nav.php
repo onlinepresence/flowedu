@@ -86,6 +86,7 @@
                     ["text" => "Grade Points", "url" => "/admin/grading/points"],
                     ["text" => "Enter Results", "url" => "/admin/grading/enter"],
                     ["text" => "Upload Results", "url" => "/admin/grading/upload"],
+                    ["text" => "Results Approval", "url" => "/admin/grading/approve"],
                     ["text" => "Transcripts", "url" => "/admin/grading/transcripts"]
                 ]
             ],
@@ -99,7 +100,9 @@
                     ["text" => "Teachers/Lecturers", "url" => "/admin/staff/teachers"],
                     ["text" => "Assign Classes & Subjects", "url" => "/admin/staff/assignments"],
                     ["text" => "Teacher Roles", "url" => "/admin/staff/roles"],
-                    ["text" => "Teacher Evaluations", "url" => "/admin/staff/evaluations"]
+                    ["text" => "Teacher Evaluations", "url" => "/admin/staff/evaluations"],
+                    ["text" => "Course Materials Review", "url" => "/admin/staff/materials"],
+                    ["text" => "Teacher Announcements", "url" => "/admin/staff/announcements"]
                 ]
             ],
 

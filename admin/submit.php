@@ -1351,6 +1351,236 @@
                 $data["message"] = "Database restore functionality - implement with caution. This operation is destructive.";
             }
         }
+        
+        // ========================================
+        // TEACHER MANAGEMENT HANDLERS
+        // ========================================
+        
+        elseif($submit == "approve_material"){
+            $input = form_data();
+            
+            $rules = [
+                "material_id" => "required|numeric|exists:course_materials,id"
+            ];
+            $errors = validate_form($rules);
+            
+            if(empty($errors)){
+                $update_data = [
+                    'status' => 'approved',
+                    'approved_by' => user()['id'],
+                    'approved_date' => date('Y-m-d H:i:s'),
+                    'published' => 1
+                ];
+                
+                if(update(['id' => $input['material_id']], $update_data, 'course_materials', ['id'])){
+                    $status = true;
+                    $data["message"] = "Material approved and published successfully";
+                } else {
+                    $errors["system_error"] = "Failed to approve material";
+                }
+            }
+        }
+        
+        elseif($submit == "reject_material"){
+            $input = form_data();
+            
+            $rules = [
+                "material_id" => "required|numeric|exists:course_materials,id",
+                "rejection_reason" => "required|string"
+            ];
+            $errors = validate_form($rules);
+            
+            if(empty($errors)){
+                $update_data = [
+                    'status' => 'rejected',
+                    'approved_by' => user()['id'],
+                    'approved_date' => date('Y-m-d H:i:s'),
+                    'rejection_reason' => $input['rejection_reason']
+                ];
+                
+                if(update(['id' => $input['material_id']], $update_data, 'course_materials', ['id'])){
+                    $status = true;
+                    $data["message"] = "Material rejected successfully";
+                } else {
+                    $errors["system_error"] = "Failed to reject material";
+                }
+            }
+        }
+        
+        elseif($submit == "delete_material"){
+            $input = form_data();
+            
+            $rules = [
+                "material_id" => "required|numeric|exists:course_materials,id"
+            ];
+            $errors = validate_form($rules);
+            
+            if(empty($errors)){
+                $material = fetchData("id, file_path", "course_materials", ["id" => $input['material_id']]);
+                if($material){
+                    // Delete physical file if exists
+                    if(!empty($material['file_path']) && file_exists($material['file_path'])){
+                        unlink($material['file_path']);
+                    }
+                    
+                    if(delete($material, 'course_materials', ['id'])){
+                        $status = true;
+                        $data["message"] = "Material deleted successfully";
+                    } else {
+                        $errors["system_error"] = "Failed to delete material";
+                    }
+                } else {
+                    $errors["system_error"] = "Material not found";
+                }
+            }
+        }
+        
+        elseif($submit == "approve_announcement"){
+            $input = form_data();
+            
+            $rules = [
+                "announcement_id" => "required|numeric|exists:announcements,id"
+            ];
+            $errors = validate_form($rules);
+            
+            if(empty($errors)){
+                $update_data = [
+                    'status' => 'active',
+                    'published' => 1,
+                    'approved_by' => user()['id'],
+                    'approved_date' => date('Y-m-d H:i:s')
+                ];
+                
+                if(update(['id' => $input['announcement_id']], $update_data, 'announcements', ['id'])){
+                    $status = true;
+                    $data["message"] = "Announcement approved and published successfully";
+                } else {
+                    $errors["system_error"] = "Failed to approve announcement";
+                }
+            }
+        }
+        
+        elseif($submit == "reject_announcement"){
+            $input = form_data();
+            
+            $rules = [
+                "announcement_id" => "required|numeric|exists:announcements,id",
+                "rejection_reason" => "required|string"
+            ];
+            $errors = validate_form($rules);
+            
+            if(empty($errors)){
+                $update_data = [
+                    'status' => 'rejected',
+                    'published' => 0,
+                    'approved_by' => user()['id'],
+                    'approved_date' => date('Y-m-d H:i:s'),
+                    'rejection_reason' => $input['rejection_reason']
+                ];
+                
+                if(update(['id' => $input['announcement_id']], $update_data, 'announcements', ['id'])){
+                    $status = true;
+                    $data["message"] = "Announcement rejected successfully";
+                } else {
+                    $errors["system_error"] = "Failed to reject announcement";
+                }
+            }
+        }
+        
+        elseif($submit == "archive_announcement"){
+            $input = form_data();
+            
+            $rules = [
+                "announcement_id" => "required|numeric|exists:announcements,id"
+            ];
+            $errors = validate_form($rules);
+            
+            if(empty($errors)){
+                if(update(['id' => $input['announcement_id']], ['status' => 'archived'], 'announcements', ['id'])){
+                    $status = true;
+                    $data["message"] = "Announcement archived successfully";
+                } else {
+                    $errors["system_error"] = "Failed to archive announcement";
+                }
+            }
+        }
+        
+        elseif($submit == "delete_announcement"){
+            $input = form_data();
+            
+            $rules = [
+                "announcement_id" => "required|numeric|exists:announcements,id"
+            ];
+            $errors = validate_form($rules);
+            
+            if(empty($errors)){
+                $announcement = fetchData("id", "announcements", ["id" => $input['announcement_id']]);
+                if($announcement){
+                    if(delete($announcement, 'announcements', ['id'])){
+                        $status = true;
+                        $data["message"] = "Announcement deleted successfully";
+                    } else {
+                        $errors["system_error"] = "Failed to delete announcement";
+                    }
+                } else {
+                    $errors["system_error"] = "Announcement not found";
+                }
+            }
+        }
+        
+        elseif($submit == "approve_results"){
+            $input = form_data();
+            
+            $rules = [
+                "result_id" => "required|numeric|exists:results,id"
+            ];
+            $errors = validate_form($rules);
+            
+            if(empty($errors)){
+                // Update all results for this submission batch
+                // Note: result_id might reference a submission/batch ID, adjust based on your schema
+                $update_data = [
+                    'approved' => 1,
+                    'approved_by' => user()['id'],
+                    'approved_date' => date('Y-m-d H:i:s'),
+                    'published' => 1
+                ];
+                
+                if(update(['id' => $input['result_id']], $update_data, 'results', ['id'])){
+                    $status = true;
+                    $data["message"] = "Results approved and published successfully";
+                } else {
+                    $errors["system_error"] = "Failed to approve results";
+                }
+            }
+        }
+        
+        elseif($submit == "reject_results"){
+            $input = form_data();
+            
+            $rules = [
+                "result_id" => "required|numeric|exists:results,id",
+                "rejection_reason" => "required|string"
+            ];
+            $errors = validate_form($rules);
+            
+            if(empty($errors)){
+                $update_data = [
+                    'approved' => 0,
+                    'published' => 0,
+                    'rejection_reason' => $input['rejection_reason'],
+                    'rejected_by' => user()['id'],
+                    'rejected_date' => date('Y-m-d H:i:s')
+                ];
+                
+                if(update(['id' => $input['result_id']], $update_data, 'results', ['id'])){
+                    $status = true;
+                    $data["message"] = "Results rejected successfully";
+                } else {
+                    $errors["system_error"] = "Failed to reject results";
+                }
+            }
+        }
 
         // delete an item
         elseif($submit == "delete-item"){

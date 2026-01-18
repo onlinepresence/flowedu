@@ -47,6 +47,8 @@
                 '/non-teaching' => ['file' => 'admin/pages/staff/non-teaching.php'],
                 '/assignments' => ['file' => 'admin/pages/staff/assignments.php'],
                 '/roles' => ['file' => 'admin/pages/staff/roles.php'],
+                '/materials' => ['file' => 'admin/pages/staff/materials.php'],
+                '/announcements' => ['file' => 'admin/pages/staff/announcements.php'],
 
                 // evaluation routes
                 '/evaluations' => ['file' => 'admin/pages/staff/evaluation/index.php', 'name' => 'admin.evaluations'],
@@ -101,6 +103,7 @@
                 '/enter' => ['file' => 'admin/pages/grading/enter.php'],
                 '/upload' => ['file' => 'admin/pages/grading/upload.php'],
                 '/transcripts' => ['file' => 'admin/pages/grading/transcripts.php'],
+                '/approve' => ['file' => 'admin/pages/grading/approve.php'],
             ]
         ],
 
