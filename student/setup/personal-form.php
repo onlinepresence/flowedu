@@ -2,6 +2,8 @@
     if(!isset($is_student)){
         $is_student = false;
     }
+
+    $student_indexnumber = $user["index_number"] ?? generate_admission_index();
 ?>
 
 <div class="grid grid-cols-1 gap-4" id="student-form-grid">
@@ -16,14 +18,14 @@
                 attributes: attribute("class", "mb-4 text-sm rounded-sm")
                 ) ?>
         <?php endif; ?>
-        <div class="grid grid-cols-1 sm:grid-cols-2 <?= $is_student? "lg:grid-cols-3" : "" ?> gap-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 <?= $is_student? "lg:grid-cols-3 xl:grid-cols-4" : "" ?> gap-6">
             <!-- index number -->
             <div>
                 <?php echo input(
                     "text",
                     "Index Number",
                     "index_number",
-                    $is_student ? ($user["index_number"] ?? generate_admission_index()) : "",
+                    $is_student ? $student_indexnumber : "",
                     $is_student,
                     array_merge(attribute("readonly", ""))
                 ); ?>
@@ -41,14 +43,15 @@
 
             <?php if($is_student): ?>
             <!-- username -->
-            <div>
+            <div class="hidden">
                 <?php echo input(
-                    "text",
+                    "hidden",
                     "Username",
                     "username",
-                    $is_student ? ($user["username"] ?? '') : "",
+                    // $is_student ? ($user["username"] ?? '') : "",
+                    $student_indexnumber,
                     $is_student,
-                    placeholder("Username")
+                    array_merge(placeholder("Username"), attribute("readonly"))
                 ); ?>
             </div>
             <?php endif; ?>
@@ -65,6 +68,17 @@
                 ); ?>
             </div>
 
+            <!-- First Name -->
+            <div>
+                <?php echo input(
+                    "text",
+                    "First Name",
+                    "firstname",
+                    $user["firstname"] ?? '',
+                    true,
+                    ["placeholder" => "Enter your first name"]
+                ); ?>
+            </div>
             <!-- Other Names -->
             <div>
                 <?php echo input(
@@ -72,8 +86,8 @@
                     "Other Names",
                     "othernames",
                     $user["othernames"] ?? '',
-                    true,
-                    ["placeholder" => "Enter your other names"]
+                    false,
+                    ["placeholder" => "Enter your other names (if any)"]
                 ); ?>
             </div>
 
@@ -118,6 +132,25 @@
                 ["Christian", "Muslim", "African Traditional"],
                 true,
                 value: $is_student ? ($user["religion"] ?? '') : ""
+            ); ?>
+
+            <?php echo select(
+                "denomination",
+                "Denomination",
+                [
+                    "catholic" => "Catholic",
+                    "presbyterian" => "Presbyterian",
+                    "methodist" => "Methodist",
+                    "anglican" => "Anglican",
+                    "pentecost" => "Pentecost",
+                    "baptist" => "Baptist",
+                    "apostolic" => "Apostolic",
+                    "seventh_day_adventist" => "Seventh Day Adventist",
+                    "assembly_of_god" => "Assembly of God",
+                    "other" => "Other"
+                ],
+                true,
+                value: $is_student ? ($user["denomination"] ?? '') : ""
             ); ?>
 
             <!-- contact address -->
@@ -242,7 +275,7 @@
                         ];
                     }
 
-                    echo select("hall_id", "Select a Hall", $halls_, true, required: true, value: $is_student ? (user()["program_id"] ?? '') : "")
+                    echo select("hall_id", "Select a Hall", $halls_, true, required: true, value: $is_student ? (user()["hall_id"] ?? '') : "")
                 ?>
             </div>
 

@@ -487,8 +487,8 @@
             case "student":
                 $cols = [
                     "s.id AS student_id", "index_number", "department_id", "program_id", "profile_pic",
-                    "date_of_birth", "gender", "nationality", "ghana_card", "religion", "current_year",
-                    "contact_address", "phone_number", "admission_date", "graduated", "account_bank",
+                    "date_of_birth", "firstname", "gender", "nationality", "ghana_card", "religion", "denomination", 
+                    "current_year", "contact_address", "phone_number", "admission_date", "graduated", "account_bank",
                     "account_number", "allergy", "insurance_number", "hall_id", "is_new", "approved",
                     "s.created_at", "s.updated_at"
                 ];

@@ -16,13 +16,16 @@
                 "user_id" => "required|numeric",
                 "index_number" => "required",
                 "lastname" => "required|string",
-                "othernames" => "required|string",
+                "firstname" => "required|string",
+                "othernames" => "nullable|string",
                 "date_of_birth" => "required|date",
                 "nationality" => "required|string",
                 "insurance_number" => "nullable|numeric",
                 "ghana_card" => "required|string|ghana_card",
                 "contact_address" => "required|string",
                 "phone_number" => "required|string|phone|unique:students,phone_number,user_id != {$_POST['user_id']}",
+                "religion" => "nullable|string",
+                "denomination" => "nullable|string",
             ];
             
             // other creation account validations
