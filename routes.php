@@ -216,7 +216,7 @@
             'prefix' => '/tools',
             'middleware' => ['auth'],
             'routes' => [
-                '/passport-validator' => ['file' => 'test_passport_validation.php', 'name' => 'tools.passport_validator']
+                '/passport-validator' => ['file' => 'tools/test_passport_validation.php']
             ]
         ]
 
