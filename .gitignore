@@ -7,3 +7,4 @@ nationalities.json
 vendor/
 /tmp
 phinx.php
+/uploads/test_images

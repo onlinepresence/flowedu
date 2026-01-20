@@ -14,7 +14,7 @@
         <?= fieldset_legend("Student Information") ?>
         <?php if($is_student): ?>
             <?= information_bar(
-                "Your profile picture should be minimum of minimum size 300 x 400 (7:9 ratio), and should have a red solid background. If your image does not meet this standard, it shall be rejected",
+                "Your profile picture should be minimum of minimum size 300 x 400 (7:9 ratio), and should have a red solid background. If your image does not meet this standard, it shall be rejected. <a href=\"" . route('tools.passport-validator') . "\" target=\"_blank\" class=\"underline font-medium hover:text-blue-600\">Test your image here</a> to verify it meets the requirements.",
                 attributes: attribute("class", "mb-4 text-sm rounded-sm")
                 ) ?>
         <?php endif; ?>

@@ -210,8 +210,15 @@
                 '/announcements' => ['file' => 'teacher/pages/announcements.php'],
                 '/messages' => ['file' => 'teacher/pages/messages.php']
             ]
-        ]
+        ],
 
+        '/tools' => [
+            'prefix' => '/tools',
+            'middleware' => ['auth'],
+            'routes' => [
+                '/passport-validator' => ['file' => 'test_passport_validation.php', 'name' => 'tools.passport_validator']
+            ]
+        ]
 
     ];
 

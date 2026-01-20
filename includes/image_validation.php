@@ -11,7 +11,7 @@
      * @param bool $skipRatioSize Skips the aspect ratio check
      * @return array Status and message indicating the result of the validation.
      */
-    function validate_passport_photo($imagePath, $target_bg_color = [255, 0, 0], $bgTolerance = 50, $minWidth = 300, $minHeight = 400, $skipRatioSize = true)
+    function validate_passport_photo($imagePath, $target_bg_color = [255, 0, 0], $bgTolerance = 120, $minWidth = 300, $minHeight = 400, $skipRatioSize = true)
     {
         if (!file_exists($imagePath)) {
             return ['status' => false, 'message' => 'Image file not found.'];
@@ -72,32 +72,94 @@
      *
      * @param string $imagePath Path to the image file.
      * @param array $targetColor RGB color of the target background (default is red).
-     * @param int $tolerance Tolerance level for color matching (default is 50).
+     * @param int $tolerance Tolerance level for color matching (default is 120).
      * @return bool True if the background color matches, false otherwise.
      */
     function is_background_color_match($imagePath, $targetColor = [255, 0, 0], $tolerance = 120){
-        $image = imagecreatefromstring(file_get_contents($imagePath));
+        if (!file_exists($imagePath)) {
+            return false;
+        }
+
+        // Determine image type and load accordingly
+        $imageInfo = @getimagesize($imagePath);
+        if (!$imageInfo) {
+            return false;
+        }
+
+        $width  = $imageInfo[0];
+        $height = $imageInfo[1];
+        $type   = $imageInfo[2];
+
+        // Load image based on type
+        $image = null;
+        switch ($type) {
+            case IMAGETYPE_JPEG:
+                $image = @imagecreatefromjpeg($imagePath);
+                break;
+            case IMAGETYPE_PNG:
+                $image = @imagecreatefrompng($imagePath);
+                // Preserve transparency for PNG
+                if ($image) {
+                    imagealphablending($image, false);
+                    imagesavealpha($image, true);
+                }
+                break;
+            case IMAGETYPE_WEBP:
+                if (function_exists('imagecreatefromwebp')) {
+                    $image = @imagecreatefromwebp($imagePath);
+                }
+                break;
+            default:
+                // Fallback to imagecreatefromstring
+                $imageData = @file_get_contents($imagePath);
+                if ($imageData) {
+                    $image = @imagecreatefromstring($imageData);
+                }
+                break;
+        }
+
         if (!$image) {
             return false;
         }
 
-        $width  = imagesx($image);
-        $height = imagesy($image);
-
+        // Sample strategy: Focus on corners and edges where background is most likely
+        // Use multiple sampling methods and take the best match
+        
         $samples = [];
-
-        // --- Sample top and bottom edges
-        for ($x = 0; $x < $width; $x++) {
-            foreach ([0, $height - 1] as $y) {
-                $samples[] = getRGBAt($image, $x, $y);
+        
+        // Method 1: Sample corners extensively (most reliable for background)
+        $cornerSize = min(20, floor($width / 10), floor($height / 10)); // Sample a small area around each corner
+        $corners = [
+            [0, 0],                           // Top-left
+            [$width - 1, 0],                  // Top-right
+            [0, $height - 1],                 // Bottom-left
+            [$width - 1, $height - 1]         // Bottom-right
+        ];
+        
+        foreach ($corners as $corner) {
+            $cx = $corner[0];
+            $cy = $corner[1];
+            // Sample a small square around the corner
+            for ($dx = 0; $dx < $cornerSize && $cx + $dx < $width; $dx++) {
+                for ($dy = 0; $dy < $cornerSize && $cy + $dy < $height; $dy++) {
+                    $samples[] = getRGBAt($image, $cx + $dx, $cy + $dy);
+                }
             }
         }
-
-        // --- Sample left and right edges
-        for ($y = 0; $y < $height; $y++) {
-            foreach ([0, $width - 1] as $x) {
-                $samples[] = getRGBAt($image, $x, $y);
-            }
+        
+        // Method 2: Sample edges with more density
+        $edgeStep = max(1, floor(min($width, $height) / 100)); // Sample more pixels for better accuracy
+        
+        // Top and bottom edges (full width)
+        for ($x = 0; $x < $width; $x += $edgeStep) {
+            $samples[] = getRGBAt($image, $x, 0);
+            $samples[] = getRGBAt($image, $x, $height - 1);
+        }
+        
+        // Left and right edges (full height)
+        for ($y = 0; $y < $height; $y += $edgeStep) {
+            $samples[] = getRGBAt($image, 0, $y);
+            $samples[] = getRGBAt($image, $width - 1, $y);
         }
 
         imagedestroy($image);
@@ -106,14 +168,36 @@
             return false;
         }
 
-        // --- Compute average color of sampled edge pixels
+        // Strategy: Check if a significant percentage of samples match the target color
+        // This is more robust than averaging, as averaging can be diluted by subject pixels
+        $matchingSamples = 0;
+        $totalSamples = count($samples);
+        
+        // Use a slightly more lenient tolerance for individual pixel matching
+        $pixelTolerance = $tolerance * 1.2; // 20% more lenient for individual pixels
+        
+        foreach ($samples as $sample) {
+            if (is_color_close_euclidean($sample, $targetColor, $pixelTolerance)) {
+                $matchingSamples++;
+            }
+        }
+        
+        // Require at least 60% of samples to match (background should dominate edges)
+        $matchPercentage = ($matchingSamples / $totalSamples) * 100;
+        $requiredMatchPercentage = 60;
+        
+        if ($matchPercentage >= $requiredMatchPercentage) {
+            return true;
+        }
+        
+        // Fallback: Also check average color (in case background is uniform but slightly off)
         $avgColor = [
-            array_sum(array_column($samples, 0)) / count($samples),
-            array_sum(array_column($samples, 1)) / count($samples),
-            array_sum(array_column($samples, 2)) / count($samples),
+            (int) round(array_sum(array_column($samples, 0)) / $totalSamples),
+            (int) round(array_sum(array_column($samples, 1)) / $totalSamples),
+            (int) round(array_sum(array_column($samples, 2)) / $totalSamples),
         ];
-
-        // --- Check closeness with Euclidean distance
+        
+        // Use the average check as a secondary validation
         return is_color_close_euclidean($avgColor, $targetColor, $tolerance);
     }
 
@@ -147,5 +231,26 @@
             abs($color1[1] - $color2[1]) <= $tolerance &&
             abs($color1[2] - $color2[2]) <= $tolerance
         );
+    }
+
+    /**
+     * Compare two RGB colors using Euclidean distance in 3D color space.
+     * This is more accurate than per-channel comparison as it considers the overall color similarity.
+     *
+     * @param array $color1 First RGB color array [R, G, B].
+     * @param array $color2 Second RGB color array [R, G, B].
+     * @param float $tolerance Maximum Euclidean distance allowed (default is 120).
+     * @return bool True if the Euclidean distance between colors is within tolerance, false otherwise.
+     */
+    function is_color_close_euclidean($color1, $color2, $tolerance = 120)
+    {
+        // Calculate Euclidean distance in 3D RGB space
+        $distance = sqrt(
+            pow($color1[0] - $color2[0], 2) +
+            pow($color1[1] - $color2[1], 2) +
+            pow($color1[2] - $color2[2], 2)
+        );
+
+        return $distance <= $tolerance;
     }
     ?>

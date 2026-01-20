@@ -40,10 +40,10 @@
                     "gender" => "required|string|in:male,female"
                 ]);
 
-                /*$validate_profile = validate_passport_photo($_FILES["profile_pic"]["tmp_name"]);
+                $validate_profile = validate_passport_photo($_FILES["profile_pic"]["tmp_name"]);
                 if(!$validate_profile["status"]){
                     $errors["profile_pic"] = $validate_profile["message"];
-                }*/
+                }
             }elseif($submit == "update_student"){
                 // verify account numbers
                 $rules = array_merge($rules, [
