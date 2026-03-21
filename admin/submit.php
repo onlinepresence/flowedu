@@ -132,15 +132,16 @@
                 }
 
                 if(data_insert("users", $data)){
+                    $new_user_id = db_last_insert_id();
                     // add user to table
                     if($data["type"] == "admin"){
                         data_insert("admins", [
-                            "user_id" => $connect->insert_id,
+                            "user_id" => $new_user_id,
                             "type" => $type
                         ]);
                     }elseif($data['type'] == "teacher"){
                         data_insert("teachers", [
-                            "user_id" => $connect->insert_id,
+                            "user_id" => $new_user_id,
                             "staff_id" => $_POST["staff_id"] ?? null,
                         ]);
                     }

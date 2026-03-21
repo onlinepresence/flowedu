@@ -89,7 +89,7 @@
                 }
 
                 if(data_insert('academic_sessions', $session_data)){
-                    $session_id = $connect->insert_id;
+                    $session_id = db_last_insert_id();
                     
                     // Insert Semesters
                     if(isset($input['semesters']) && is_array($input['semesters'])){

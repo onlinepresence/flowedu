@@ -417,6 +417,14 @@ function formatColumns(array $columns, array $tables): array {
     }
 
     /**
+     * Auto-increment id from the last successful INSERT executed through parse_statement().
+     * After mysqli::commit(), $connect->insert_id may be 0 while mysqli_stmt::$insert_id stays correct.
+     */
+    function db_last_insert_id(): int {
+        return (int)($GLOBALS['db_last_insert_id'] ?? 0);
+    }
+
+    /**
      * This function is used to parse prepared statememts
      * Effective for INSERT, UPDATE and DELETE statements
      * @param string $prepared_statement This is the prepared statement
@@ -430,6 +438,7 @@ function formatColumns(array $columns, array $tables): array {
 
         $connect->begin_transaction();
         try{
+            unset($GLOBALS['db_last_insert_id']);
             $stmt = $connect->prepare($prepared_statement);
             $stmt->bind_param($types, ...$values);
             $response = $stmt->execute();
@@ -439,6 +448,10 @@ function formatColumns(array $columns, array $tables): array {
             }
 
             $connect->commit();
+
+            if ($response && preg_match('/^\s*INSERT\s+/i', $prepared_statement)) {
+                $GLOBALS['db_last_insert_id'] = (int) $stmt->insert_id;
+            }
         }catch(Throwable $th){
             $errors["system_message"] = $th->getMessage();
             $connect->rollback();

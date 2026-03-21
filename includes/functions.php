@@ -700,7 +700,8 @@
                 $data["user_secret"] = generate_user_secret();
                 $response = data_insert("users", $data);
                 if($response){
-                    create_user_session($type, $connect->insert_id);
+                    $user_id = db_last_insert_id();
+                    create_user_session($type, $user_id);
 
                     // send verification email
                     if(send_verification_email() !== false){
