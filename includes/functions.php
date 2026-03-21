@@ -962,6 +962,26 @@
         ];
     }
 
+    /**
+     * Returns the current academic session and semester
+     * @return array
+     */
+    function current_session_and_semester() :array{
+        $session = fetchData("*", "academic_sessions", ["is_current" => 1]);
+        $semester = fetchData("*", "semesters", ["academic_session_id" => $session['id'], "is_current" => 1]);
+        return ["session" => $session, "semester" => $semester];
+    }
+
+    /**
+     * Gets all academic sessions that have been set
+     * @param bool $current Returns only the current session
+     * @return array
+     */
+    function get_academic_sessions(bool $current = false) :array{
+        $where = $current ? ["is_current" => 1] : [];
+        return fetchData("*", "academic_sessions", $where, 0, order_by: "start_date", asc: false);
+    }
+
     require_once "mailer_functions.php";
     require_once "jobs.php";
     require_once "student_function.php";
