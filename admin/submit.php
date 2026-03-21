@@ -223,8 +223,134 @@
                 $status = !empty($data);
 
                 if(isset($_GET["type"]) && $_GET["type"] == "student"){
-                    $guardian = fetchData("name, relationship, address, phone_number, email", "parent_guardians", "student_id={$data['student_id']}");
-                    $data = ["student" => $data, "guardian" => $guardian];
+                    $guardian = fetchData("id, name, relationship, address, phone_number, email", "parent_guardians", "student_id={$data['student_id']}");
+                    $data = ["student" => $data, "guardian" => $guardian ?: null];
+                }
+            }
+        }elseif($submit == "admin_update_student"){
+            $admins = ["admin", "hod", "dean", "owner"];
+            if(!in_array($_SESSION["user_type"] ?? "", $admins, true)){
+                $errors["system_message"] = "You are not authorized to update student records.";
+            }else{
+                require_once $rootPath."/includes/image_validation.php";
+
+                $target_uid = (int) ($_POST["user_id"] ?? 0);
+                $student_row = $target_uid ? fetchData("*", "students", "user_id = $target_uid") : false;
+                $user_row = $target_uid ? fetchData("*", "users", "id = $target_uid") : false;
+
+                if(!$student_row || !$user_row){
+                    $errors["system_message"] = "Student account could not be found.";
+                }elseif(empty($student_row["approved"])){
+                    $errors["system_message"] = "Only approved students can be updated from this list.";
+                }elseif(($user_row["type"] ?? "") !== "student"){
+                    $errors["system_message"] = "The selected account is not a student.";
+                }else{
+                    $rules = [
+                        "user_id" => "required|numeric|integer|positive|exists:users,id",
+                        "index_number" => "required",
+                        "lastname" => "required|string",
+                        "firstname" => "required|string",
+                        "othernames" => "nullable|string",
+                        "date_of_birth" => "required|date",
+                        "nationality" => "required|string",
+                        "insurance_number" => "nullable|numeric",
+                        "ghana_card" => "required|string|ghana_card",
+                        "contact_address" => "required|string",
+                        "phone_number" => "required|string|phone|unique:students,phone_number,user_id != $target_uid",
+                        "religion" => "nullable|string",
+                        "denomination" => "nullable|string",
+                        "disability_status" => "nullable|string",
+                        "disability_type" => "nullable|required_if:disability_status,yes|string",
+                        "program_id" => "required|numeric|exists:programs,id",
+                        "hall_id" => "required|numeric|exists:halls,id",
+                        "gender" => "required|string|in:male,female",
+                        "current_year" => "required|numeric|in:100,200,300,400",
+                        "account_bank" => "nullable|required_if:account_number",
+                        "account_number" => "nullable|required_if:account_bank|unique:students,account_number,user_id != $target_uid",
+                        "ssnit_number" => "nullable|numeric",
+                    ];
+
+                    if(!empty($_FILES["profile_pic"]["tmp_name"]) && $_FILES["profile_pic"]["error"] === UPLOAD_ERR_OK){
+                        $rules["profile_pic"] = "required|file|mimes:jpg,png,jpeg,avif,webp";
+                    }
+
+                    $errors = validate_form($rules);
+
+                    if(!$errors && !empty($_FILES["profile_pic"]["tmp_name"]) && $_FILES["profile_pic"]["error"] === UPLOAD_ERR_OK){
+                        $validate_profile = validate_passport_photo($_FILES["profile_pic"]["tmp_name"]);
+                        if(!$validate_profile["status"]){
+                            $errors["profile_pic"] = $validate_profile["message"];
+                        }
+                    }
+
+                    if(!$errors){
+                        $data = form_data("students/profiles/", ["username", "prev_profile_pic"]);
+                        $data["username"] = $data["index_number"];
+
+                        $response = update($student_row, $data, "students", ["user_id"]);
+                        if($response === true){
+                            $response = update($user_row, ["username" => $data["index_number"]], "users", ["id"]);
+                        }
+
+                        if($response === true){
+                            $status = true;
+                            $data = ["message" => "Student record updated successfully."];
+                        }else{
+                            if(!empty($data["profile_pic"]) && is_string($data["profile_pic"])){
+                                @unlink(asset($data["profile_pic"], false, true));
+                            }
+                            $errors["system_message"] = is_string($response) ? $response : "Update could not be completed.";
+                        }
+                    }
+                }
+            }
+        }elseif($submit == "admin_save_guardian"){
+            $admins = ["admin", "hod", "dean", "owner"];
+            if(!in_array($_SESSION["user_type"] ?? "", $admins, true)){
+                $errors["system_message"] = "You are not authorized to update guardian records.";
+            }else{
+                $rules = [
+                    "name" => "required|string",
+                    "student_id" => "required|integer|positive|exists:students,id",
+                    "relationship" => "required|string",
+                    "phone_number" => "required|phone"
+                ];
+                $messages = [
+                    "student_id" => [
+                        "required" => "Student could not be verified",
+                        "exists" => "Student was not found"
+                    ]
+                ];
+                $errors = validate_form($rules, $messages, hidden: ["student_id"]);
+
+                if(!$errors){
+                    $student_id = (int) $_POST["student_id"];
+                    $st = fetchData("id, approved", "students", "id = $student_id");
+                    if(!$st || empty($st["approved"])){
+                        $errors["system_message"] = "Student not found or not approved.";
+                    }else{
+                        $gid = (int) ($_POST["id"] ?? 0);
+                        $payload = form_data(exclude: ["id", "submit", "response_type"]);
+                        if($gid > 0){
+                            $g = fetchData("*", "parent_guardians", "id = $gid AND student_id = $student_id");
+                            if(!$g){
+                                $errors["system_message"] = "Guardian record not found.";
+                            }elseif(update($g, $payload, "parent_guardians", ["id"]) === true){
+                                $status = true;
+                                $data = ["message" => "Guardian information saved."];
+                            }else{
+                                $errors["system_message"] = "Guardian record could not be updated.";
+                            }
+                        }else{
+                            $payload["student_id"] = $student_id;
+                            if(data_insert("parent_guardians", $payload)){
+                                $status = true;
+                                $data = ["message" => "Guardian information saved."];
+                            }else{
+                                $errors["system_message"] = "Guardian record could not be created.";
+                            }
+                        }
+                    }
                 }
             }
         }

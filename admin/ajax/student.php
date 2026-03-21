@@ -26,6 +26,7 @@
                 ["join" => "students programs", "on" => "program_id id", "alias" => "s p"],
             ];
             $columns = [
+                "s.user_id AS user_id",
                 "index_number", "CONCAT(lastname, ' ', othernames) AS fullname", "d.name as department_name", "p.name as program_name",
                 "gender", "profile_pic", "current_year"
             ];

@@ -29,10 +29,12 @@ ob_start();
             array_merge(
                 create_td_action("fas fa-eye", "View", array_merge(
                     attribute("class", "text-blue-500 cursor-pointer hover:text-blue-600 action-view action-btn"),
+                    attribute("@click", "openModal()"),
                     data_attr("id", "__USER_ID__")
                 )),
                 create_td_action("fas fa-edit", "Edit", array_merge(
                     attribute("class", "text-yellow-500 cursor-pointer hover:text-yellow-600 action-edit action-btn"),
+                    attribute("@click", "openModal()"),
                     data_attr("id", "__USER_ID__")
                 ))
             )
@@ -138,6 +140,104 @@ ob_start();
     </div>
 </div>
 
+<?php
+$school_row = school();
+$print_school_name = htmlspecialchars($school_row['name'] ?? 'College', ENT_QUOTES, 'UTF-8');
+$print_school_addr = htmlspecialchars(trim($school_row['address'] ?? ''), ENT_QUOTES, 'UTF-8');
+?>
+
+<!-- View / Edit student modal -->
+<?= modal_start(array_merge(
+    attribute("id", "student-record-modal"),
+    attribute("class", "max-h-[90vh] overflow-y-auto max-w-4xl")
+));
+echo modal_header(); ?>
+<div class="modal-body">
+    <?= modal_body_start(attribute("class", "max-w-4xl w-full")) ?>
+        <?= modal_title("Student record", attribute("id", "student-modal-title")) ?>
+        <p id="student-modal-load" class="hidden no-print flex items-center justify-center gap-2 py-8 text-gray-600 dark:text-gray-300">
+            <i class="fas fa-spinner animate-spin"></i>
+            <span>Loading student…</span>
+        </p>
+        <p id="student-modal-error" class="hidden no-print text-center text-red-600 dark:text-red-400 py-6 px-4 border border-red-200 dark:border-red-800 rounded"></p>
+
+        <div id="student-modal-forms" class="hidden">
+            <form id="admin-student-record-form" method="post" enctype="multipart/form-data" class="space-y-4">
+                <?php
+                $user = [];
+                $admin_student_form = true;
+                $is_student = false;
+                require relative_path("student/setup/personal-form.php");
+                ?>
+            </form>
+
+            <form id="admin-guardian-record-form" method="post" class="mt-6 space-y-4">
+                <?= fieldset_start(array_merge(attribute("id", "guardian-form"), attribute("class", "mt-2"))) ?>
+                    <?= fieldset_legend("Guardian information") ?>
+                    <?= input("hidden", "", "student_id", "", false) ?>
+                    <?= input("hidden", "", "id", "0", false) ?>
+                    <?php
+                    $guardian = [];
+                    $is_student = true;
+                    require_once relative_path("student/setup/guardian-form.php");
+                    ?>
+                <?= fieldset_end() ?>
+            </form>
+
+            <div class="no-print mt-6 flex flex-wrap gap-3">
+                <?= button("button", "Print", "", "", "", attribute("id", "btn-student-print")) ?>
+                <?= button("button", "Save changes", "", "", "blue", attribute("id", "btn-student-save")) ?>
+                <?= button("button", "Cancel", "", "", "red", array_merge(
+                    attribute("id", "btn-student-cancel"),
+                    attribute("@click", "closeModal()")
+                )) ?>
+            </div>
+        </div>
+    <?= modal_body_end() ?>
+</div>
+<?= modal_end() ?>
+
+<!-- Formal print sheet (filled via JS; single guardian row from API) -->
+<div id="student-print-area" class="student-print-area-screen" aria-hidden="true">
+    <div class="print-inner">
+        <header class="print-header">
+            <h1 class="print-school-name"><?= $print_school_name ?></h1>
+            <?php if ($print_school_addr !== ''): ?>
+                <p class="print-school-addr"><?= $print_school_addr ?></p>
+            <?php endif; ?>
+            <h2 class="print-doc-title">Student information record</h2>
+        </header>
+        <table class="print-table">
+            <tbody id="student-print-tbody-student"></tbody>
+        </table>
+        <h3 class="print-section-title">Guardian / next of kin</h3>
+        <table class="print-table">
+            <tbody id="student-print-tbody-guardian"></tbody>
+        </table>
+        <p class="print-footnote">Generated from the student management system. Official use only.</p>
+    </div>
+</div>
+
+<style>
+.student-print-area-screen { position: absolute; left: -9999px; top: 0; width: 210mm; font-family: Georgia, "Times New Roman", serif; color: #111; }
+.student-print-area-screen .print-inner { padding: 12mm; }
+.student-print-area-screen .print-header { text-align: center; margin-bottom: 1rem; border-bottom: 2px solid #000; padding-bottom: 0.75rem; }
+.student-print-area-screen .print-school-name { font-size: 1.25rem; font-weight: 700; margin: 0; }
+.student-print-area-screen .print-school-addr { font-size: 0.85rem; margin: 0.25rem 0 0; }
+.student-print-area-screen .print-doc-title { font-size: 1rem; font-weight: 600; margin: 0.75rem 0 0; text-transform: uppercase; letter-spacing: 0.05em; }
+.student-print-area-screen .print-section-title { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.35rem; }
+.student-print-area-screen .print-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.student-print-area-screen .print-table td { border: 1px solid #333; padding: 0.35rem 0.5rem; vertical-align: top; }
+.student-print-area-screen .print-table td:first-child { width: 32%; font-weight: 600; background: #f5f5f5; }
+.student-print-area-screen .print-footnote { font-size: 0.65rem; margin-top: 1.25rem; color: #444; }
+@media print {
+    @page { size: A4; margin: 12mm; }
+    body * { visibility: hidden !important; }
+    #student-print-area, #student-print-area * { visibility: visible !important; }
+    #student-print-area { position: static !important; left: auto !important; width: 100% !important; }
+    .no-print { display: none !important; }
+}
+</style>
 
 <?php
     $pagination_script = pagination_script(
@@ -161,6 +261,192 @@ ob_start();
     <script>
         $(document).ready(function(){
             $pagination_script
+
+            let lastStudentPayload = null;
+
+            function alpineRoot() {
+                const el = document.documentElement;
+                return el && el._x_dataStack && el._x_dataStack[0] ? el._x_dataStack[0] : null;
+            }
+
+            /*function openStudentModal() {
+                const root = alpineRoot();
+                if (root && typeof root.openModal === 'function') {
+                    root.openModal('student-record-modal');
+                }
+            }*/
+
+            function resetStudentModalForms() {
+                $('#admin-student-record-form .file-preview-link').remove();
+                $('#admin-student-record-form input[name="profile_pic"]').prop('disabled', false);
+                $('#student-modal-error').addClass('hidden').text('');
+            }
+
+            function setStudentModalMode(mode) {
+                const \$all = $('#admin-student-record-form, #admin-guardian-record-form').find('input, select, textarea');
+                if (mode === 'view') {
+                    \$all.prop('disabled', true);
+                    $('#btn-student-save').addClass('hidden');
+                } else {
+                    \$all.prop('disabled', false);
+                    $('#admin-student-record-form input[name="index_number"]').prop('readonly', true);
+                    $('#btn-student-save').removeClass('hidden');
+                }
+                $('#student-modal-title').text(mode === 'view' ? 'View student' : 'Edit student');
+            }
+
+            function escCell(s) {
+                if (s == null || s === '') return '—';
+                const d = document.createElement('div');
+                d.textContent = String(s);
+                return d.innerHTML;
+            }
+
+            function fillStudentPrintArea(student, guardian) {
+                const programText = $('#admin-student-record-form select[name="program_id"] option:selected').text() || '';
+                const hallText = $('#admin-student-record-form select[name="hall_id"] option:selected').text() || '';
+                const fullName = [student.lastname, student.firstname, student.othernames].filter(Boolean).join(' ').trim();
+                const sRows = [
+                    ['Index number', student.index_number],
+                    ['Full name', fullName],
+                    ['Gender', student.gender],
+                    ['Date of birth', student.date_of_birth],
+                    ['Nationality', student.nationality],
+                    ['Phone', student.phone_number],
+                    ['Email', student.email],
+                    ['Address', student.contact_address],
+                    ['Ghana Card', student.ghana_card],
+                    ['Program', programText],
+                    ['Hall', hallText],
+                    ['Level', student.current_year]
+                ];
+                let html = '';
+                sRows.forEach(function (row) {
+                    html += '<tr><td>' + escCell(row[0]) + '</td><td>' + escCell(row[1]) + '</td></tr>';
+                });
+                $('#student-print-tbody-student').html(html);
+
+                const g = guardian || {};
+                const gRows = [
+                    ['Name', g.name],
+                    ['Relationship', g.relationship],
+                    ['Address', g.address],
+                    ['Phone', g.phone_number],
+                    ['Email', g.email]
+                ];
+                html = '';
+                gRows.forEach(function (row) {
+                    html += '<tr><td>' + escCell(row[0]) + '</td><td>' + escCell(row[1]) + '</td></tr>';
+                });
+                $('#student-print-tbody-guardian').html(html);
+            }
+
+            function loadStudentIntoModal(userId, mode) {
+                resetStudentModalForms();
+                $('#student-modal-forms').addClass('hidden');
+                $('#student-modal-error').addClass('hidden');
+                $('#student-modal-load').removeClass('hidden');
+                // openStudentModal();
+
+                ajaxCall({
+                    url: "/admin/submit.php",
+                    data: { submit: "fetch_user", id: userId, type: "student" },
+                    beforeSend: function () {}
+                }).then(function (response) {
+                    $('#student-modal-load').addClass('hidden');
+                    if (!response) {
+                        $('#student-modal-error').removeClass('hidden').text('Could not load student.');
+                        return;
+                    }
+                    if (response.status && response.data && response.data.student) {
+                        const data = response.data;
+                        lastStudentPayload = data;
+                        fill_form(data.student, $("#student-form-grid"), { profile_pic: "View Profile Picture" });
+                        $('#admin-guardian-record-form input[name="student_id"]').val(data.student.student_id);
+                        $('#admin-guardian-record-form input[name="id"]').val(data.guardian && data.guardian.id ? data.guardian.id : 0);
+                        if (data.guardian) {
+                            fill_form(data.guardian, $("#guardian-form"));
+                        } else {
+                            fill_form({ name: '', relationship: '', address: '', phone_number: '', email: '' }, $("#guardian-form"));
+                        }
+                        $('#admin-student-record-form select[name="program_id"]').trigger('change');
+                        $('#admin-student-record-form select[name="hall_id"]').trigger('change');
+                        $('#student-modal-forms').removeClass('hidden');
+                        setStudentModalMode(mode);
+                    } else {
+                        const msg = (response.errors && (response.errors.system_message || response.errors.system_error)) || "Could not load student.";
+                        $('#student-modal-error').removeClass('hidden').text(msg);
+                    }
+                });
+            }
+
+            $(document).on('click', '.action-view', function () {
+                const uid = $(this).data('id');
+                if (uid) loadStudentIntoModal(uid, 'view');
+            });
+
+            $(document).on('click', '.action-edit', function () {
+                const uid = $(this).data('id');
+                if (uid) loadStudentIntoModal(uid, 'edit');
+            });
+
+            $('#admin-student-record-form').on('change', 'select[name="program_id"]', function () {
+                const \$o = $(this).find('option:selected');
+                const dept = \$o.attr('data-dept-id');
+                if (dept != null && dept !== '') {
+                    $('input[name="department_id"]', '#admin-student-record-form').val(dept);
+                }
+            });
+
+            $('#admin-student-record-form').on('change', 'select[name="hall_id"]', function () {
+                /* hall cost fields are omitted in admin context; department still syncs from program */
+            });
+
+            $('#btn-student-print').on('click', function () {
+                if (!lastStudentPayload || !lastStudentPayload.student) return;
+                fillStudentPrintArea(lastStudentPayload.student, lastStudentPayload.guardian);
+                window.print();
+            });
+
+            $('#btn-student-save').on('click', function () {
+                const \$sForm = $('#admin-student-record-form');
+                const \$gForm = $('#admin-guardian-record-form');
+                \$sForm.find('input, select, textarea').prop('disabled', false);
+                \$gForm.find('input, select, textarea').prop('disabled', false);
+
+                const fd1 = new FormData(\$sForm[0]);
+                fd1.append('submit', 'admin_update_student');
+                ajaxCall({
+                    url: "/admin/submit.php",
+                    method: "POST",
+                    data: fd1,
+                    sendRaw: true
+                }).then(function (res) {
+                    if (res.status) {
+                        const fd2 = new FormData(\$gForm[0]);
+                        fd2.append('submit', 'admin_save_guardian');
+                        ajaxCall({
+                            url: "/admin/submit.php",
+                            method: "POST",
+                            data: fd2,
+                            sendRaw: true
+                        }).then(function (res2) {
+                            if (res2.status) {
+                                alert_box((res2.data && res2.data.message) ? res2.data.message : 'Saved.', 'success');
+                                if (typeof loadPaginatedData === 'function') {
+                                    loadPaginatedData(typeof currentPage !== 'undefined' ? currentPage : 1);
+                                }
+                                const root = alpineRoot();
+                                if (root && typeof root.closeModal === 'function') root.closeModal();
+                            } else {
+                                display_form_errors(res2.errors || {}, \$gForm);
+                            }
+                        });
+                    } else {
+                        display_form_errors(res.errors || {}, \$sForm);
+                    }
+                });
+            });
 
             // Handle filter changes (this is key for pagination with filters)
             $('#level, #faculty, #department, #program').on('change', function() {

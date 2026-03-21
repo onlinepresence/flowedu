@@ -2,6 +2,9 @@
     if(!isset($is_student)){
         $is_student = false;
     }
+    if (!isset($admin_student_form)) {
+        $admin_student_form = false;
+    }
 
     $student_indexnumber = $user["index_number"] ?? generate_admission_index();
 ?>
@@ -267,8 +270,9 @@
                         ];
                     }
 
-                    echo select("program_id", "Select a Program", $programs_, true, required: true, value: $is_student ? (user()["program_id"] ?? '') : "");
-                    echo input("hidden", name: "department_id", value: $is_student ? (user()['department_id'] ?? '') : "");
+                    $program_val = $is_student ? (user()["program_id"] ?? '') : ($admin_student_form ? ($user["program_id"] ?? '') : "");
+                    echo select("program_id", "Select a Program", $programs_, true, required: true, value: $program_val);
+                    echo input("hidden", name: "department_id", value: $is_student ? (user()['department_id'] ?? '') : ($admin_student_form ? ($user['department_id'] ?? '') : ""));
                 ?>
             </div>
 
@@ -307,7 +311,8 @@
                         ];
                     }
 
-                    echo select("hall_id", "Select a Hall", $halls_, true, required: true, value: $is_student ? (user()["hall_id"] ?? '') : "")
+                    $hall_val = $is_student ? (user()["hall_id"] ?? '') : ($admin_student_form ? ($user["hall_id"] ?? '') : "");
+                    echo select("hall_id", "Select a Hall", $halls_, true, required: true, value: $hall_val)
                 ?>
             </div>
 
@@ -329,12 +334,14 @@
                     ));
                 ?>
             </div>
+            <?php endif; ?>
 
+            <?php if($is_student || $admin_student_form): ?>
             <div>
                 <?= 
                     select("current_year", "Program Level", [
                         100,200,300,400
-                    ], required: true, value: $is_student ? $user["current_year"] ?? "" : "")
+                    ], required: true, value: ($is_student || $admin_student_form) ? ($user["current_year"] ?? "") : "")
                 ?>
             </div>
             <?php endif; ?>
