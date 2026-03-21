@@ -100,6 +100,7 @@
             'middleware' => ['auth', 'valid_admin', 'check_school_status'],
             'routes' => [
                 '/roles' => ['file' => 'admin/pages/settings/roles.php'],
+                '/image-validation' => ['file' => 'admin/pages/settings/image-validation.php'],
                 '/school' => ['file' => 'admin/setup/school.php'],
                 '/users' => ['file' => 'admin/pages/settings/users.php'],
                 '/backup' => ['file' => 'admin/pages/settings/backup.php'],

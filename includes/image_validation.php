@@ -1,21 +1,56 @@
 <?php
 
+    require_once __DIR__ . '/settings_functions.php';
+
+    /**
+     * Parse "w:h" into a numeric width/height ratio (width divided by height).
+     */
+    function passport_parse_aspect_ratio(string $ratio): float
+    {
+        $parts = preg_split('/\s*:\s*/', trim($ratio), 2);
+        if (count($parts) !== 2) {
+            return 7 / 9;
+        }
+        $w = (float) $parts[0];
+        $h = (float) $parts[1];
+        if ($w <= 0 || $h <= 0) {
+            return 7 / 9;
+        }
+
+        return $w / $h;
+    }
+
     /**
      * Validate if an image qualifies as a passport photo.
      *
      * @param string $imagePath Path to the image file.
-     * @param array $target_bg_color Expected background color in RGB (default is red).
-     * @param int $bgTolerance Tolerance level for background color matching (default is 50).
-     * @param int $minWidth Minimum image width (default is 300).
-     * @param int $minHeight Minimum image height (default is 400).
-     * @param bool $skipRatioSize Skips the aspect ratio check
+     * @param array|null $target_bg_color Expected background color in RGB; null loads from settings.
+     * @param int|null $bgTolerance Tolerance for background match; null loads from settings.
+     * @param int|null $minWidth Minimum image width; null loads from settings.
+     * @param int|null $minHeight Minimum image height; null loads from settings.
+     * @param bool|null $skipRatioSize Skips the aspect ratio check; null loads from settings.
      * @return array Status and message indicating the result of the validation.
      */
-    function validate_passport_photo($imagePath, $target_bg_color = [255, 0, 0], $bgTolerance = 120, $minWidth = 300, $minHeight = 400, $skipRatioSize = true)
+    function validate_passport_photo($imagePath, $target_bg_color = null, $bgTolerance = null, $minWidth = null, $minHeight = null, $skipRatioSize = null)
     {
         if (!file_exists($imagePath)) {
             return ['status' => false, 'message' => 'Image file not found.'];
         }
+
+        if ($target_bg_color === null) {
+            $target_bg_color = [
+                (int) get_setting('image_validation.passport_bg_color_r', 255),
+                (int) get_setting('image_validation.passport_bg_color_g', 0),
+                (int) get_setting('image_validation.passport_bg_color_b', 0),
+            ];
+        }
+
+        $bgTolerance = $bgTolerance ?? (int) get_setting('image_validation.passport_tolerance', 120);
+        $minWidth = $minWidth ?? (int) get_setting('image_validation.passport_min_width', 300);
+        $minHeight = $minHeight ?? (int) get_setting('image_validation.passport_min_height', 400);
+        $skipRatioSize = $skipRatioSize ?? (bool) get_setting('image_validation.passport_skip_ratio', true);
+
+        $aspectLabel = (string) get_setting('image_validation.passport_aspect_ratio', '7:9');
 
         [$width, $height, $type] = getimagesize($imagePath);
 
@@ -25,8 +60,8 @@
         }
 
         // Check aspect ratio
-        if (!$skipRatioSize && !is_passport_aspect_ratio($width, $height)) {
-            return ['status' => false, 'message' => "Invalid aspect ratio. Expected ratio is close to 7:9 (e.g. 350x450)."];
+        if (!$skipRatioSize && !is_passport_aspect_ratio($width, $height, 0.05, $aspectLabel)) {
+            return ['status' => false, 'message' => "Invalid aspect ratio. Expected ratio close to {$aspectLabel}."];
         }
 
         // Check background color
@@ -52,17 +87,21 @@
     }
 
     /**
-     * Check if the image's aspect ratio is close to the standard 7:9 ratio.
+     * Check if the image's aspect ratio is close to the configured ratio.
      *
      * @param int $width The width of the image.
      * @param int $height The height of the image.
      * @param float $tolerance Allowed tolerance for aspect ratio (default is 0.05).
+     * @param string|null $ratioString e.g. "7:9"; null loads from settings.
      * @return bool True if the aspect ratio is acceptable, false otherwise.
      */
-    function is_passport_aspect_ratio($width, $height, $tolerance = 0.05)
+    function is_passport_aspect_ratio($width, $height, $tolerance = 0.05, $ratioString = null)
     {
+        if ($ratioString === null) {
+            $ratioString = (string) get_setting('image_validation.passport_aspect_ratio', '7:9');
+        }
         $actualRatio = $width / $height;
-        $expectedRatio = 7 / 9;
+        $expectedRatio = passport_parse_aspect_ratio($ratioString);
 
         return abs($actualRatio - $expectedRatio) <= $tolerance;
     }
@@ -73,12 +112,24 @@
      * @param string $imagePath Path to the image file.
      * @param array $targetColor RGB color of the target background (default is red).
      * @param int $tolerance Tolerance level for color matching (default is 120).
+     * @param int|null $requiredMatchPercentage Minimum % of edge samples matching; null loads from settings.
+     * @param int|null $edgeSampleDivisor min(w,h) / divisor for edge step; null loads from settings.
      * @return bool True if the background color matches, false otherwise.
      */
-    function is_background_color_match($imagePath, $targetColor = [255, 0, 0], $tolerance = 120){
+    function is_background_color_match($imagePath, $targetColor = [255, 0, 0], $tolerance = 120, $requiredMatchPercentage = null, $edgeSampleDivisor = null){
         if (!file_exists($imagePath)) {
             return false;
         }
+
+        if ($requiredMatchPercentage === null) {
+            $requiredMatchPercentage = (int) get_setting('image_validation.passport_match_percentage', 60);
+        }
+        $requiredMatchPercentage = max(0, min(100, $requiredMatchPercentage));
+
+        if ($edgeSampleDivisor === null) {
+            $edgeSampleDivisor = (int) get_setting('image_validation.passport_edge_sample_divisor', 100);
+        }
+        $edgeSampleDivisor = max(1, $edgeSampleDivisor);
 
         // Determine image type and load accordingly
         $imageInfo = @getimagesize($imagePath);
@@ -148,7 +199,7 @@
         }
         
         // Method 2: Sample edges with more density
-        $edgeStep = max(1, floor(min($width, $height) / 100)); // Sample more pixels for better accuracy
+        $edgeStep = max(1, floor(min($width, $height) / $edgeSampleDivisor));
         
         // Top and bottom edges (full width)
         for ($x = 0; $x < $width; $x += $edgeStep) {
@@ -182,9 +233,8 @@
             }
         }
         
-        // Require at least 60% of samples to match (background should dominate edges)
+        // Require configured percentage of samples to match (background should dominate edges)
         $matchPercentage = ($matchingSamples / $totalSamples) * 100;
-        $requiredMatchPercentage = 60;
         
         if ($matchPercentage >= $requiredMatchPercentage) {
             return true;

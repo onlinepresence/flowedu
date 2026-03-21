@@ -146,6 +146,7 @@
                 "group" => true,
                 "items" => [
                     ["text" => "Roles & Permissions", "url" => "/admin/settings/roles"],
+                    ["text" => "Image Validation", "url" => "/admin/settings/image-validation"],
                     ["text" => "User Accounts", "url" => "/admin/settings/users"],
                     ["text" => "School Profile", "url" => "/admin/settings/school"],
                     ["text" => "Backup & Restore", "url" => "/admin/settings/backup"],

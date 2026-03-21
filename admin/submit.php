@@ -6,7 +6,11 @@
         $errors = [];
         $request_from = $_SERVER["HTTP_REFERER"];
         $next_request = null;
-        $_SESSION["old_input"] = $_REQUEST;
+        // JSON/AJAX handlers repopulate via client; storing old_input here overwrites other forms' fields
+        // and empty POST values override DB defaults when components call old($key, $default).
+        if (($_REQUEST["response_type"] ?? "") !== "json") {
+            $_SESSION["old_input"] = $_REQUEST;
+        }
 
         if($submit == "create_admin" || $submit == "update_admin"){
             $is_update = $submit == "update_admin";
@@ -1703,6 +1707,60 @@
                     $data["message"] = "Results rejected successfully";
                 } else {
                     $errors["system_error"] = "Failed to reject results";
+                }
+            }
+        }
+
+        elseif($submit == "update_image_validation_settings"){
+            require_once $_SERVER["DOCUMENT_ROOT"]."/includes/settings_functions.php";
+            $preserveZeros = [
+                "passport_bg_color_r",
+                "passport_bg_color_g",
+                "passport_bg_color_b",
+                "passport_tolerance",
+                "passport_min_width",
+                "passport_min_height",
+                "passport_match_percentage",
+                "passport_edge_sample_divisor",
+            ];
+            $input = form_data(preserve: $preserveZeros);
+
+            $rules = [
+                "passport_bg_color_r" => "required|integer|min:0|max:255",
+                "passport_bg_color_g" => "required|integer|min:0|max:255",
+                "passport_bg_color_b" => "required|integer|min:0|max:255",
+                "passport_tolerance" => "required|integer|min:0|max:441",
+                "passport_min_width" => "required|integer|min:1",
+                "passport_min_height" => "required|integer|min:1",
+                "passport_match_percentage" => "required|integer|min:0|max:100",
+                "passport_aspect_ratio" => "required|string|in:7:9,3:4,1:1",
+                "passport_edge_sample_divisor" => "required|integer|min:10|max:500",
+            ];
+
+            $errors = validate_form($rules);
+
+            $skipRatio = isset($_REQUEST["passport_skip_ratio"]) && (string) $_REQUEST["passport_skip_ratio"] === "1";
+
+            if(empty($errors)){
+                $uid = user()["id"] ?? null;
+                $settings = [
+                    "image_validation.passport_bg_color_r" => (int) $input["passport_bg_color_r"],
+                    "image_validation.passport_bg_color_g" => (int) $input["passport_bg_color_g"],
+                    "image_validation.passport_bg_color_b" => (int) $input["passport_bg_color_b"],
+                    "image_validation.passport_tolerance" => (int) $input["passport_tolerance"],
+                    "image_validation.passport_min_width" => (int) $input["passport_min_width"],
+                    "image_validation.passport_min_height" => (int) $input["passport_min_height"],
+                    "image_validation.passport_match_percentage" => (int) $input["passport_match_percentage"],
+                    "image_validation.passport_skip_ratio" => $skipRatio,
+                    "image_validation.passport_aspect_ratio" => $input["passport_aspect_ratio"] ?? "7:9",
+                    "image_validation.passport_edge_sample_divisor" => (int) $input["passport_edge_sample_divisor"],
+                ];
+
+                if(bulk_update_settings($settings, $uid ? (int) $uid : null)){
+                    $status = true;
+                    $data["message"] = "Image validation settings updated successfully";
+                } else {
+                    $errors["system_error"] = "Failed to update settings";
                 }
             }
         }
