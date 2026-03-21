@@ -100,7 +100,6 @@
                                     'name' => $semester['name'],
                                     'start_date' => $semester['start_date'],
                                     'end_date' => $semester['end_date'],
-                                    'is_active' => isset($semester['is_active']) ? 1 : 0
                                 ];
                                 data_insert('semesters', $semester_data);
                             }
@@ -183,7 +182,6 @@
                                     'name' => $semester['name'],
                                     'start_date' => $semester['start_date'],
                                     'end_date' => $semester['end_date'],
-                                    'is_active' => isset($semester['is_active']) ? 1 : 0
                                 ];
                                 update(['id' => $semester['id']], $sem_data, 'semesters', ['id']);
                             }
@@ -195,7 +193,6 @@
                                     'name' => $semester['name'],
                                     'start_date' => $semester['start_date'],
                                     'end_date' => $semester['end_date'],
-                                    'is_active' => isset($semester['is_active']) ? 1 : 0
                                 ];
                                 data_insert('semesters', $sem_data);
                             }

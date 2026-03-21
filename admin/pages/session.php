@@ -5,13 +5,13 @@ $title = 'Academic Term / Session';
 $page_title = "Academic Sessions";
 
 // Pre-calculate URL for JS
-$ajax_url = relative_path('admin/ajax/session.php');
+$ajax_url = url('admin/ajax/session.php');
 
 ob_start();
 ?>
 
 <div x-data="sessionManager()" x-init="fetchSessions()" class="container px-6 mx-auto grid">
-    <?= information_bar("The current academic session and semester are automatically determined by the system based on today's date and the session dates provided below.", "info", false, ["class" => "mb-6"]) ?>
+    <?= information_bar("When you set an academic session, the system will automatically determine the current term (semester) based on its start and end dates.", "info", false, ["class" => "mb-6"]) ?>
 
     <div class="flex flex-col md:flex-row justify-between items-center my-6 gap-4">
         <?= button("button", "Create New Session", attributes: ["@click" => "openModal()", "class" => "flex items-center gap-2"]) ?>

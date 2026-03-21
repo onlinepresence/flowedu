@@ -76,12 +76,54 @@ function process_evaluation_status_updates(): bool {
 }
 
 /**
+ * Maintenance function: Sets semester is_active from calendar dates (today in app timezone).
+ * Active when start_date <= today <= end_date; otherwise inactive. Does not change academic_sessions.is_current.
+ *
+ * @return bool True if both update queries succeeded.
+ */
+function process_session_status_updates(): bool {
+    global $connect;
+
+    $today = $connect->real_escape_string(date('Y-m-d'));
+
+    $deactivate = "UPDATE semesters 
+                   SET is_active = 0 
+                   WHERE is_active != 0 
+                     AND (
+                       start_date IS NULL 
+                       OR end_date IS NULL 
+                       OR start_date > '{$today}' 
+                       OR end_date < '{$today}'
+                     )";
+
+    $activate = "UPDATE semesters 
+                 SET is_active = 1 
+                 WHERE start_date IS NOT NULL 
+                   AND end_date IS NOT NULL 
+                   AND start_date <= '{$today}' 
+                   AND end_date >= '{$today}' 
+                   AND is_active != 1";
+
+    $off = $connect->query($deactivate);
+    $on = $connect->query($activate);
+
+    if ($off !== false && $on !== false) {
+        log_cron_message("Semester active status updated for date {$today}.");
+        return true;
+    }
+
+    return false;
+}
+
+/**
  * The main dispatcher function called by worker.php to run evaluation maintenance.
  * This is where you queue up all your evaluation-related automatic tasks.
  */
 function run_automatic_jobs() {
     // Run the core function for updating active/closed statuses
     run_automatic_job('process_evaluation_status_updates');
+
+    run_automatic_job('process_session_status_updates');
     
     // You can add more automatic evaluation jobs here in the future
     // run_automatic_job('send_deadline_reminders');
