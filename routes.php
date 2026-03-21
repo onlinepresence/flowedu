@@ -33,6 +33,7 @@
             'routes' => [
                 '/dashboard' => ['file' => 'admin/dashboard.php'],
                 '/approve-student/{index_number}/{guardian}/{id}' => ['file' => 'admin/approve-student.php'],
+                '/students/print/{index_number}' => ['file' => 'admin/pages/students/print.php'],
                 '/students' => ['file' => 'admin/pages/students/index.php'],
                 '/profile' => ['file' => 'admin/setup/personal.php']
             ]

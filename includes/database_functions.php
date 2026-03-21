@@ -410,7 +410,8 @@ function formatColumns(array $columns, array $tables): array {
         $table_columns = get_column_types($table_name);
 
         foreach($columns as $column){
-            $response[] = $table_columns[strtolower($column)];
+            $key = strtolower($column);
+            $response[] = $table_columns[$key] ?? "s";
         }
 
         return implode("", $response);

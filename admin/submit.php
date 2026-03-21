@@ -285,7 +285,7 @@
 
                     if(!$errors){
                         $data = form_data("students/profiles/", ["username", "prev_profile_pic"]);
-                        $data["username"] = $data["index_number"];
+                        // username lives on users only; students table has no username column — do not pass it to update(students).
 
                         $response = update($student_row, $data, "students", ["user_id"]);
                         if($response === true){

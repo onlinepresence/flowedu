@@ -140,12 +140,6 @@ ob_start();
     </div>
 </div>
 
-<?php
-$school_row = school();
-$print_school_name = htmlspecialchars($school_row['name'] ?? 'College', ENT_QUOTES, 'UTF-8');
-$print_school_addr = htmlspecialchars(trim($school_row['address'] ?? ''), ENT_QUOTES, 'UTF-8');
-?>
-
 <!-- View / Edit student modal -->
 <?= modal_start(array_merge(
     attribute("id", "student-record-modal"),
@@ -197,48 +191,6 @@ echo modal_header(); ?>
 </div>
 <?= modal_end() ?>
 
-<!-- Formal print sheet (filled via JS; single guardian row from API) -->
-<div id="student-print-area" class="student-print-area-screen" aria-hidden="true">
-    <div class="print-inner">
-        <header class="print-header">
-            <h1 class="print-school-name"><?= $print_school_name ?></h1>
-            <?php if ($print_school_addr !== ''): ?>
-                <p class="print-school-addr"><?= $print_school_addr ?></p>
-            <?php endif; ?>
-            <h2 class="print-doc-title">Student information record</h2>
-        </header>
-        <table class="print-table">
-            <tbody id="student-print-tbody-student"></tbody>
-        </table>
-        <h3 class="print-section-title">Guardian / next of kin</h3>
-        <table class="print-table">
-            <tbody id="student-print-tbody-guardian"></tbody>
-        </table>
-        <p class="print-footnote">Generated from the student management system. Official use only.</p>
-    </div>
-</div>
-
-<style>
-.student-print-area-screen { position: absolute; left: -9999px; top: 0; width: 210mm; font-family: Georgia, "Times New Roman", serif; color: #111; }
-.student-print-area-screen .print-inner { padding: 12mm; }
-.student-print-area-screen .print-header { text-align: center; margin-bottom: 1rem; border-bottom: 2px solid #000; padding-bottom: 0.75rem; }
-.student-print-area-screen .print-school-name { font-size: 1.25rem; font-weight: 700; margin: 0; }
-.student-print-area-screen .print-school-addr { font-size: 0.85rem; margin: 0.25rem 0 0; }
-.student-print-area-screen .print-doc-title { font-size: 1rem; font-weight: 600; margin: 0.75rem 0 0; text-transform: uppercase; letter-spacing: 0.05em; }
-.student-print-area-screen .print-section-title { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.35rem; }
-.student-print-area-screen .print-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-.student-print-area-screen .print-table td { border: 1px solid #333; padding: 0.35rem 0.5rem; vertical-align: top; }
-.student-print-area-screen .print-table td:first-child { width: 32%; font-weight: 600; background: #f5f5f5; }
-.student-print-area-screen .print-footnote { font-size: 0.65rem; margin-top: 1.25rem; color: #444; }
-@media print {
-    @page { size: A4; margin: 12mm; }
-    body * { visibility: hidden !important; }
-    #student-print-area, #student-print-area * { visibility: visible !important; }
-    #student-print-area { position: static !important; left: auto !important; width: 100% !important; }
-    .no-print { display: none !important; }
-}
-</style>
-
 <?php
     $pagination_script = pagination_script(
         'admin/ajax/student.php', 
@@ -268,14 +220,7 @@ echo modal_header(); ?>
                 const el = document.documentElement;
                 return el && el._x_dataStack && el._x_dataStack[0] ? el._x_dataStack[0] : null;
             }
-
-            /*function openStudentModal() {
-                const root = alpineRoot();
-                if (root && typeof root.openModal === 'function') {
-                    root.openModal('student-record-modal');
-                }
-            }*/
-
+            
             function resetStudentModalForms() {
                 $('#admin-student-record-form .file-preview-link').remove();
                 $('#admin-student-record-form input[name="profile_pic"]').prop('disabled', false);
@@ -295,58 +240,11 @@ echo modal_header(); ?>
                 $('#student-modal-title').text(mode === 'view' ? 'View student' : 'Edit student');
             }
 
-            function escCell(s) {
-                if (s == null || s === '') return '—';
-                const d = document.createElement('div');
-                d.textContent = String(s);
-                return d.innerHTML;
-            }
-
-            function fillStudentPrintArea(student, guardian) {
-                const programText = $('#admin-student-record-form select[name="program_id"] option:selected').text() || '';
-                const hallText = $('#admin-student-record-form select[name="hall_id"] option:selected').text() || '';
-                const fullName = [student.lastname, student.firstname, student.othernames].filter(Boolean).join(' ').trim();
-                const sRows = [
-                    ['Index number', student.index_number],
-                    ['Full name', fullName],
-                    ['Gender', student.gender],
-                    ['Date of birth', student.date_of_birth],
-                    ['Nationality', student.nationality],
-                    ['Phone', student.phone_number],
-                    ['Email', student.email],
-                    ['Address', student.contact_address],
-                    ['Ghana Card', student.ghana_card],
-                    ['Program', programText],
-                    ['Hall', hallText],
-                    ['Level', student.current_year]
-                ];
-                let html = '';
-                sRows.forEach(function (row) {
-                    html += '<tr><td>' + escCell(row[0]) + '</td><td>' + escCell(row[1]) + '</td></tr>';
-                });
-                $('#student-print-tbody-student').html(html);
-
-                const g = guardian || {};
-                const gRows = [
-                    ['Name', g.name],
-                    ['Relationship', g.relationship],
-                    ['Address', g.address],
-                    ['Phone', g.phone_number],
-                    ['Email', g.email]
-                ];
-                html = '';
-                gRows.forEach(function (row) {
-                    html += '<tr><td>' + escCell(row[0]) + '</td><td>' + escCell(row[1]) + '</td></tr>';
-                });
-                $('#student-print-tbody-guardian').html(html);
-            }
-
             function loadStudentIntoModal(userId, mode) {
                 resetStudentModalForms();
                 $('#student-modal-forms').addClass('hidden');
                 $('#student-modal-error').addClass('hidden');
                 $('#student-modal-load').removeClass('hidden');
-                // openStudentModal();
 
                 ajaxCall({
                     url: "/admin/submit.php",
@@ -403,9 +301,9 @@ echo modal_header(); ?>
             });
 
             $('#btn-student-print').on('click', function () {
-                if (!lastStudentPayload || !lastStudentPayload.student) return;
-                fillStudentPrintArea(lastStudentPayload.student, lastStudentPayload.guardian);
-                window.print();
+                if (!lastStudentPayload || !lastStudentPayload.student || !lastStudentPayload.student.index_number) return;
+                const path = '/admin/students/print/' + encodeURIComponent(lastStudentPayload.student.index_number);
+                window.open(path, '_blank', 'noopener,noreferrer');
             });
 
             $('#btn-student-save').on('click', function () {

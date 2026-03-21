@@ -119,9 +119,29 @@ async function ajaxCall({url, data = {}, returnType = "json", method = "GET", se
             success: function (response) {
                 response_ = response;
             },
-            error: function (xhr, status, error) {
-                console.error(`Error: ${error}`, xhr);
-                alert_box(status != "" ? status : error, "danger");
+            error: function (xhr, status, errorThrown) {
+                console.error(`Error: ${errorThrown}`, xhr);
+                let msg = (typeof errorThrown === "string" && errorThrown) ? errorThrown : status;
+                if (status === "parsererror" && xhr && xhr.responseText) {
+                    const t = xhr.responseText.trim();
+                    const jsonStart = t.indexOf("{");
+                    if (jsonStart >= 0) {
+                        try {
+                            const parsed = JSON.parse(t.slice(jsonStart));
+                            if (parsed.errors) {
+                                const e = parsed.errors;
+                                msg = e.system_message || e.system_error || (typeof e === "string" ? e : JSON.stringify(e));
+                            }
+                        } catch (e) { /* keep msg */ }
+                    }
+                    if (!msg || msg === "parsererror") {
+                        msg = "Server returned invalid response (check for PHP warnings before JSON).";
+                    }
+                }
+                if (msg != null && typeof msg !== "string") {
+                    msg = String(msg);
+                }
+                alert_box(msg || "Request failed", "danger");
             }
         });
     } catch (error) {
@@ -172,6 +192,9 @@ function fill_form(object, $form, filePreviewMap = {}) {
  * @return this returns a message at the right top of a screen for an amount of time then disappears
  */
 function alert_box(message, color = "primary", time = 5){
+    if (message != null && typeof message !== "string") {
+        message = typeof message === "object" ? JSON.stringify(message) : String(message);
+    }
     // Create the container if it doesn't exist
     if($("body").find("#alert_modal").length < 1){
         const alert_modal = `
@@ -278,14 +301,20 @@ function remove_error_from_input($input){
  */
 function display_form_errors(errors, $form){
     for(const [fieldName, errorMessage] of Object.entries(errors)){
-        if(fieldName === "system_message"){
-            alert_box(errorMessage, "danger");
+        if(fieldName === "system_message" || fieldName === "system_error"){
+            const m = errorMessage != null && typeof errorMessage !== "string"
+                ? (typeof errorMessage === "object" ? JSON.stringify(errorMessage) : String(errorMessage))
+                : errorMessage;
+            alert_box(m, "danger");
             continue;
         }
 
         const $input = $form.find(`[name="${fieldName}"]`);
         if($input.length){
-            add_error_to_input($input, errorMessage);
+            const m = errorMessage != null && typeof errorMessage !== "string"
+                ? (typeof errorMessage === "object" ? JSON.stringify(errorMessage) : String(errorMessage))
+                : errorMessage;
+            add_error_to_input($input, m);
             // $input.addClass("border-red-600 dark:border-red-400");
         }
     }

@@ -27,7 +27,7 @@
             ];
             $columns = [
                 "s.user_id AS user_id",
-                "index_number", "CONCAT(lastname, ' ', othernames) AS fullname", "d.name as department_name", "p.name as program_name",
+                "index_number", "CONCAT(COALESCE(lastname, ''), ' ', COALESCE(firstname, ''), ' ', COALESCE(othernames, '')) AS fullname", "d.name as department_name", "p.name as program_name",
                 "gender", "profile_pic", "current_year"
             ];
 
@@ -57,7 +57,7 @@
                 ];
             
                 $columns = [
-                    "index_number", "CONCAT(lastname, ' ', othernames) AS fullname", "d.name as department_name",
+                    "index_number", "CONCAT(COALESCE(lastname, ''), ' ', COALESCE(firstname, ''), ' ', COALESCE(othernames, '')) AS fullname", "d.name as department_name",
                     "p.name as program_name", "gender", "current_year", "date_of_birth", "nationality", "religion",
                     "contact_address", "s.phone_number", "ghana_card", "h.name AS hall_name", "g.name as guardian_name",
                     "g.relationship as guardian_relation", "g.address as guardian_address", "g.phone_number as guardian_phone",
@@ -109,7 +109,7 @@
             // Columns required by frontend
             $columns = [
                 "s.user_id", "s.index_number", "s.profile_pic",
-                "CONCAT(s.lastname, ' ', s.othernames) AS fullname",
+                "CONCAT(COALESCE(s.lastname, ''), ' ', COALESCE(s.firstname, ''), ' ', COALESCE(s.othernames, '')) AS fullname",
                 "s.gender", "p.name AS program_name", "p.department_id", "s.created_at", "g.id AS guardian"
             ];
         
@@ -138,7 +138,7 @@
             $tables = [
                 ["join" => "promotions students", "on" => "student_id id", "alias" => "p s"]
             ];
-            $columns = ["p.id", "CONCAT(s.lastname, ' ', s.othernames) as student_name", "p.from_level", "p.to_level", "p.status"];
+            $columns = ["p.id", "CONCAT(COALESCE(s.lastname, ''), ' ', COALESCE(s.firstname, ''), ' ', COALESCE(s.othernames, '')) as student_name", "p.from_level", "p.to_level", "p.status"];
             $where = buildWhereClause($filters);
             $data["promotions"] = fetchData($columns, $tables, $where, 50);
             $status = true;
@@ -161,7 +161,7 @@
             $tables = [
                 ["join" => "graduations students", "on" => "student_id id", "alias" => "g s"]
             ];
-            $columns = ["g.id", "CONCAT(s.lastname, ' ', s.othernames) as student_name", "g.graduation_year", "g.class_of_honors"];
+            $columns = ["g.id", "CONCAT(COALESCE(s.lastname, ''), ' ', COALESCE(s.firstname, ''), ' ', COALESCE(s.othernames, '')) as student_name", "g.graduation_year", "g.class_of_honors"];
             $where = buildWhereClause($filters);
             $data["graduations"] = fetchData($columns, $tables, $where, 50);
             $status = true;
@@ -182,7 +182,7 @@
             $tables = [
                 ["join" => "medical_records students", "on" => "student_id id", "alias" => "m s"]
             ];
-            $columns = ["m.id", "CONCAT(s.lastname, ' ', s.othernames) as student_name", "m.condition_name", "m.date_reported"];
+            $columns = ["m.id", "CONCAT(COALESCE(s.lastname, ''), ' ', COALESCE(s.firstname, ''), ' ', COALESCE(s.othernames, '')) as student_name", "m.condition_name", "m.date_reported"];
             $where = buildWhereClause($filters);
             $data["medical"] = fetchData($columns, $tables, $where, 50);
             $status = true;
@@ -204,7 +204,7 @@
              $tables = [
                 ["join" => "discipline_records students", "on" => "student_id id", "alias" => "d s"]
             ];
-            $columns = ["d.id", "CONCAT(s.lastname, ' ', s.othernames) as student_name", "d.offense", "d.punishment", "d.date_committed"];
+            $columns = ["d.id", "CONCAT(COALESCE(s.lastname, ''), ' ', COALESCE(s.firstname, ''), ' ', COALESCE(s.othernames, '')) as student_name", "d.offense", "d.punishment", "d.date_committed"];
             $where = buildWhereClause($filters);
             $data["discipline"] = fetchData($columns, $tables, $where, 50);
             $status = true;
