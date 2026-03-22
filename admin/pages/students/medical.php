@@ -75,9 +75,12 @@ ob_start();
     </div>
 </div>
 
-<?php $scripts = <<<HTML
+<?php
+$url = url();
+$scripts = <<<HTML
 <script>
 var medicalTimer;
+const url = "$url";
 function runMedicalSearch() {
     var q = $('#search-medical').val().trim();
     if (q.length < 1) {
@@ -85,7 +88,7 @@ function runMedicalSearch() {
         $('#medical-results-body').empty();
         return;
     }
-    $.post(relative_path('admin/ajax/student.php'), {
+    $.post(url + 'admin/ajax/student.php', {
         submit: 'search_medical_students',
         response_type: 'json',
         search: q,
@@ -120,7 +123,7 @@ $(document).ready(function(){
 
     $(document).on('click', '.edit-medical', function(){
         var uid = $(this).data('user');
-        $.post(relative_path('admin/ajax/student.php'), {
+        $.post(url + 'admin/ajax/student.php', {
             submit: 'get_medical_student',
             response_type: 'json',
             user_id: uid
