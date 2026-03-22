@@ -83,10 +83,13 @@ ob_start();
     </div>
 </div>
 
-<?php $scripts = <<<HTML
+<?php 
+$url = url();
+$scripts = <<<HTML
 <script>
+    const url = "$url";
 function loadDisciplinaryRecords() {
-    $.post(relative_path('admin/ajax/student.php'), {
+    $.post(url + 'admin/ajax/student.php', {
         submit: 'fetch_disciplinary_records',
         response_type: 'json',
         search: $('#search-student').val(),
@@ -137,7 +140,7 @@ $(document).ready(function(){
     function runDiscSearch() {
         var q = $('#discipline-student-search').val().trim();
         if (q.length < 1) { $('#discipline-search-hits').addClass('hidden').empty(); return; }
-        $.post(relative_path('admin/ajax/student.php'), {
+        $.post(url + 'admin/ajax/student.php', {
             submit: 'search_students',
             response_type: 'json',
             q: q,
@@ -165,7 +168,7 @@ $(document).ready(function(){
     $(document).on('click', '.resolve-record', function(){
         var id = $(this).data('id');
         if (!confirm('Mark this case closed (set return status)?')) return;
-        $.post(relative_path('admin/ajax/student.php'), {
+        $.post(url + 'admin/ajax/student.php', {
             submit: 'resolve_disciplinary_record',
             response_type: 'json',
             record_id: id
