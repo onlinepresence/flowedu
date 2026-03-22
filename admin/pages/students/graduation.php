@@ -146,10 +146,13 @@ ob_start();
     </div>
 </div>
 
-<?php $scripts = <<<HTML
+<?php 
+$url = url();
+$scripts = <<<HTML
 <script>
+const url = "$url";
 function loadGraduationStats() {
-    $.post(relative_path('admin/ajax/student.php'), {
+    $.post(url + 'admin/ajax/student.php', {
         submit: 'get_graduation_stats',
         response_type: 'json'
     }, function(res) {
@@ -161,7 +164,7 @@ function loadGraduationStats() {
 }
 
 function loadGraduatedStudents() {
-    $.post(relative_path('admin/ajax/student.php'), {
+    $.post(url + 'admin/ajax/student.php', {
         submit: 'fetch_graduated_students',
         response_type: 'json',
         program_id: $('#filter-program').val(),
@@ -190,7 +193,7 @@ function loadClearanceForStudent(sid, label) {
     $('#clearance-student-id').val(sid);
     $('#clearance-student-label').text(label);
     $('#clearance-detail').removeClass('hidden');
-    $.post(relative_path('admin/ajax/student.php'), {
+    $.post(url + 'admin/ajax/student.php', {
         submit: 'fetch_student_clearances',
         response_type: 'json',
         student_id: sid
@@ -223,7 +226,7 @@ $(document).ready(function(){
     $('#clearance-search-btn').on('click', function(){
         var q = $('#clearance-student-search').val().trim();
         if (q.length < 1) return;
-        $.post(relative_path('admin/ajax/student.php'), {
+        $.post(url + 'admin/ajax/student.php', {
             submit: 'search_students',
             response_type: 'json',
             q: q,
@@ -254,7 +257,7 @@ $(document).ready(function(){
         var key = row.data('key');
         var sid = $('#clearance-student-id').val();
         var st = row.find('select.clearance-status').val();
-        $.post(relative_path('admin/submit.php'), {
+        $.post(url + 'admin/submit.php', {
             submit: 'save_clearance_department',
             response_type: 'json',
             student_id: sid,
