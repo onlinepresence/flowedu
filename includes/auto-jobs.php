@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/settings_functions.php';
+
 /**
  * Executes a single automatic, non-queued job, handling exceptions and logging.
  *
@@ -119,11 +121,75 @@ function process_session_status_updates(): bool {
  * The main dispatcher function called by worker.php to run evaluation maintenance.
  * This is where you queue up all your evaluation-related automatic tasks.
  */
+function process_auto_promotion(): bool
+{
+    if (get_setting('students.promotion_mode', 'auto') !== 'auto') {
+        return true;
+    }
+
+    $ctx = current_session_and_semester();
+    $session = $ctx['session'] ?? [];
+    if (empty($session['id'])) {
+        log_cron_message('Auto promotion skipped: no current academic session.');
+        return true;
+    }
+
+    $sessionId = (int)$session['id'];
+    $tables = [
+        ['join' => 'students programs', 'on' => 'program_id id', 'alias' => 's p'],
+    ];
+    $columns = ['s.id', 's.current_year', 'p.program_length'];
+    $where = ['s.approved = 1', 's.graduated = 0', 's.program_id IS NOT NULL', 'p.program_length IS NOT NULL'];
+    $rows = fetchData($columns, $tables, $where, 0);
+    if (!is_array($rows)) {
+        return false;
+    }
+    if (isset($rows['id'])) {
+        $rows = [$rows];
+    }
+
+    foreach ($rows as $row) {
+        $cy = (int)$row['current_year'];
+        $maxYear = (int)$row['program_length'] * 100;
+        if ($cy <= 0 || $cy >= $maxYear) {
+            continue;
+        }
+        $toLevel = $cy + 100;
+        $dup = fetchData('id', 'promotions', [
+            'student_id = ' . (int)$row['id'],
+            'academic_session_id = ' . $sessionId,
+            'from_level = ' . $cy,
+            'to_level = ' . $toLevel,
+        ], 1, where_binds: 'AND');
+        if (!empty($dup['id'])) {
+            continue;
+        }
+
+        $promo = [
+            'student_id' => (int)$row['id'],
+            'from_level' => $cy,
+            'to_level' => $toLevel,
+            'academic_session_id' => $sessionId,
+            'promoted_by' => null,
+            'promotion_date' => date('Y-m-d'),
+        ];
+        if (data_insert('promotions', $promo)) {
+            update(['id' => (int)$row['id']], ['current_year' => (string)$toLevel], 'students', ['id']);
+        }
+    }
+
+    return true;
+}
+
 function run_automatic_jobs() {
     // Run the core function for updating active/closed statuses
     run_automatic_job('process_evaluation_status_updates');
 
     run_automatic_job('process_session_status_updates');
+
+    if (get_setting('students.promotion_mode', 'auto') === 'auto') {
+        run_automatic_job('process_auto_promotion');
+    }
     
     // You can add more automatic evaluation jobs here in the future
     // run_automatic_job('send_deadline_reminders');

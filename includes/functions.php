@@ -968,8 +968,11 @@
      */
     function current_session_and_semester() :array{
         $session = fetchData("*", "academic_sessions", ["is_current" => 1]);
-        $semester = fetchData("*", "semesters", ["academic_session_id" => $session['id'], "is_current" => 1]);
-        return ["session" => $session, "semester" => $semester];
+        if (empty($session) || !is_array($session) || empty($session['id'])) {
+            return ["session" => [], "semester" => []];
+        }
+        $semester = fetchData("*", "semesters", ["academic_session_id" => $session['id'], "is_active" => 1]);
+        return ["session" => $session, "semester" => is_array($semester) ? $semester : []];
     }
 
     /**

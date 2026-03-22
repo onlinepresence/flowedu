@@ -17,11 +17,11 @@ ob_start();
                 <?= select("program_id", "Program", $programs, "All Programs", keys: select_keys("id", "name")) ?>
                 <?php $levels = [["id" => "", "text" => "All Levels"], ["id" => 100, "text" => "Level 100"], ["id" => 200, "text" => "Level 200"], ["id" => 300, "text" => "Level 300"], ["id" => 400, "text" => "Level 400"]]; ?>
                 <?= select("level", "Level", $levels, "All Levels") ?>
-                <?php $sessions = fetchData("*", "academic_sessions", "", 0, "", "", "", "session_name", true);
+                <?php $sessions = fetchData("*", "academic_sessions", "", 0, "", "", "", "name", true);
                 $session_options = [["id" => "", "text" => "All Sessions"]];
                 if(is_array($sessions) && !empty($sessions)) {
                     foreach($sessions as $session) {
-                        $session_options[] = ["id" => $session['id'], "text" => $session['session_name']];
+                        $session_options[] = ["id" => $session['id'], "text" => $session['name']];
                     }
                 } ?>
                 <?= select("session_id", "Session", $session_options, "All Sessions") ?>

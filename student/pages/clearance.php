@@ -1,35 +1,50 @@
 <?php
 require_once relative_path("includes/components.php");
+require_once relative_path("includes/clearance_departments.php");
 
 $title = 'Clearance Request'; // Set the page title
 $user = user();
 
 // get final year for user program
 $final_year = fetchData("program_length", "programs", "id = " . $user["program_id"])["program_length"] * 100;
-$is_locked = $final_year !== $user["current_year"];
+$is_locked = $final_year != $user["current_year"];
 
-if(!$is_locked){
-    $clearance_status = [
-        'library' => ['status' => 'pending', 'cleared_by' => null, 'cleared_at' => null],
-        'finance' => ['status' => 'pending', 'cleared_by' => null, 'cleared_at' => null],
-        'academic' => ['status' => 'pending', 'cleared_by' => null, 'cleared_at' => null],
-        'hostel' => ['status' => 'pending', 'cleared_by' => null, 'cleared_at' => null],
-        'sports' => ['status' => 'not_required', 'cleared_by' => null, 'cleared_at' => null],
-        'medical' => ['status' => 'pending', 'cleared_by' => null, 'cleared_at' => null]
-    ];
-} else {
-    // Non-final year students - clearance is locked
-    $clearance_status = [];
+$clearance_labels = clearance_department_definitions();
+$clearance_status = [];
+
+if (!$is_locked) {
+    $sid = (int)($user['student_id'] ?? 0);
+    $rows = fetchData('*', 'student_clearances', ["student_id = {$sid}"], 0);
+    $byKey = [];
+    if (is_array($rows)) {
+        $list = isset($rows['id']) ? [$rows] : $rows;
+        foreach ($list as $r) {
+            $byKey[$r['department_key']] = $r;
+        }
+    }
+    foreach ($clearance_labels as $key => $_label) {
+        $def = default_clearance_status_for_department($key);
+        if (isset($byKey[$key])) {
+            $row = $byKey[$key];
+            $clearedLabel = null;
+            if (!empty($row['cleared_by'])) {
+                $u = fetchData('username', 'users', ['id' => (int)$row['cleared_by']], 1);
+                $clearedLabel = is_array($u) ? ($u['username'] ?? null) : null;
+            }
+            $clearance_status[$key] = [
+                'status' => $row['status'],
+                'cleared_by' => $clearedLabel,
+                'cleared_at' => $row['cleared_at'] ?? null,
+            ];
+        } else {
+            $clearance_status[$key] = [
+                'status' => $def,
+                'cleared_by' => null,
+                'cleared_at' => null,
+            ];
+        }
+    }
 }
-
-$clearance_labels = [
-    'library' => 'Library',
-    'finance' => 'Finance Office',
-    'academic' => 'Academic Office',
-    'hostel' => 'Hostel/Hall',
-    'sports' => 'Sports Department',
-    'medical' => 'Medical Center'
-];
 
 // Calculate overall status only if clearance is not locked
 $overall_status = 'locked'; // pending, cleared, partial, locked
@@ -143,9 +158,11 @@ ob_start();
                         <i class="fas <?= $dept_info['icon'] ?> <?= $dept_info['text'] ?>"></i>
                     </div>
                     
-                    <?php if ($status['status'] === 'cleared'): ?>
+                    <?php if ($status['status'] === 'cleared' && !empty($status['cleared_at'])): ?>
                         <div class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                            <p><strong>Cleared by:</strong> <?= htmlspecialchars($status['cleared_by']) ?></p>
+                            <?php if (!empty($status['cleared_by'])): ?>
+                                <p><strong>Cleared by:</strong> <?= htmlspecialchars((string)$status['cleared_by']) ?></p>
+                            <?php endif; ?>
                             <p><strong>Date:</strong> <?= date('F j, Y', strtotime($status['cleared_at'])) ?></p>
                         </div>
                     <?php else: ?>

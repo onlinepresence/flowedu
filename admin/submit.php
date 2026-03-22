@@ -830,7 +830,7 @@
                 $errors = validate_form($rules);
                 
                 if(empty($errors)){
-                    $input["form_level"] %= 100;
+                    $input["from_level"] %= 100;
                     $input["to_level"] %= 100;
                     
                     $where = [];
@@ -842,15 +842,29 @@
                     }
                     
                     $students = fetchData("id, index_number", "students", $where, 0);
+                    $selected = $input['student_ids'] ?? [];
+                    if (!is_array($selected)) {
+                        $selected = array_filter(array_map('intval', explode(',', (string)$selected)));
+                    } else {
+                        $selected = array_map('intval', $selected);
+                    }
+                    $selected = array_filter($selected, fn ($id) => $id > 0);
+                    if (!empty($selected) && is_array($students)) {
+                        $students = array_values(array_filter($students, function ($s) use ($selected) {
+                            return in_array((int)($s['id'] ?? 0), $selected, true);
+                        }));
+                    }
                     $promoted = 0;
                     
                     if(is_array($students) && !empty($students)){
+                        $promoSessionId = !empty($input['session_id']) ? (int)$input['session_id'] : (int)(current_session_and_semester()['session']['id'] ?? 0);
+                        $promoSessionId = $promoSessionId > 0 ? $promoSessionId : null;
                         foreach($students as $student){
                             $promo_data = [
                                 'student_id' => $student['id'],
                                 'from_level' => $input['from_level'],
                                 'to_level' => $input['to_level'],
-                                'academic_session_id' => $input['session_id'] ?? null,
+                                'academic_session_id' => $promoSessionId,
                                 'promoted_by' => user()['id'],
                                 'promotion_date' => date('Y-m-d')
                             ];
@@ -873,10 +887,17 @@
             
             $rules = [
                 "level" => "required|numeric",
-                "session_id" => "required|numeric",
                 "graduation_date" => "required|date"
             ];
             $errors = validate_form($rules);
+            $sessionId = (int)($input['session_id'] ?? 0);
+            if (empty($errors) && $sessionId < 1) {
+                $ctx = current_session_and_semester();
+                $sessionId = (int)($ctx['session']['id'] ?? 0);
+            }
+            if (empty($errors) && $sessionId < 1) {
+                $errors['session_id'] = 'Select an academic session or set a current session';
+            }
             
             if(empty($errors)){
                 $where = ["current_year = " . (int)$input['level'], "approved = 1"];
@@ -892,7 +913,7 @@
                         $grad_data = [
                             'student_id' => $student['id'],
                             'graduation_date' => $input['graduation_date'],
-                            'academic_session_id' => $input['session_id'],
+                            'academic_session_id' => $sessionId,
                             'graduated_by' => user()['id'],
                             'status' => 'graduated'
                         ];
@@ -919,28 +940,40 @@
             $errors = validate_form($rules);
             
             if(empty($errors)){
-                // Get student ID from user_id
-                $student = fetchData("id", "students", ["user_id" => $input['user_id']]);
+                $student = fetchData("id, index_number, lastname, firstname, othernames, program_id", "students", ["user_id" => $input['user_id']]);
                 if($student){
                     $student_id = $student['id'];
-                    
-                    $med_data = [
-                        'blood_type' => $input['blood_type'] ?? null,
-                        'allergies' => $input['allergies'] ?? null,
-                        'insurance_number' => $input['insurance_number'] ?? null,
-                        'chronic_conditions' => $input['chronic_conditions'] ?? null,
-                        'emergency_contact_name' => $input['emergency_contact_name'] ?? null,
-                        'emergency_relationship' => $input['emergency_relationship'] ?? null,
-                        'emergency_phone' => $input['emergency_phone'] ?? null
+                    $allergy = trim((string)($input['allergies'] ?? ''));
+                    $insurance = trim((string)($input['insurance_number'] ?? ''));
+
+                    update(['id' => $student_id], [
+                        'allergy' => $allergy !== '' ? $allergy : null,
+                        'insurance_number' => $insurance !== '' ? $insurance : null,
+                    ], 'students', ['id']);
+
+                    $emergency = trim((string)($input['emergency_contacts'] ?? ''));
+                    if ($emergency === '' && (!empty($input['emergency_contact_name']) || !empty($input['emergency_phone']))) {
+                        $emergency = trim(
+                            ($input['emergency_contact_name'] ?? '') . ' — ' .
+                            ($input['emergency_relationship'] ?? '') . ' — ' .
+                            ($input['emergency_phone'] ?? '')
+                        );
+                    }
+
+                    $hist = [
+                        'medical_conditions' => trim((string)($input['medical_conditions'] ?? '')) ?: null,
+                        'allergies' => $allergy !== '' ? $allergy : null,
+                        'medications' => trim((string)($input['medications'] ?? '')) ?: null,
+                        'immunization_records' => trim((string)($input['immunization_records'] ?? '')) ?: null,
+                        'emergency_contacts' => $emergency !== '' ? $emergency : null,
                     ];
-                    
-                    // Check if medical record exists
-                    $existing = fetchData("id", "medical_records", ["student_id" => $student_id]);
-                    if($existing){
-                        update(['student_id' => $student_id], $med_data, 'medical_records', ['student_id']);
+
+                    $existing = fetchData("id", "medical_histories", ["student_id" => $student_id]);
+                    if ($existing) {
+                        update(['student_id' => $student_id], $hist, 'medical_histories', ['student_id']);
                     } else {
-                        $med_data['student_id'] = $student_id;
-                        data_insert('medical_records', $med_data);
+                        $hist['student_id'] = $student_id;
+                        data_insert('medical_histories', $hist);
                     }
                     
                     $status = true;
@@ -955,29 +988,48 @@
             $input = form_data();
             
             $rules = [
-                "student_index" => "required|string",
-                "incident" => "required|string",
-                "violation_type" => "required|string",
-                "severity" => "required|string",
-                "incident_date" => "required|date",
-                "action_taken" => "required|string"
+                "offense" => "required|string",
+                "action_taken" => "required|string",
+                "date_of_action" => "required|date",
+                "comments" => "nullable|string",
+                "return_date" => "nullable|date"
             ];
             $errors = validate_form($rules);
+
+            if (empty($input['student_id']) && empty($input['student_index'])) {
+                $errors['student_id'] = "Select a student or provide an index number";
+            }
             
             if(empty($errors)){
-                // Get student by index number
-                $student = fetchData("id", "students", ["index_number" => $input['student_index']]);
-                if($student){
+                if (!empty($input['student_id'])) {
+                    $student = fetchData(
+                        "id, index_number, lastname, firstname, othernames, program_id",
+                        "students",
+                        ["id" => (int)$input['student_id']]
+                    );
+                } else {
+                    $student = fetchData(
+                        "id, index_number, lastname, firstname, othernames, program_id",
+                        "students",
+                        ["index_number" => $input['student_index']]
+                    );
+                }
+                if($student && !empty($student['program_id'])){
+                    $fullname = trim(
+                        ($student['lastname'] ?? '') . ' ' .
+                        ($student['firstname'] ?? '') . ' ' .
+                        ($student['othernames'] ?? '')
+                    );
                     $dis_data = [
-                        'student_id' => $student['id'],
-                        'incident' => $input['incident'],
-                        'violation_type' => $input['violation_type'],
-                        'severity' => $input['severity'],
-                        'incident_date' => $input['incident_date'],
+                        'index_number' => $student['index_number'],
+                        'fullname' => $fullname,
+                        'program_id' => (int)$student['program_id'],
+                        'offense' => $input['offense'],
                         'action_taken' => $input['action_taken'],
-                        'status' => 'active',
-                        'recorded_by' => user()['id'],
-                        'recorded_date' => date('Y-m-d')
+                        'comments' => $input['comments'] ?? null,
+                        'date_of_action' => $input['date_of_action'],
+                        'return_date' => !empty($input['return_date']) ? $input['return_date'] : null,
+                        'return_status' => 0,
                     ];
                     
                     if(data_insert('disciplinary_records', $dis_data)){
@@ -987,8 +1039,83 @@
                         $errors["system_error"] = "Failed to add disciplinary record";
                     }
                 } else {
-                    $errors["student_index"] = "Student with index number not found";
+                    $errors["student_id"] = "Student not found or program not set";
                 }
+            }
+        }
+
+        elseif($submit == "save_promotion_settings"){
+            require_once $_SERVER["DOCUMENT_ROOT"] . "/includes/settings_functions.php";
+            $input = form_data();
+            $mode = $input['promotion_mode'] ?? '';
+            if (!in_array($mode, ['auto', 'manual'], true)) {
+                $errors['promotion_mode'] = "Invalid promotion mode";
+            } else {
+                $uid = (int)(user()['id'] ?? 0);
+                if (set_setting(
+                    'students.promotion_mode',
+                    $mode,
+                    'students',
+                    'string',
+                    'Student promotion: auto (cron) or manual (admin bulk)',
+                    $uid > 0 ? $uid : null
+                )) {
+                    $status = true;
+                    $data['message'] = 'Promotion settings saved';
+                    $data['promotion_mode'] = $mode;
+                } else {
+                    $errors['system_error'] = 'Could not save settings';
+                }
+            }
+        }
+
+        elseif($submit == "save_clearance_department"){
+            require_once $_SERVER["DOCUMENT_ROOT"] . "/includes/clearance_departments.php";
+            $input = form_data();
+            $rules = [
+                "student_id" => "required|numeric|exists:students,id",
+                "department_key" => "required|string",
+                "clearance_status" => "required|string",
+            ];
+            $errors = validate_form($rules);
+            $dept = $input['department_key'] ?? '';
+            $st = $input['clearance_status'] ?? '';
+            if (empty($errors) && !in_array($st, ['pending', 'cleared', 'not_required'], true)) {
+                $errors['clearance_status'] = 'Invalid status';
+            }
+            if (empty($errors) && !clearance_department_is_allowed($dept)) {
+                $errors['department_key'] = 'Invalid department';
+            }
+            if (empty($errors)) {
+                $uid = (int)user()['id'];
+                $now = date('Y-m-d H:i:s');
+                $st = $input['clearance_status'];
+                $sid = (int)$input['student_id'];
+                $row = fetchData("id", "student_clearances", [
+                    "student_id = {$sid}",
+                    "department_key = '" . addslashes($dept) . "'",
+                ], 1, where_binds: "AND");
+                $payload = [
+                    'status' => $st,
+                    'notes' => trim((string)($input['notes'] ?? '')) ?: null,
+                    'cleared_by' => $st === 'cleared' ? $uid : null,
+                    'cleared_at' => $st === 'cleared' ? $now : null,
+                    'updated_at' => $now,
+                ];
+                if ($st !== 'cleared') {
+                    $payload['cleared_by'] = null;
+                    $payload['cleared_at'] = null;
+                }
+                if ($row) {
+                    update(['id' => $row['id']], $payload, 'student_clearances', ['id']);
+                } else {
+                    $payload['student_id'] = (int)$input['student_id'];
+                    $payload['department_key'] = $dept;
+                    $payload['created_at'] = $now;
+                    data_insert('student_clearances', $payload);
+                }
+                $status = true;
+                $data['message'] = 'Clearance updated';
             }
         }
         

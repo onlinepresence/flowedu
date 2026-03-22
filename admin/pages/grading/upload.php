@@ -26,11 +26,11 @@ ob_start();
             
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <?php 
-                    $sessions = fetchData("*", "academic_sessions", "", 0, "", "", "", "session_name", true);
+                    $sessions = fetchData("*", "academic_sessions", "", 0, "", "", "", "name", true);
                     $session_options = [];
                     if(is_array($sessions) && !empty($sessions)) {
                         foreach($sessions as $session) {
-                            $session_options[] = ["id" => $session['id'], "text" => $session['session_name']];
+                            $session_options[] = ["id" => $session['id'], "text" => $session['name']];
                         }
                     }
                 ?>
