@@ -978,11 +978,12 @@
     /**
      * Gets all academic sessions that have been set
      * @param bool $current Returns only the current session
+     * @param int $limit Shows a specific number of sessions
      * @return array
      */
-    function get_academic_sessions(bool $current = false) :array{
+    function get_academic_sessions(bool $current = false, int $limit = 0) :array{
         $where = $current ? ["is_current" => 1] : [];
-        return fetchData("*", "academic_sessions", $where, 0, order_by: "start_date", asc: false);
+        return fetchData("*", "academic_sessions", $where, $limit, order_by: "start_date", asc: false);
     }
 
     require_once "mailer_functions.php";

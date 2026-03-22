@@ -127,20 +127,34 @@ function process_auto_promotion(): bool
         return true;
     }
 
+    $ctx = get_academic_sessions(limit: 2);
+
+    if(!is_array($ctx) || count($ctx) < 2){
+        log_cron_message('Auto promotion skipped: academic sessions not reached');
+        return false;
+    }
+
     $ctx = current_session_and_semester();
     $session = $ctx['session'] ?? [];
+    
     if (empty($session['id'])) {
         log_cron_message('Auto promotion skipped: no current academic session.');
+        return true;
+    }else if($session['end_date'] < date("Y-m-d")){
+        log_cron_message('Auto promotion skipped: current academic session is past.');
         return true;
     }
 
     $sessionId = (int)$session['id'];
     $tables = [
         ['join' => 'students programs', 'on' => 'program_id id', 'alias' => 's p'],
+        ['join' => 'students promotions', 'on' => 'id student_id', 'alias' => 's pr']
     ];
     $columns = ['s.id', 's.current_year', 'p.program_length'];
-    $where = ['s.approved = 1', 's.graduated = 0', 's.program_id IS NOT NULL', 'p.program_length IS NOT NULL'];
-    $rows = fetchData($columns, $tables, $where, 0);
+    $where = ['s.approved = 1', 's.graduated = 0', 's.program_id IS NOT NULL', 'p.program_length IS NOT NULL', 'pr.academic_session_id IS NULL'];
+    $rows = fetchData($columns, $tables, $where, 0, join_type: "left");
+
+    formatDump($rows);exit;
     if (!is_array($rows)) {
         return false;
     }
@@ -187,9 +201,13 @@ function run_automatic_jobs() {
 
     run_automatic_job('process_session_status_updates');
 
-    if (get_setting('students.promotion_mode', 'auto') === 'auto') {
-        run_automatic_job('process_auto_promotion');
+    // run on the fifteenth of every month
+    if(date("d") == 15){
+        if (get_setting('students.promotion_mode', 'auto') === 'auto') {
+            run_automatic_job('process_auto_promotion');
+        }
     }
+    
     
     // You can add more automatic evaluation jobs here in the future
     // run_automatic_job('send_deadline_reminders');

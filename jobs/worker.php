@@ -5,6 +5,9 @@
     // Include session and function files
     require_once "includes/load_env.php";
     require_once "includes/job_session.php";
+
+    process_auto_promotion();
+    exit;
     
     // run email queues
     run_worker("email");

@@ -795,10 +795,8 @@
             $input = form_data();
             
             if($submit == "preview_promotion"){
-                // Preview promotion - fetch students matching criteria
-                $input["from_level"] %= 100;
-                $input["to_level"] %= 100;
-                
+                $input["from_level"] /= 100;
+
                 $where = [];
                 if(!empty($input['from_level'])){
                     $where[] = "s.current_year = " . (int)$input['from_level'];
@@ -812,7 +810,7 @@
                 ];
                 $columns = [
                     "s.id", "s.user_id", "s.index_number", 
-                    "CONCAT(s.lastname, ' ', s.othernames) AS fullname",
+                    "CONCAT(COALESCE(s.lastname,''), ' ', COALESCE(s.firstname,''), ' ', COALESCE(s.othernames)) AS fullname",
                     "s.current_year", "p.name AS program_name"
                 ];
                 
@@ -830,8 +828,8 @@
                 $errors = validate_form($rules);
                 
                 if(empty($errors)){
-                    $input["from_level"] %= 100;
-                    $input["to_level"] %= 100;
+                    // $input["from_level"] /= 100;
+                    // $input["to_level"] /= 100;
                     
                     $where = [];
                     if(!empty($input['from_level'])){

@@ -275,7 +275,7 @@ $(function(){
         data.push({name: 'submit', value: 'confirm_promotion'});
         data.push({name: 'response_type', value: 'json'});
         picks.forEach(function(id){ data.push({name: 'student_ids[]', value: id}); });
-        $.post(url('admin/submit.php'), data, function(res){
+        $.post(url + 'admin/submit.php', data, function(res){
             if (res.status) {
                 alert(res.data.message || 'Done');
                 $('#promotion-preview').addClass('hidden');
