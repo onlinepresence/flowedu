@@ -1,0 +1,36 @@
+@import '@fortawesome/fontawesome-free/css/all.min.css';
+@import 'filepond/dist/filepond.min.css';
+@import 'filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+    .scrollbar-hidden {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    .scrollbar-hidden::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+@layer base {
+    [x-cloak] {
+        display: none !important;
+    }
+}
+
+@layer components {
+    /* Dashboard quick-link chips: readable on gray-950 tray in dark mode */
+    .dashboard-quick-link {
+        @apply inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-5 py-3.5 text-sm font-medium text-gray-700 shadow-sm transition-all duration-300;
+        @apply hover:-translate-y-0.5 hover:border-indigo-500 hover:bg-indigo-50/20 hover:text-indigo-700 hover:shadow-md;
+        @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-50;
+        @apply dark:border-gray-700/80 dark:bg-gray-800 dark:text-gray-200 dark:shadow-none;
+        @apply dark:hover:border-indigo-500/50 dark:hover:bg-indigo-950/20 dark:hover:text-indigo-400;
+        @apply dark:focus-visible:ring-indigo-400 dark:focus-visible:ring-offset-gray-950;
+    }
+}

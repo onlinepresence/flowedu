@@ -1,31 +1,32 @@
+import colors from 'tailwindcss/colors';
+import defaultTheme from 'tailwindcss/defaultTheme';
+import forms from '@tailwindcss/forms';
+
 /** @type {import('tailwindcss').Config} */
-module.exports = {
-  content: [
-    './**/*.html',
-    './**/*.php',
-    './**/*.js',
+export default {
+    darkMode: 'class',
 
-    // exclude the following
-    '!./node_modules/**',
-    '!./vendor/**',
-  ],
-  theme: {
-    extend: {
-      colors: {
-        background: '#f9fafb',
-        dark: '#0f172a',
-      },
-      foreground: {
-        DEFAULT: '#0f172a',
-        dark: '#f9fafb',
-      },
-      primary: {
-        DEFAULT: '#2563eb',
-        dark: '#60a5fa',
-      },
+    content: [
+        './vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php',
+        './storage/framework/views/*.php',
+        './resources/views/**/*.blade.php',
+    ],
+
+    theme: {
+        extend: {
+            colors: {
+                college: {
+                    accent: colors.purple[600],
+                    'accent-hover': colors.purple[700],
+                    'accent-muted': colors.purple[500],
+                    'on-accent': colors.white,
+                },
+            },
+            fontFamily: {
+                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+            },
+        },
     },
-  },
-  darkMode: 'class',
-  plugins: [],
-}
 
+    plugins: [forms],
+};
