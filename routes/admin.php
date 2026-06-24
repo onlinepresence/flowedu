@@ -99,6 +99,12 @@ Route::middleware($adminApp)->prefix('admin')->group(function () {
     Route::get('students/jobs', JobsIndexPage::class)->name('admin.students.jobs');
     Route::get('students/{index_number}/view', StudentShowPage::class)->name('admin.students.show');
     Route::get('profile', AdminSetupPersonalPage::class)->name('admin.profile');
+    Route::get('file-uploads', \App\Livewire\Admin\FileUploadsPage::class)
+        ->name('admin.file-uploads')
+        ->middleware('can:admin.manage_file_uploads');
+    Route::get('file-uploads/{file}/download', \App\Http\Controllers\Admin\UserFileDownloadController::class)
+        ->name('admin.file-uploads.download')
+        ->middleware('can:admin.manage_file_uploads');
 });
 
 Route::middleware($adminApp)->prefix('admin/staff')->group(function () {

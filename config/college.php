@@ -158,6 +158,7 @@ return [
         'sign_memo' => 'Sign and Approve Memos (HOD/Dean)',
         'self_sign_memo' => 'Self-sign official memos',
         'view_all_memos' => 'View all system Memos (Auditor/Principal)',
+        'manage_file_uploads' => 'Upload and Manage Files',
     ],
 
     /*

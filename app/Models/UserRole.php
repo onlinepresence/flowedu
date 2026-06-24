@@ -43,7 +43,7 @@ class UserRole extends Model
                     'nav_students_medical', 'nav_students_discipline', 'nav_academic_faculty', 'nav_academic_department',
                     'nav_academic_program', 'nav_academic_sessions', 'nav_academic_timetable', 'nav_staff_home',
                     'nav_staff_non_teaching', 'nav_staff_assignments', 'nav_staff_roles', 'nav_teachers_list',
-                    'nav_teachers_assignments', 'nav_teachers_roles', 'nav_memos', 'create_memo', 'forward_memo'
+                    'nav_teachers_assignments', 'nav_teachers_roles', 'nav_memos', 'create_memo', 'forward_memo', 'manage_file_uploads'
                 ],
             ],
             [
@@ -55,7 +55,7 @@ class UserRole extends Model
                     'nav_dashboard', 'nav_academic_faculty', 'nav_academic_department', 'nav_academic_program',
                     'nav_academic_sessions', 'nav_academic_timetable', 'nav_staff_home', 'nav_staff_non_teaching',
                     'nav_teachers_list', 'nav_teachers_assignments', 'nav_teachers_roles', 'nav_teachers_evaluations',
-                    'nav_teachers_materials', 'nav_teachers_announcements', 'nav_memos', 'create_memo', 'forward_memo', 'sign_memo', 'self_sign_memo'
+                    'nav_teachers_materials', 'nav_teachers_announcements', 'nav_memos', 'create_memo', 'forward_memo', 'sign_memo', 'self_sign_memo', 'manage_file_uploads'
                 ],
             ],
             [
@@ -75,7 +75,7 @@ class UserRole extends Model
                     'nav_finance_scholarships', 'nav_reports_academic', 'nav_reports_payments', 'nav_reports_attendance',
                     'nav_settings_licence', 'nav_settings_roles', 'nav_settings_image_validation', 'nav_settings_users',
                     'nav_settings_school', 'nav_settings_backup', 'nav_settings_env', 'nav_tools_passport',
-                    'nav_memos', 'create_memo', 'forward_memo', 'sign_memo', 'self_sign_memo', 'view_all_memos'
+                    'nav_memos', 'create_memo', 'forward_memo', 'sign_memo', 'self_sign_memo', 'view_all_memos', 'manage_file_uploads'
                 ],
             ],
             [
@@ -91,7 +91,7 @@ class UserRole extends Model
                     'nav_grading_approve', 'nav_grading_transcripts', 'nav_staff_home', 'nav_staff_non_teaching',
                     'nav_staff_assignments', 'nav_staff_roles', 'nav_teachers_list', 'nav_teachers_assignments',
                     'nav_teachers_roles', 'nav_teachers_evaluations', 'nav_teachers_materials', 'nav_teachers_announcements',
-                    'nav_reports_academic', 'nav_reports_attendance', 'nav_memos', 'create_memo', 'forward_memo', 'sign_memo', 'self_sign_memo'
+                    'nav_reports_academic', 'nav_reports_attendance', 'nav_memos', 'create_memo', 'forward_memo', 'sign_memo', 'self_sign_memo', 'manage_file_uploads'
                 ],
             ],
             [

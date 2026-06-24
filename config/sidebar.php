@@ -96,6 +96,12 @@ return [
                 ],
             ],
             [
+                'label' => 'File Manager',
+                'route' => 'admin.file-uploads',
+                'icon' => 'folder',
+                'permission' => 'manage_file_uploads',
+            ],
+            [
                 'label' => 'System Settings',
                 'icon' => 'cog-6-tooth',
                 'children' => [
