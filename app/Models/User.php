@@ -7,6 +7,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -22,6 +23,7 @@ use Illuminate\Support\Facades\Gate;
     'password',
     'user_secret',
     'active',
+    'staff_leave_type_id',
 ])]
 #[Hidden(['password', 'remember_token', 'user_secret'])]
 class User extends Authenticatable
@@ -35,7 +37,33 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'active' => 'boolean',
+            'staff_leave_type_id' => 'integer',
         ];
+    }
+
+    public function staffLeaveType(): BelongsTo
+    {
+        return $this->belongsTo(StaffLeaveType::class, 'staff_leave_type_id');
+    }
+
+    public function leaveRequests(): HasMany
+    {
+        return $this->hasMany(LeaveRequest::class);
+    }
+
+    public function invoicesCreated(): HasMany
+    {
+        return $this->hasMany(Invoice::class, 'created_by');
+    }
+
+    public function expendituresRecorded(): HasMany
+    {
+        return $this->hasMany(Expenditure::class, 'recorded_by');
+    }
+
+    public function systemAudits(): HasMany
+    {
+        return $this->hasMany(SystemAudit::class);
     }
 
     public function student(): HasOne

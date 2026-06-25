@@ -173,47 +173,235 @@
                     @endif
                 </div>
 
-                <div class="border-t border-gray-200 dark:border-gray-700 pt-5">
-                    <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-1 uppercase tracking-wider">{{ __('Permissions Configurator') }}</h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">{{ __('Toggle corresponding permission checkboxes. Use the real-time search box below to filter.') }}</p>
+                <!-- Categorized Permissions & Radio Configurator -->
+                <div class="border-t border-gray-200 dark:border-gray-700 pt-5" x-data="{
+                    search: '',
+                    selected: @entangle('selectedPermissions'),
+                    hasPerm(p) {
+                        return Array.isArray(this.selected) && this.selected.includes(p);
+                    },
+                    setRadioPerm(viewSlug, writeSlug, mode) {
+                        if (!Array.isArray(this.selected)) this.selected = [];
+                        this.selected = this.selected.filter(item => item !== viewSlug && item !== writeSlug);
+                        if (mode === 'view') {
+                            this.selected.push(viewSlug);
+                        } else if (mode === 'write') {
+                            this.selected.push(writeSlug);
+                        }
+                    },
+                    getRadioPerm(viewSlug, writeSlug) {
+                        if (this.hasPerm(writeSlug)) return 'write';
+                        if (this.hasPerm(viewSlug)) return 'view';
+                        return 'none';
+                    }
+                }">
+                    <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-1 uppercase tracking-wider">{{ __('Core Capability Settings') }}</h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">{{ __('Define access privilege levels for primary institutional administration modules.') }}</p>
                     
-                    <!-- Alpine Search and Checked Filters -->
-                    <div x-data="{ search: '' }">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Student Records Card -->
+                        <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/30">
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-450 mb-3 flex items-center gap-1.5">
+                                <i class="fa-solid fa-user-graduate text-purple-500"></i>
+                                {{ __('Student Records Access') }}
+                            </h4>
+                            <div class="space-y-2">
+                                <label class="flex items-center gap-2.5 cursor-pointer text-sm font-medium text-gray-750 dark:text-gray-300">
+                                    <input type="radio" name="student_access" value="none" 
+                                           :checked="getRadioPerm('student_management_view', 'student_management') === 'none'"
+                                           @change="setRadioPerm('student_management_view', 'student_management', 'none')"
+                                           class="h-4 w-4 border-gray-300 text-purple-650 focus:ring-purple-500 dark:border-gray-650 dark:bg-gray-900" />
+                                    <span>{{ __('No Access') }}</span>
+                                </label>
+                                <label class="flex items-center gap-2.5 cursor-pointer text-sm font-medium text-gray-750 dark:text-gray-300">
+                                    <input type="radio" name="student_access" value="view" 
+                                           :checked="getRadioPerm('student_management_view', 'student_management') === 'view'"
+                                           @change="setRadioPerm('student_management_view', 'student_management', 'view')"
+                                           class="h-4 w-4 border-gray-300 text-purple-650 focus:ring-purple-500 dark:border-gray-650 dark:bg-gray-900" />
+                                    <span>{{ __('Read-Only (View)') }}</span>
+                                </label>
+                                <label class="flex items-center gap-2.5 cursor-pointer text-sm font-medium text-gray-750 dark:text-gray-300">
+                                    <input type="radio" name="student_access" value="write" 
+                                           :checked="getRadioPerm('student_management_view', 'student_management') === 'write'"
+                                           @change="setRadioPerm('student_management_view', 'student_management', 'write')"
+                                           class="h-4 w-4 border-gray-300 text-purple-650 focus:ring-purple-500 dark:border-gray-650 dark:bg-gray-900" />
+                                    <span class="font-semibold text-purple-700 dark:text-purple-400">{{ __('Full Access (CRUD)') }}</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Teacher Management Card -->
+                        <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/30">
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-455 mb-3 flex items-center gap-1.5">
+                                <i class="fa-solid fa-chalkboard-user text-purple-500"></i>
+                                {{ __('Teacher & Staff Access') }}
+                            </h4>
+                            <div class="space-y-2">
+                                <label class="flex items-center gap-2.5 cursor-pointer text-sm font-medium text-gray-750 dark:text-gray-300">
+                                    <input type="radio" name="teacher_access" value="none" 
+                                           :checked="getRadioPerm('teacher_management_view', 'teacher_management') === 'none'"
+                                           @change="setRadioPerm('teacher_management_view', 'teacher_management', 'none')"
+                                           class="h-4 w-4 border-gray-300 text-purple-650 focus:ring-purple-500 dark:border-gray-650 dark:bg-gray-900" />
+                                    <span>{{ __('No Access') }}</span>
+                                </label>
+                                <label class="flex items-center gap-2.5 cursor-pointer text-sm font-medium text-gray-750 dark:text-gray-300">
+                                    <input type="radio" name="teacher_access" value="view" 
+                                           :checked="getRadioPerm('teacher_management_view', 'teacher_management') === 'view'"
+                                           @change="setRadioPerm('teacher_management_view', 'teacher_management', 'view')"
+                                           class="h-4 w-4 border-gray-300 text-purple-650 focus:ring-purple-500 dark:border-gray-650 dark:bg-gray-900" />
+                                    <span>{{ __('Read-Only (View)') }}</span>
+                                </label>
+                                <label class="flex items-center gap-2.5 cursor-pointer text-sm font-medium text-gray-750 dark:text-gray-300">
+                                    <input type="radio" name="teacher_access" value="write" 
+                                           :checked="getRadioPerm('teacher_management_view', 'teacher_management') === 'write'"
+                                           @change="setRadioPerm('teacher_management_view', 'teacher_management', 'write')"
+                                           class="h-4 w-4 border-gray-300 text-purple-650 focus:ring-purple-500 dark:border-gray-650 dark:bg-gray-900" />
+                                    <span class="font-semibold text-purple-700 dark:text-purple-400">{{ __('Full Access (CRUD)') }}</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Academic Structures Card -->
+                        <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/30">
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-455 mb-3 flex items-center gap-1.5">
+                                <i class="fa-solid fa-book-open text-purple-500"></i>
+                                {{ __('Academic Structure Access') }}
+                            </h4>
+                            <div class="space-y-2">
+                                <label class="flex items-center gap-2.5 cursor-pointer text-sm font-medium text-gray-750 dark:text-gray-300">
+                                    <input type="radio" name="academic_access" value="none" 
+                                           :checked="getRadioPerm('course_management_view', 'course_management') === 'none'"
+                                           @change="setRadioPerm('course_management_view', 'course_management', 'none')"
+                                           class="h-4 w-4 border-gray-300 text-purple-650 focus:ring-purple-500 dark:border-gray-650 dark:bg-gray-900" />
+                                    <span>{{ __('No Access') }}</span>
+                                </label>
+                                <label class="flex items-center gap-2.5 cursor-pointer text-sm font-medium text-gray-750 dark:text-gray-300">
+                                    <input type="radio" name="academic_access" value="view" 
+                                           :checked="getRadioPerm('course_management_view', 'course_management') === 'view'"
+                                           @change="setRadioPerm('course_management_view', 'course_management', 'view')"
+                                           class="h-4 w-4 border-gray-300 text-purple-650 focus:ring-purple-500 dark:border-gray-650 dark:bg-gray-900" />
+                                    <span>{{ __('Read-Only (View)') }}</span>
+                                </label>
+                                <label class="flex items-center gap-2.5 cursor-pointer text-sm font-medium text-gray-750 dark:text-gray-300">
+                                    <input type="radio" name="academic_access" value="write" 
+                                           :checked="getRadioPerm('course_management_view', 'course_management') === 'write'"
+                                           @change="setRadioPerm('course_management_view', 'course_management', 'write')"
+                                           class="h-4 w-4 border-gray-300 text-purple-650 focus:ring-purple-500 dark:border-gray-650 dark:bg-gray-900" />
+                                    <span class="font-semibold text-purple-700 dark:text-purple-400">{{ __('Full Access (CRUD)') }}</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Finance Module Card -->
+                        <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/30">
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-455 mb-3 flex items-center gap-1.5">
+                                <i class="fa-solid fa-scale-balanced text-purple-500"></i>
+                                {{ __('Financial Management Access') }}
+                            </h4>
+                            <div class="space-y-2">
+                                <label class="flex items-center gap-2.5 cursor-pointer text-sm font-medium text-gray-750 dark:text-gray-300">
+                                    <input type="radio" name="finance_access" value="none" 
+                                           :checked="getRadioPerm('view_financial_data', 'manage_financial_data') === 'none'"
+                                           @change="setRadioPerm('view_financial_data', 'manage_financial_data', 'none')"
+                                           class="h-4 w-4 border-gray-300 text-purple-650 focus:ring-purple-500 dark:border-gray-650 dark:bg-gray-900" />
+                                    <span>{{ __('No Access') }}</span>
+                                </label>
+                                <label class="flex items-center gap-2.5 cursor-pointer text-sm font-medium text-gray-750 dark:text-gray-300">
+                                    <input type="radio" name="finance_access" value="view" 
+                                           :checked="getRadioPerm('view_financial_data', 'manage_financial_data') === 'view'"
+                                           @change="setRadioPerm('view_financial_data', 'manage_financial_data', 'view')"
+                                           class="h-4 w-4 border-gray-300 text-purple-650 focus:ring-purple-500 dark:border-gray-650 dark:bg-gray-900" />
+                                    <span>{{ __('Read-Only (View)') }}</span>
+                                </label>
+                                <label class="flex items-center gap-2.5 cursor-pointer text-sm font-medium text-gray-750 dark:text-gray-300">
+                                    <input type="radio" name="finance_access" value="write" 
+                                           :checked="getRadioPerm('view_financial_data', 'manage_financial_data') === 'write'"
+                                           @change="setRadioPerm('view_financial_data', 'manage_financial_data', 'write')"
+                                           class="h-4 w-4 border-gray-300 text-purple-650 focus:ring-purple-500 dark:border-gray-650 dark:bg-gray-900" />
+                                    <span class="font-semibold text-purple-700 dark:text-purple-400">{{ __('Full Access (CRUD)') }}</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Staff Leaves Card -->
+                        <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/30 md:col-span-2">
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-455 mb-3 flex items-center gap-1.5">
+                                <i class="fa-solid fa-calendar-minus text-purple-500"></i>
+                                {{ __('Staff Leaves Access') }}
+                            </h4>
+                            <div class="flex flex-col sm:flex-row gap-4 sm:items-center">
+                                <label class="flex items-center gap-2.5 cursor-pointer text-sm font-medium text-gray-750 dark:text-gray-300">
+                                    <input type="radio" name="leave_access" value="none" 
+                                           :checked="getRadioPerm('view_staff_leaves', 'manage_staff_leaves') === 'none'"
+                                           @change="setRadioPerm('view_staff_leaves', 'manage_staff_leaves', 'none')"
+                                           class="h-4 w-4 border-gray-300 text-purple-650 focus:ring-purple-500 dark:border-gray-650 dark:bg-gray-900" />
+                                    <span>{{ __('No Access') }}</span>
+                                </label>
+                                <label class="flex items-center gap-2.5 cursor-pointer text-sm font-medium text-gray-750 dark:text-gray-300">
+                                    <input type="radio" name="leave_access" value="view" 
+                                           :checked="getRadioPerm('view_staff_leaves', 'manage_staff_leaves') === 'view'"
+                                           @change="setRadioPerm('view_staff_leaves', 'manage_staff_leaves', 'view')"
+                                           class="h-4 w-4 border-gray-300 text-purple-650 focus:ring-purple-500 dark:border-gray-650 dark:bg-gray-900" />
+                                    <span>{{ __('Read-Only (View)') }}</span>
+                                </label>
+                                <label class="flex items-center gap-2.5 cursor-pointer text-sm font-medium text-gray-750 dark:text-gray-300">
+                                    <input type="radio" name="leave_access" value="write" 
+                                           :checked="getRadioPerm('view_staff_leaves', 'manage_staff_leaves') === 'write'"
+                                           @change="setRadioPerm('view_staff_leaves', 'manage_staff_leaves', 'write')"
+                                           class="h-4 w-4 border-gray-300 text-purple-650 focus:ring-purple-500 dark:border-gray-650 dark:bg-gray-900" />
+                                    <span class="font-semibold text-purple-700 dark:text-purple-400">{{ __('Full Access (CRUD)') }}</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modular Navigation Checkboxes -->
+                    <div class="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
+                        <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-1 uppercase tracking-wider">{{ __('Modular Navigation & Action Permissions') }}</h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">{{ __('Configure page-level navigation and specialized functionality gates.') }}</p>
+                        
                         <div class="mb-4">
                             <div class="relative">
                                 <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                                    <i class="fa-solid fa-magnifying-glass text-gray-400"></i>
+                                    <i class="fa-solid fa-magnifying-glass text-gray-450"></i>
                                 </div>
                                 <input 
                                     x-model="search" 
                                     type="search" 
-                                    placeholder="{{ __('Type permission keywords to filter...') }}" 
+                                    placeholder="{{ __('Type keywords to filter navigation permissions...') }}" 
                                     class="block w-full rounded-lg border-gray-300 pl-10 pr-4 py-2.5 text-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white placeholder-gray-400"
                                 />
                             </div>
                         </div>
                         
-                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 max-h-96 overflow-y-auto pr-1">
-                            @foreach ($permissionLabels as $slug => $label)
-                                <label 
-                                    x-show="search === '' || '{{ strtolower(addslashes($label)) }}'.includes(search.toLowerCase())"
-                                    class="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-3 hover:bg-gray-50 dark:border-gray-705 dark:hover:bg-gray-800/40 hover:border-purple-200 dark:hover:border-purple-900 transition" 
-                                    wire:key="perm-{{ $slug }}"
-                                >
-                                    <input 
-                                        type="checkbox" 
-                                        wire:model="selectedPermissions" 
-                                        value="{{ $slug }}" 
-                                        class="mt-0.5 rounded border-gray-305 text-purple-650 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900" 
-                                    />
-                                    <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                                        {{ $label }}
-                                    </span>
-                                </label>
+                        <div class="space-y-6 max-h-96 overflow-y-auto pr-1">
+                            @foreach ($permissionCategories as $catName => $perms)
+                                <div class="space-y-3" x-show="search === '' || @js(array_values($perms)).some(label => label.toLowerCase().includes(search.toLowerCase()))">
+                                    <h4 class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider border-b border-gray-100 dark:border-gray-800 pb-1.5">{{ $catName }}</h4>
+                                    <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                                        @foreach ($perms as $slug => $label)
+                                            <label 
+                                                x-show="search === '' || '{{ strtolower(addslashes($label)) }}'.includes(search.toLowerCase())"
+                                                class="flex cursor-pointer items-start gap-2.5 rounded-lg border border-gray-200 p-2.5 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800/40 hover:border-purple-200 dark:hover:border-purple-900/60 transition" 
+                                                wire:key="perm-{{ $slug }}"
+                                            >
+                                                <input 
+                                                    type="checkbox" 
+                                                    wire:model="selectedPermissions" 
+                                                    value="{{ $slug }}" 
+                                                    class="mt-0.5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900" 
+                                                />
+                                                <span class="text-xs font-semibold text-gray-700 dark:text-gray-305 leading-tight">
+                                                    {{ $label }}
+                                                </span>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                </div>
                             @endforeach
                         </div>
                     </div>
-                    
+
                     @error('selectedPermissions') <p class="mt-1.5 text-sm text-red-650 dark:text-red-400">{{ $message }}</p> @enderror
                     @error('selectedPermissions.*') <p class="mt-1.5 text-sm text-red-650 dark:text-red-400">{{ $message }}</p> @enderror
                 </div>

@@ -174,6 +174,38 @@ class Memo extends Model
             return true;
         }
 
+        // Department isolation check
+        $isolation = \App\Models\Setting::query()
+            ->where('setting_key', 'memo_settings.department_isolation')
+            ->value('setting_value') === '1';
+
+        if ($isolation) {
+            $userDeptId = null;
+            if ($user->admin) {
+                $userDeptId = $user->admin->department_id;
+            } elseif ($user->teacher) {
+                $userDeptId = $user->teacher->department_id;
+            } elseif ($user->nonTeachingStaff) {
+                $userDeptId = $user->nonTeachingStaff->department_id;
+            } elseif ($user->student) {
+                $userDeptId = $user->student->department_id;
+            }
+
+            if ($userDeptId === null) {
+                return false;
+            }
+
+            $senderDeptId = ($this->sender_entity_type === 'department') ? $this->sender_entity_id : null;
+            $recipientDeptId = ($this->recipient_type === 'department') ? $this->recipient_entity_id : null;
+
+            if ($senderDeptId !== null && (int)$userDeptId !== (int)$senderDeptId) {
+                return false;
+            }
+            if ($recipientDeptId !== null && (int)$userDeptId !== (int)$recipientDeptId) {
+                return false;
+            }
+        }
+
         // Users with view_all_memos permission can view everything (Auditors/Principals)
         if ($user->hasAdminPermission('view_all_memos')) {
             return true;

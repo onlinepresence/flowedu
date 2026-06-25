@@ -206,14 +206,25 @@ class MemoIndexPage extends Component
 
             // Create pivot signatory records
             if ($status !== 'draft' && !empty($signatories)) {
+                $step = 1;
                 foreach ($signatories as $sId) {
                     $isSelf = (int)$sId === (int)$user->id;
                     $memo->signatories()->create([
                         'user_id' => $sId,
+                        'step_number' => $step++,
                         'status' => $isSelf ? 'signed' : 'pending',
                         'signed_at' => $isSelf ? now() : null,
                         'remarks' => $isSelf ? 'Self-signed at creation.' : null,
                     ]);
+                }
+
+                // Resolve first pending signatory sequential turn
+                $firstPending = $memo->signatories()
+                    ->where('status', 'pending')
+                    ->orderBy('step_number', 'asc')
+                    ->first();
+                if ($firstPending) {
+                    $memo->update(['signing_user_id' => $firstPending->user_id]);
                 }
             }
 

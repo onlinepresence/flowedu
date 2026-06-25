@@ -29,6 +29,11 @@ class StudentResultsPage extends Component
         $this->redirectEnabled = ($settings['system_preferences.student_grading_redirect'] ?? '0') === '1';
         $this->externalGradingUrl = (string) ($settings['system_preferences.external_grading_url'] ?? '');
 
+        if ($this->redirectEnabled && !empty($this->externalGradingUrl)) {
+            $this->redirect($this->externalGradingUrl);
+            return;
+        }
+
         $student = auth()->user()?->student;
         $grouped = [];
         $levels = [];

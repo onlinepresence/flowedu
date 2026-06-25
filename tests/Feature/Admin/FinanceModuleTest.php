@@ -252,4 +252,36 @@ class FinanceModuleTest extends TestCase
         $this->assertEquals(400.00, $ledger->amount_paid);
         $this->assertEquals(1100.00, $ledger->balance);
     }
+
+    public function test_semester_billing_cycle_halves_fees(): void
+    {
+        // Set billing cycle to semester
+        \App\Models\Setting::create([
+            'setting_key' => 'finance_settings.billing_cycle',
+            'setting_value' => 'semester',
+            'category' => 'finance_settings',
+            'data_type' => 'string',
+            'updated_by' => $this->adminUser->id,
+        ]);
+
+        $structure = FeeStructure::create([
+            'program_id' => $this->program->id,
+            'level' => 100,
+            'session_id' => $this->session->id,
+            'tuition_fee' => 1000.00,
+            'library_fee' => 50.00,
+            'total_amount' => 1050.00,
+            'created_by' => $this->adminUser->id,
+        ]);
+
+        $service = new FeeCalculationService();
+        $calcs = $service->calculateStudentFees($this->student, $this->session);
+
+        // Expected gross fees: structure total (1050 / 2) + hostel cost (500 / 2) = 525 + 250 = 775.00
+        $this->assertEquals(500.00, $calcs['tuition']);
+        $this->assertEquals(525.00, $calcs['structure_total']);
+        $this->assertEquals(250.00, $calcs['hostel_cost']);
+        $this->assertEquals(775.00, $calcs['gross_fees']);
+        $this->assertEquals(775.00, $calcs['balance']);
+    }
 }

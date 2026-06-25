@@ -78,6 +78,17 @@ class FeeCalculationService
             $hostelCost = (float) $student->hall->cost;
         }
 
+        // Enforce finance settings billing cycle division (semester vs. yearly)
+        $billingCycle = \App\Models\Setting::query()
+            ->where('setting_key', 'finance_settings.billing_cycle')
+            ->value('setting_value') ?? 'yearly';
+
+        if ($billingCycle === 'semester') {
+            $tuition = $tuition / 2.0;
+            $structureTotal = $structureTotal / 2.0;
+            $hostelCost = $hostelCost / 2.0;
+        }
+
         $grossFees = $structureTotal + $hostelCost;
 
         // 2. Resolve Scholarship Discounts

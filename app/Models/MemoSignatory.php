@@ -12,7 +12,9 @@ class MemoSignatory extends Model
     protected $fillable = [
         'memo_id',
         'user_id',
+        'step_number',
         'status',
+        'signature_path',
         'remarks',
         'signed_at',
     ];

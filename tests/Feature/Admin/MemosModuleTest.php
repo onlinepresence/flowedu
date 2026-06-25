@@ -202,4 +202,118 @@ class MemosModuleTest extends TestCase
         $this->assertNotNull($log);
         $this->assertSame('Please display in library.', $log->remarks);
     }
+
+    public function test_sequential_signatory_enforcement_and_progression(): void
+    {
+        $secretary = $this->createStaffMember('secretary');
+        $signatory1 = $this->createStaffMember('hod1', ['nav_memos']);
+        $signatory2 = $this->createStaffMember('hod2', ['nav_memos']);
+
+        // Create a memo with 2 signatories in order
+        $memo = Memo::query()->create([
+            'title' => 'Sequential Approval Test',
+            'content' => 'Content here.',
+            'sender_id' => $secretary->id,
+            'recipient_type' => 'user',
+            'recipient_entity_id' => $signatory2->id,
+            'status' => 'pending_signature',
+            'signing_user_id' => $signatory1->id,
+            'confidentiality_level' => 'internal',
+        ]);
+
+        $memo->signatories()->create([
+            'user_id' => $signatory1->id,
+            'step_number' => 1,
+            'status' => 'pending',
+        ]);
+
+        $memo->signatories()->create([
+            'user_id' => $signatory2->id,
+            'step_number' => 2,
+            'status' => 'pending',
+        ]);
+
+        // Attempt sign by signatory 2 (should fail - not their turn)
+        Livewire::actingAs($signatory2)
+            ->test(MemoDetailPage::class, ['memo' => $memo])
+            ->call('signMemo')
+            ->assertHasErrors(['signature_remarks']);
+
+        $this->assertEquals('pending_signature', $memo->fresh()->status);
+
+        // Sign by signatory 1 (should succeed and advance signing_user_id to signatory 2)
+        Livewire::actingAs($signatory1)
+            ->test(MemoDetailPage::class, ['memo' => $memo])
+            ->call('signMemo')
+            ->assertRedirect(route('admin.memos.show', $memo->id));
+
+        $memo->refresh();
+        $this->assertEquals('pending_signature', $memo->status);
+        $this->assertEquals($signatory2->id, $memo->signing_user_id);
+
+        // Sign by signatory 2 (should succeed and dispatch/send memo)
+        Livewire::actingAs($signatory2)
+            ->test(MemoDetailPage::class, ['memo' => $memo])
+            ->call('signMemo')
+            ->assertRedirect(route('admin.memos.show', $memo->id));
+
+        $memo->refresh();
+        $this->assertEquals('sent', $memo->status);
+        $this->assertNull($memo->signing_user_id);
+    }
+
+    public function test_memo_department_isolation_blocks_unauthorized_users(): void
+    {
+        $secretary = $this->createStaffMember('secretary');
+        
+        // Enable department isolation setting
+        \App\Models\Setting::updateOrCreate(
+            ['setting_key' => 'memo_settings.department_isolation'],
+            [
+                'setting_value' => '1',
+                'category' => 'memo_settings',
+                'data_type' => 'boolean',
+            ]
+        );
+
+        $faculty = \App\Models\Faculty::create(['name' => 'Sciences']);
+        $dept1 = \App\Models\Department::create(['name' => 'Computer Science', 'faculty_id' => $faculty->id]);
+        $dept2 = \App\Models\Department::create(['name' => 'Mechanical Eng', 'faculty_id' => $faculty->id]);
+
+        $sender = $this->createStaffMember('sender');
+        $sender->admin->update(['department_id' => $dept1->id]);
+
+        $recipient = $this->createStaffMember('recipient');
+        $recipient->admin->update(['department_id' => $dept1->id]);
+
+        $unauthorized = $this->createStaffMember('unauthorized');
+        $unauthorized->admin->update(['department_id' => $dept2->id]);
+
+        $memo = Memo::query()->create([
+            'title' => 'Isolated Department Memo',
+            'content' => 'Sensitive dept content.',
+            'sender_id' => $sender->id,
+            'sender_entity_type' => 'department',
+            'sender_entity_id' => $dept1->id,
+            'recipient_type' => 'user',
+            'recipient_entity_id' => $unauthorized->id,
+            'status' => 'sent',
+            'confidentiality_level' => 'internal',
+        ]);
+
+        // Sender (dept 1) can view
+        $this->assertTrue($memo->canBeViewedBy($sender));
+
+        // Unauthorized user (recipient, but in different department dept 2) cannot view when isolation is active
+        $this->assertFalse($memo->canBeViewedBy($unauthorized));
+
+        // Turn off isolation setting
+        \App\Models\Setting::updateOrCreate(
+            ['setting_key' => 'memo_settings.department_isolation'],
+            ['setting_value' => '0']
+        );
+
+        // Unauthorized user can view now
+        $this->assertTrue($memo->canBeViewedBy($unauthorized));
+    }
 }

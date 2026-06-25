@@ -51,14 +51,14 @@ class SettingsUserRolesPageTest extends TestCase
             ->set('display_name', 'Finance assistant')
             ->set('role_name', 'registrar')
             ->set('name', 'finance-assistant')
-            ->set('selectedPermissions', ['view_profile', 'view_dashboard_admin'])
+            ->set('selectedPermissions', ['nav_dashboard', 'view_dashboard_admin'])
             ->call('saveRole')
             ->assertRedirect(route('admin.settings.roles'));
 
         $row = UserRole::query()->where('name', 'finance-assistant')->first();
         $this->assertNotNull($row);
         $this->assertSame('Finance assistant', $row->display_name);
-        $this->assertSame(['view_profile', 'view_dashboard_admin'], array_values($row->permissions ?? []));
+        $this->assertSame(['nav_dashboard', 'view_dashboard_admin'], array_values($row->permissions ?? []));
     }
 
     public function test_mount_ensures_admin_types_when_empty(): void

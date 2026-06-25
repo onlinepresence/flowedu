@@ -44,6 +44,15 @@ use App\Models\TeacherAttendanceSheet;
 use App\Models\CourseMaterial;
 use App\Models\User;
 use App\Models\UserRole;
+use App\Models\StaffLeaveType;
+use App\Models\LeaveRequest;
+use App\Models\Product;
+use App\Models\Invoice;
+use App\Models\InvoiceItem;
+use App\Models\Expenditure;
+use App\Models\FeeComponent;
+use App\Models\FeeStructureItem;
+use App\Models\SystemAudit;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -76,6 +85,7 @@ class DemoDataSeeder extends Seeder
             'non_teaching_staff', 'staff_assignments', 'staff_roles', 'scholarships', 'scholarship_recipients',
             'result_slips', 'transcript_requests', 'timetables', 'timetable_classes', 'teacher_courses', 'settings',
             'memo_signatories', 'memo_read_receipts', 'fee_breakdown_requests', 'job_alerts',
+            'products', 'invoices', 'invoice_items', 'expenditures', 'staff_leave_types', 'leave_requests', 'fee_components', 'fee_structure_items', 'system_audits'
         ];
         foreach ($tables as $table) {
             DB::table($table)->truncate();
@@ -90,6 +100,30 @@ class DemoDataSeeder extends Seeder
         // 2. Ensure baseline roles and types are seeded
         AdminType::ensureDefaults();
         UserRole::ensureSystemRoles();
+
+        // Create staff leave types
+        $seniorStaffLeave = StaffLeaveType::create(['name' => 'Senior Staff', 'max_leave_days' => 30]);
+        $juniorStaffLeave = StaffLeaveType::create(['name' => 'Junior Staff', 'max_leave_days' => 21]);
+        $principalLeave = StaffLeaveType::create(['name' => 'Principal Officers', 'max_leave_days' => 42]);
+
+        // Seed default fee components
+        $componentsData = [
+            ['name' => 'Tuition Fee', 'is_system' => true],
+            ['name' => 'Library Fee', 'is_system' => true],
+            ['name' => 'Lab Fee', 'is_system' => true],
+            ['name' => 'Medical Fee', 'is_system' => true],
+            ['name' => 'Sports Fee', 'is_system' => true],
+            ['name' => 'Examination Fee', 'is_system' => true],
+        ];
+        $components = [];
+        foreach ($componentsData as $cd) {
+            $components[$cd['name']] = FeeComponent::create([
+                'name' => $cd['name'],
+                'default_percentage' => 0.00,
+                'is_active' => true,
+                'is_system' => $cd['is_system'],
+            ]);
+        }
 
         // 3. Seed School & License
         $school = School::create([
@@ -169,7 +203,7 @@ class DemoDataSeeder extends Seeder
             'name' => 'First Semester',
             'start_date' => '2025-09-01',
             'end_date' => '2026-01-31',
-            'is_active' => true,
+            'is_active' => false,
         ]);
 
         Semester::create([
@@ -177,7 +211,7 @@ class DemoDataSeeder extends Seeder
             'name' => 'Second Semester',
             'start_date' => '2026-02-01',
             'end_date' => '2026-06-30',
-            'is_active' => false,
+            'is_active' => true,
         ]);
 
         // 5. Seed Halls
@@ -279,6 +313,7 @@ class DemoDataSeeder extends Seeder
             'email' => 'admin@demo.com',
             'email_verified_at' => now(),
             'type' => 'admin',
+            'staff_leave_type_id' => $principalLeave->id,
             'password' => Hash::make('password'),
             'user_secret' => Str::random(16),
             'active' => true,
@@ -307,6 +342,7 @@ class DemoDataSeeder extends Seeder
             'email' => 'secretary@demo.com',
             'email_verified_at' => now(),
             'type' => 'admin',
+            'staff_leave_type_id' => $juniorStaffLeave->id,
             'password' => Hash::make('password'),
             'user_secret' => Str::random(16),
             'active' => true,
@@ -335,6 +371,7 @@ class DemoDataSeeder extends Seeder
             'email' => 'hod@demo.com',
             'email_verified_at' => now(),
             'type' => 'admin',
+            'staff_leave_type_id' => $seniorStaffLeave->id,
             'password' => Hash::make('password'),
             'user_secret' => Str::random(16),
             'active' => true,
@@ -379,6 +416,7 @@ class DemoDataSeeder extends Seeder
                 'email' => $email,
                 'email_verified_at' => now(),
                 'type' => 'teacher',
+                'staff_leave_type_id' => $seniorStaffLeave->id,
                 'password' => Hash::make('password'),
                 'user_secret' => Str::random(16),
                 'active' => true,
@@ -567,6 +605,7 @@ class DemoDataSeeder extends Seeder
                 'email' => fake()->unique()->safeEmail(),
                 'email_verified_at' => now(),
                 'type' => 'staff',
+                'staff_leave_type_id' => $posData['role'] === 'registrar' ? $seniorStaffLeave->id : $juniorStaffLeave->id,
                 'password' => Hash::make('password'),
                 'user_secret' => Str::random(16),
                 'active' => true,
@@ -739,10 +778,11 @@ class DemoDataSeeder extends Seeder
                     $exam = 60.00;
                     $total = $tuition + $lib + $lab + $med + $sports + $exam;
 
-                    $feeStructuresList[] = FeeStructure::create([
+                    $fs = FeeStructure::create([
                         'program_id' => $prog->id,
                         'level' => $lvl,
                         'session_id' => $targetSession->id,
+                        'semester_id' => null, // Yearly default
                         'tuition_fee' => $tuition,
                         'library_fee' => $lib,
                         'lab_fee' => $lab,
@@ -751,6 +791,39 @@ class DemoDataSeeder extends Seeder
                         'examination_fee' => $exam,
                         'total_amount' => $total,
                         'created_by' => $adminUser->id,
+                    ]);
+                    $feeStructuresList[] = $fs;
+
+                    // Seed dynamic items
+                    FeeStructureItem::create([
+                        'fee_structure_id' => $fs->id,
+                        'fee_component_id' => $components['Tuition Fee']->id,
+                        'amount' => $tuition,
+                    ]);
+                    FeeStructureItem::create([
+                        'fee_structure_id' => $fs->id,
+                        'fee_component_id' => $components['Library Fee']->id,
+                        'amount' => $lib,
+                    ]);
+                    FeeStructureItem::create([
+                        'fee_structure_id' => $fs->id,
+                        'fee_component_id' => $components['Lab Fee']->id,
+                        'amount' => $lab,
+                    ]);
+                    FeeStructureItem::create([
+                        'fee_structure_id' => $fs->id,
+                        'fee_component_id' => $components['Medical Fee']->id,
+                        'amount' => $med,
+                    ]);
+                    FeeStructureItem::create([
+                        'fee_structure_id' => $fs->id,
+                        'fee_component_id' => $components['Sports Fee']->id,
+                        'amount' => $sports,
+                    ]);
+                    FeeStructureItem::create([
+                        'fee_structure_id' => $fs->id,
+                        'fee_component_id' => $components['Examination Fee']->id,
+                        'amount' => $exam,
                     ]);
                 }
             }
@@ -1495,6 +1568,54 @@ class DemoDataSeeder extends Seeder
                 'description' => 'Passport background tolerance',
                 'updated_by' => $adminUser->id,
             ],
+            [
+                'category' => 'finance',
+                'setting_key' => 'system_preferences.fee_billing_cycle',
+                'setting_value' => 'year',
+                'data_type' => 'string',
+                'description' => 'Billing cycle preference (year or semester)',
+                'updated_by' => $adminUser->id,
+            ],
+            [
+                'category' => 'memos',
+                'setting_key' => 'system_preferences.strict_departmental_access',
+                'setting_value' => '0',
+                'data_type' => 'boolean',
+                'description' => 'Limit memo visibility to active departmental members only',
+                'updated_by' => $adminUser->id,
+            ],
+            [
+                'category' => 'memos',
+                'setting_key' => 'system_preferences.thread_isolation_on_forward',
+                'setting_value' => '0',
+                'data_type' => 'boolean',
+                'description' => 'Isolate memo history snapshot upon forwarding to new departments',
+                'updated_by' => $adminUser->id,
+            ],
+            [
+                'category' => 'leave',
+                'setting_key' => 'system_preferences.emergency_leave_enabled',
+                'setting_value' => '0',
+                'data_type' => 'boolean',
+                'description' => 'Allow submittals outside application windows for emergency cases',
+                'updated_by' => $adminUser->id,
+            ],
+            [
+                'category' => 'leave',
+                'setting_key' => 'system_preferences.leave_submission_start',
+                'setting_value' => '2026-06-01',
+                'data_type' => 'string',
+                'description' => 'Staff leave request submission window start date',
+                'updated_by' => $adminUser->id,
+            ],
+            [
+                'category' => 'leave',
+                'setting_key' => 'system_preferences.leave_submission_end',
+                'setting_value' => '2026-07-31',
+                'data_type' => 'string',
+                'description' => 'Staff leave request submission window end date',
+                'updated_by' => $adminUser->id,
+            ],
         ];
 
         foreach ($settings as $setting) {
@@ -1536,6 +1657,134 @@ class DemoDataSeeder extends Seeder
             'description' => '<p>Apex annual 48-hour hackathon. Build innovative solutions for local environmental and healthcare challenges.</p>',
             'requirements' => 'Open to all students. Registration required.',
             'expiry_date' => now()->subMonths(4)->toDateString(), // Archived
+        ]);
+
+        // Seed staff leave requests
+        $mainTeacher = collect($teachersList)->first();
+        if ($mainTeacher) {
+            LeaveRequest::create([
+                'user_id' => $mainTeacher->user_id,
+                'staff_leave_type_id' => $seniorStaffLeave->id,
+                'start_date' => '2026-06-10',
+                'end_date' => '2026-06-15',
+                'requested_days' => 5,
+                'reason' => 'Annual family vacation and rest',
+                'status' => 'approved',
+                'reviewer_id' => $hodUser->id,
+                'reviewed_at' => '2026-06-05 10:00:00',
+            ]);
+
+            LeaveRequest::create([
+                'user_id' => $mainTeacher->user_id,
+                'staff_leave_type_id' => $seniorStaffLeave->id,
+                'start_date' => '2026-07-01',
+                'end_date' => '2026-07-07',
+                'requested_days' => 6,
+                'reason' => 'Dental appointment and recovery',
+                'status' => 'pending',
+            ]);
+        }
+
+        // Seed products, invoices and expenditures
+        $prod1 = Product::create([
+            'name' => 'Semester Registration Kit',
+            'sku' => 'PROD-REG-KIT',
+            'category' => 'Registrar',
+            'unit_price' => 15.00,
+            'description' => 'Standard orientation and registration package',
+        ]);
+        $prod2 = Product::create([
+            'name' => 'Official Academic Transcript',
+            'sku' => 'PROD-TRANSCRIPT',
+            'category' => 'Registrar',
+            'unit_price' => 50.00,
+            'description' => 'Printed academic record sheet',
+        ]);
+        $prod3 = Product::create([
+            'name' => 'Graduation Gown Hire',
+            'sku' => 'PROD-GRAD-GOWN',
+            'category' => 'Ceremony',
+            'unit_price' => 120.00,
+            'description' => 'Rental of graduation cap and gown',
+        ]);
+
+        $inv1 = Invoice::create([
+            'invoice_number' => 'INV-2026-0001',
+            'vendor_name' => 'Apex Supplies Ltd',
+            'description' => 'Invoice for orientation packages and transcript materials',
+            'amount' => 65.00,
+            'invoice_date' => '2026-06-01',
+            'due_date' => '2026-07-15',
+            'status' => 'paid',
+            'created_by' => $adminUser->id,
+        ]);
+        InvoiceItem::create([
+            'invoice_id' => $inv1->id,
+            'product_id' => $prod1->id,
+            'quantity' => 1,
+            'unit_price' => 15.00,
+            'total_amount' => 15.00,
+        ]);
+        InvoiceItem::create([
+            'invoice_id' => $inv1->id,
+            'product_id' => $prod2->id,
+            'quantity' => 1,
+            'unit_price' => 50.00,
+            'total_amount' => 50.00,
+        ]);
+
+        $inv2 = Invoice::create([
+            'invoice_number' => 'INV-2026-0002',
+            'vendor_name' => 'Ghana Gown Rentals',
+            'description' => 'Rental gowns for the 2026 graduation ceremony',
+            'amount' => 120.00,
+            'invoice_date' => '2026-06-05',
+            'due_date' => '2026-07-20',
+            'status' => 'unpaid',
+            'created_by' => $adminUser->id,
+        ]);
+        InvoiceItem::create([
+            'invoice_id' => $inv2->id,
+            'product_id' => $prod3->id,
+            'quantity' => 1,
+            'unit_price' => 120.00,
+            'total_amount' => 120.00,
+        ]);
+
+        // Expenditure 1: Pay off invoice 1
+        Expenditure::create([
+            'invoice_id' => $inv1->id,
+            'expense_number' => 'EXP-2026-0001',
+            'amount' => 65.00,
+            'payment_method' => 'bank_transfer',
+            'payment_date' => '2026-06-10',
+            'category' => 'Registrar Supplies',
+            'notes' => 'Settled invoice INV-2026-0001',
+            'recorded_by' => $adminUser->id,
+        ]);
+
+        // Expenditure 2: Independent expense
+        Expenditure::create([
+            'invoice_id' => null,
+            'expense_number' => 'EXP-2026-0002',
+            'amount' => 150.00,
+            'payment_method' => 'cash',
+            'payment_date' => '2026-06-20',
+            'category' => 'Office Supplies',
+            'notes' => 'Printer papers and cartridges',
+            'recorded_by' => $adminUser->id,
+        ]);
+
+        // Expenditure 3: Independent expense
+        Expenditure::create([
+            'invoice_id' => null,
+            'expense_number' => 'EXP-2026-0003',
+            'amount' => 500.00,
+            'payment_method' => 'bank_transfer',
+            'payment_date' => '2026-06-22',
+            'category' => 'Maintenance',
+            'notes' => 'Server AC repair',
+            'recorded_by' => $adminUser->id,
         ]);
     }
 }

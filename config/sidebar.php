@@ -57,6 +57,7 @@ return [
                     ['label' => 'Administrators', 'route' => 'admin.staff.administrators', 'permission' => 'nav_staff_home'],
                     ['label' => 'Non-Teaching Staff', 'route' => 'admin.staff.non-teaching', 'permission' => 'nav_staff_non_teaching'],
                     ['label' => 'Staff Assignments', 'route' => 'admin.staff.staff-assignments', 'permission' => 'nav_staff_assignments'],
+                    ['label' => 'Leave Management', 'route' => 'admin.staff.leaves', 'permission' => 'nav_staff_leaves'],
                 ],
             ],
             [
@@ -82,6 +83,7 @@ return [
                     ['label' => 'Outstanding Fees', 'route' => 'admin.finance.outstanding', 'permission' => 'nav_finance_outstanding'],
                     ['label' => 'Scholarships / Grants', 'route' => 'admin.finance.scholarships', 'permission' => 'nav_finance_scholarships'],
                     ['label' => 'Allowances Management', 'route' => 'admin.finance.allowances', 'permission' => 'nav_finance_scholarships'],
+                    ['label' => 'Invoices & Expenditures', 'route' => 'admin.finance.invoices', 'permission' => 'nav_finance_invoices'],
                 ],
             ],
             [

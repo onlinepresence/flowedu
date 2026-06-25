@@ -15,14 +15,18 @@ use App\Support\CollegeFlash;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class MemoDetailPage extends Component
 {
+    use WithFileUploads;
+
     public Memo $memo;
 
     // Actions state
     public bool $showForwardModal = false;
     public bool $showReturnModal = false;
+    public $signature_file;
 
     // Forward form state
     public string $forward_recipient_type = 'department';
@@ -54,7 +58,7 @@ class MemoDetailPage extends Component
     public function signMemo(): void
     {
         $user = auth()->user();
-        
+
         $signatory = $this->memo->signatories()
             ->where('user_id', $user->id)
             ->where('status', 'pending')
@@ -66,15 +70,33 @@ class MemoDetailPage extends Component
                 'user_id' => $user->id,
             ], [
                 'status' => 'pending',
+                'step_number' => 1,
             ]);
+        }
+
+        // Enforce sequential signature: their step must be the minimum pending step!
+        $currentPendingSignatory = $this->memo->signatories()
+            ->where('status', 'pending')
+            ->orderBy('step_number', 'asc')
+            ->first();
+
+        if (!$currentPendingSignatory || (int)$currentPendingSignatory->user_id !== (int)$user->id) {
+            $this->addError('signature_remarks', __('It is not your turn to sign this memo.'));
+            return;
         }
 
         abort_unless($signatory && $this->memo->status === 'pending_signature', 403);
 
-        DB::transaction(function () use ($user, $signatory) {
+        $signaturePath = null;
+        if ($this->signature_file) {
+            $signaturePath = $this->signature_file->store('signatures', 'public');
+        }
+
+        DB::transaction(function () use ($user, $signatory, $signaturePath) {
             $signatory->update([
                 'status' => 'signed',
                 'signed_at' => now(),
+                'signature_path' => $signaturePath,
                 'remarks' => $this->signature_remarks ?: 'Approved and signed.',
             ]);
 
@@ -96,6 +118,7 @@ class MemoDetailPage extends Component
             if (!$pendingExists) {
                 $this->memo->update([
                     'status' => 'sent',
+                    'signing_user_id' => null,
                 ]);
 
                 // Log final dispatch tracking
@@ -127,6 +150,17 @@ class MemoDetailPage extends Component
                 // Notify recipients
                 $this->notifyRecipients();
             } else {
+                // Advance turn to the next pending signatory sequential step!
+                $nextPending = $this->memo->signatories()
+                    ->where('status', 'pending')
+                    ->orderBy('step_number', 'asc')
+                    ->first();
+                if ($nextPending) {
+                    $this->memo->update([
+                        'signing_user_id' => $nextPending->user_id,
+                    ]);
+                }
+
                 if ($this->memo->sender) {
                     $this->memo->sender->notify(new CollegeNotification(
                         'Memo Partially Signed',
@@ -138,6 +172,7 @@ class MemoDetailPage extends Component
         });
 
         $this->signature_remarks = '';
+        $this->signature_file = null;
         CollegeFlash::forNextRequestToo('status', __('Memo signed.'));
         $this->redirect(route('admin.memos.show', $this->memo->id), navigate: true);
     }

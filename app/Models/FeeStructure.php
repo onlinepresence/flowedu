@@ -28,6 +28,7 @@ class FeeStructure extends Model
         'src_dues',
         'total_amount',
         'created_by',
+        'semester_id',
     ];
 
     protected function casts(): array
@@ -49,6 +50,7 @@ class FeeStructure extends Model
             'internship_fee' => 'decimal:2',
             'src_dues' => 'decimal:2',
             'total_amount' => 'decimal:2',
+            'semester_id' => 'integer',
         ];
     }
 
@@ -60,6 +62,16 @@ class FeeStructure extends Model
     public function session(): BelongsTo
     {
         return $this->belongsTo(AcademicSession::class, 'session_id');
+    }
+
+    public function semester(): BelongsTo
+    {
+        return $this->belongsTo(Semester::class, 'semester_id');
+    }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(FeeStructureItem::class);
     }
 
     public function creator(): BelongsTo

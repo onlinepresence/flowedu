@@ -54,6 +54,7 @@ class SystemPreferencesPageTest extends TestCase
         Livewire::actingAs($user)
             ->test(SystemPreferencesPage::class)
             ->set('student_grading_redirect', true)
+            ->set('external_grading_url', 'https://grading.external-college.edu/dashboard')
             ->set('allow_student_self_registration', false)
             ->set('enable_email_notifications', true)
             ->call('saveSettings')
@@ -99,6 +100,14 @@ class SystemPreferencesPageTest extends TestCase
             'setting_key' => 'system_preferences.student_grading_redirect',
             'setting_value' => '1',
             'data_type' => 'boolean',
+            'description' => 'test',
+        ]);
+
+        Setting::query()->create([
+            'category' => 'system_preferences',
+            'setting_key' => 'system_preferences.external_grading_url',
+            'setting_value' => 'https://grading.external-college.edu/dashboard',
+            'data_type' => 'string',
             'description' => 'test',
         ]);
 

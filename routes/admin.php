@@ -15,6 +15,7 @@ use App\Livewire\Admin\Finance\FinanceOutstandingPage;
 use App\Livewire\Admin\Finance\FinancePaymentsPage;
 use App\Livewire\Admin\Finance\ScholarshipsIndexPage;
 use App\Livewire\Admin\Finance\AllowancesIndexPage;
+use App\Livewire\Admin\Finance\InvoicesIndexPage;
 use App\Livewire\Admin\Grading\ApproveGradesPage;
 use App\Livewire\Admin\Grading\EnterGradesPage;
 use App\Livewire\Admin\Grading\GradePointsPage;
@@ -53,6 +54,7 @@ use App\Livewire\Admin\Staff\StaffHomePage;
 use App\Livewire\Admin\Staff\TeacherAssignmentsPage;
 use App\Livewire\Admin\Staff\TeacherListPage;
 use App\Livewire\Admin\Staff\TeacherRoleListPage;
+use App\Livewire\Admin\Staff\StaffLeavesPage;
 use App\Livewire\Admin\Students\ApproveStudentPage;
 use App\Livewire\Admin\Students\DisciplineRecordsPage;
 use App\Livewire\Admin\Students\GraduationIndexPage;
@@ -127,6 +129,7 @@ Route::middleware($adminApp)->prefix('admin/staff')->group(function () {
         Route::get('roles', InstitutionRolesPage::class)->name('admin.staff.roles');
         Route::get('materials', CourseMaterialsPage::class)->name('admin.staff.materials');
         Route::get('announcements', AnnouncementsStaffPage::class)->name('admin.staff.announcements');
+        Route::get('leaves', StaffLeavesPage::class)->name('admin.staff.leaves');
     });
 });
 
@@ -190,6 +193,7 @@ Route::middleware([...$adminApp, 'college.licence:finance'])->prefix('admin/fina
     Route::get('outstanding', FinanceOutstandingPage::class)->name('admin.finance.outstanding');
     Route::get('scholarships', ScholarshipsIndexPage::class)->name('admin.finance.scholarships');
     Route::get('allowances', AllowancesIndexPage::class)->name('admin.finance.allowances');
+    Route::get('invoices', InvoicesIndexPage::class)->name('admin.finance.invoices');
 });
 
 Route::middleware([...$adminApp, 'college.licence:reports'])->prefix('admin/reports')->group(function () {

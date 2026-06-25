@@ -89,39 +89,51 @@ return [
     ],
 
     'admin_permissions' => [
-        // Legacy / coarse slugs (see nav_coarse_permission_grants)
-        'student_management' => 'Manage Students (CRUD)',
-        'teacher_management' => 'Manage Teachers / lecturer admin',
-        'course_management' => 'Manage Academic structure (faculties, departments, programs, sessions)',
+        // Split Core Module Permissions
+        'student_management_view' => 'View Student Records (Read-Only)',
+        'student_management' => 'Manage Student Records (Write/CRUD)',
+        'teacher_management_view' => 'View Teachers & Staff Roles (Read-Only)',
+        'teacher_management' => 'Manage Teachers & Staff Assignments (Write/CRUD)',
+        'course_management_view' => 'View Academic Structure (Read-Only)',
+        'course_management' => 'Manage Academic Structure (Write/CRUD)',
         'view_dashboard_admin' => 'View Admin Dashboard',
-        'view_financial_data' => 'View Financial Data',
+        'view_financial_data' => 'View Financial Data (Read-Only)',
+        'manage_financial_data' => 'Manage Financial Data (Write/CRUD)',
         'approve_registrations' => 'Approve Student Registrations',
-        'delete_user' => 'Delete Users',
-        'view_profile' => 'View Own Profile',
         'nav_dashboard' => 'Nav: Dashboard',
+
         // Admin sidebar — Students
         'nav_students_index' => 'Nav: All Students',
         'nav_students_promotion' => 'Nav: Student Promotion',
         'nav_students_graduation' => 'Nav: Graduation Management',
         'nav_students_medical' => 'Nav: Medical Info',
         'nav_students_discipline' => 'Nav: Disciplinary Records',
+
         // Admin sidebar — Academic
         'nav_academic_faculty' => 'Nav: Faculties',
         'nav_academic_department' => 'Nav: Departments',
         'nav_academic_program' => 'Nav: Programs',
         'nav_academic_sessions' => 'Nav: Academic Sessions / Terms',
         'nav_academic_timetable' => 'Nav: Timetable',
+
         // Admin sidebar — Grading
         'nav_grading_points' => 'Nav: Grade Points',
         'nav_grading_enter' => 'Nav: Enter Results',
         'nav_grading_upload' => 'Nav: Upload Results',
         'nav_grading_approve' => 'Nav: Results Approval',
         'nav_grading_transcripts' => 'Nav: Transcripts',
+
         // Admin sidebar — Administration (staff)
         'nav_staff_home' => 'Nav: Admin Staff (home)',
         'nav_staff_non_teaching' => 'Nav: Non-Teaching Staff',
         'nav_staff_assignments' => 'Nav: Staff Assignments',
         'nav_staff_roles' => 'Nav: Staff Roles',
+
+        // Admin sidebar — Leaves & HR (New)
+        'nav_staff_leaves' => 'Nav: Staff Leave Requests',
+        'view_staff_leaves' => 'View Staff Leaves',
+        'manage_staff_leaves' => 'Manage & Approve Leaves',
+
         // Admin sidebar — Teachers
         'nav_teachers_list' => 'Nav: All Teachers',
         'nav_teachers_assignments' => 'Nav: Teacher Assignments',
@@ -131,15 +143,19 @@ return [
         'nav_teachers_announcements' => 'Nav: Teacher Announcements',
         'nav_practicum_assign' => 'Nav: Assign TP Trainees',
         'nav_practicum_report' => 'Nav: Teaching Practice Reports',
+
         // Admin sidebar — Finance
         'nav_finance_fees' => 'Nav: Fee Structure',
         'nav_finance_payments' => 'Nav: Payments',
         'nav_finance_outstanding' => 'Nav: Outstanding Fees',
         'nav_finance_scholarships' => 'Nav: Scholarships / Grants',
+        'nav_finance_invoices' => 'Nav: Invoices & Expenditures',
+
         // Admin sidebar — Reports
         'nav_reports_academic' => 'Nav: Academic Reports',
         'nav_reports_payments' => 'Nav: Payment Reports',
         'nav_reports_attendance' => 'Nav: Attendance Reports',
+
         // Admin sidebar — System settings
         'nav_settings_licence' => 'Nav: Licence & subscription',
         'nav_settings_roles' => 'Nav: Roles & Permissions',
@@ -148,9 +164,14 @@ return [
         'nav_settings_preferences' => 'Nav: System Preferences',
         'nav_settings_school' => 'Nav: School Profile',
         'nav_settings_backup' => 'Nav: Backup & Restore',
-        'nav_settings_env' => 'Nav: System Variables (.env generator)',
+
+        // Admin sidebar — Audit logs (New)
+        'nav_audit_logs' => 'Nav: System Audit Trail',
+        'view_audit_logs' => 'View System Audit Logs',
+
         // Admin sidebar — Tools
         'nav_tools_passport' => 'Nav: Passport validator',
+
         // Admin sidebar — Memos
         'nav_memos' => 'Nav: Memos Inbox & Outbox',
         'create_memo' => 'Create and Edit Memos',
@@ -180,10 +201,24 @@ return [
             'nav_students_medical',
             'nav_students_discipline',
         ],
+        'student_management_view' => [
+            'nav_students_index',
+            'nav_students_promotion',
+            'nav_students_graduation',
+            'nav_students_medical',
+            'nav_students_discipline',
+        ],
         'approve_registrations' => [
             'nav_students_index',
         ],
         'course_management' => [
+            'nav_academic_faculty',
+            'nav_academic_department',
+            'nav_academic_program',
+            'nav_academic_sessions',
+            'nav_academic_timetable',
+        ],
+        'course_management_view' => [
             'nav_academic_faculty',
             'nav_academic_department',
             'nav_academic_program',
@@ -203,6 +238,22 @@ return [
             'nav_teachers_announcements',
             'nav_practicum_assign',
             'nav_practicum_report',
+            'nav_staff_leaves',
+        ],
+        'teacher_management_view' => [
+            'nav_staff_home',
+            'nav_staff_non_teaching',
+            'nav_staff_assignments',
+            'nav_staff_roles',
+            'nav_teachers_list',
+            'nav_teachers_assignments',
+            'nav_teachers_roles',
+            'nav_teachers_evaluations',
+            'nav_teachers_materials',
+            'nav_teachers_announcements',
+            'nav_practicum_assign',
+            'nav_practicum_report',
+            'nav_staff_leaves',
         ],
         'view_financial_data' => [
             'nav_finance_fees',
@@ -210,10 +261,15 @@ return [
             'nav_finance_outstanding',
             'nav_finance_scholarships',
             'nav_reports_payments',
+            'nav_finance_invoices',
         ],
-        'delete_user' => [
-            'nav_settings_users',
-            'nav_settings_preferences',
+        'manage_financial_data' => [
+            'nav_finance_fees',
+            'nav_finance_payments',
+            'nav_finance_outstanding',
+            'nav_finance_scholarships',
+            'nav_reports_payments',
+            'nav_finance_invoices',
         ],
     ],
 
