@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
 final class CreateNonTeachingStaffUser
 {
     /**
-     * @param  array{name: string, username: string, email: string, password: string, position: string, department_id: int, phone_number: string, status?: string, active?: bool}  $data
+     * @param  array{name: string, username: string, email: string, password: string, position: string, department_id: ?int, phone_number: string, status?: string, active?: bool}  $data
      * @return array{user: User, nonTeaching: NonTeachingStaff}
      */
     public function execute(array $data): array

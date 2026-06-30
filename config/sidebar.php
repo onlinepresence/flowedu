@@ -112,6 +112,7 @@ return [
                     ['label' => 'Image Validation', 'route' => 'admin.settings.image-validation', 'permission' => 'nav_settings_image_validation'],
                     ['label' => 'User Accounts', 'route' => 'admin.settings.users', 'permission' => 'nav_settings_users'],
                     ['label' => 'System Preferences', 'route' => 'admin.settings.system-preferences', 'permission' => 'nav_settings_preferences'],
+                    ['label' => 'System Audit Logs', 'route' => 'admin.audit-logs', 'permission' => 'nav_settings_preferences'],
                     ['label' => 'School Profile', 'route' => 'admin.settings.school', 'permission' => 'nav_settings_school'],
                     ['label' => 'Backup & Restore', 'route' => 'admin.settings.backup', 'permission' => 'nav_settings_backup'],
                 ],

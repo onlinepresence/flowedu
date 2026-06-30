@@ -22,7 +22,17 @@ class Memo extends Model
         'confidentiality_level',
         'status',
         'signing_user_id',
+        'route_sequentially',
+        'cc_recipients',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'route_sequentially' => 'boolean',
+            'cc_recipients' => 'array',
+        ];
+    }
 
     public function sender(): BelongsTo
     {
@@ -174,12 +184,57 @@ class Memo extends Model
             return true;
         }
 
-        // Department isolation check
+        // CC check: If user is CC'd, they can view
+        if ($this->cc_recipients) {
+            $cc = is_string($this->cc_recipients) ? json_decode($this->cc_recipients, true) : $this->cc_recipients;
+            if (is_array($cc)) {
+                // Check users
+                if (isset($cc['users']) && in_array($user->id, $cc['users'])) {
+                    return true;
+                }
+                // Check departments
+                if (isset($cc['departments']) && !empty($cc['departments'])) {
+                    $userDeptId = null;
+                    if ($user->admin) $userDeptId = $user->admin->department_id;
+                    elseif ($user->teacher) $userDeptId = $user->teacher->department_id;
+                    elseif ($user->nonTeachingStaff) $userDeptId = $user->nonTeachingStaff->department_id;
+                    elseif ($user->student) $userDeptId = $user->student->department_id;
+
+                    if ($userDeptId && in_array((int)$userDeptId, array_map('intval', $cc['departments']))) {
+                        return true;
+                    }
+                }
+                // Check roles
+                if (isset($cc['roles']) && !empty($cc['roles'])) {
+                    $userRole = $user->adminRoleSlug();
+                    if ($userRole) {
+                        $roleModel = UserRole::query()->where('name', $userRole)->first();
+                        if ($roleModel && in_array($roleModel->id, $cc['roles'])) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // If it's a draft or pending signature, only the sender and signatories can view
+        if ($this->status === 'draft' || $this->status === 'pending_signature') {
+            return $this->sender_id === $user->id 
+                || $this->signing_user_id === $user->id
+                || $this->signatories()->where('user_id', $user->id)->exists();
+        }
+
+        // Department isolation & Strict Departmental Access check
         $isolation = \App\Models\Setting::query()
             ->where('setting_key', 'memo_settings.department_isolation')
             ->value('setting_value') === '1';
 
-        if ($isolation) {
+        $strictDeptAccess = filter_var(
+            \App\Models\Setting::query()->where('setting_key', 'system_preferences.strict_departmental_access')->value('setting_value') ?? false,
+            FILTER_VALIDATE_BOOLEAN
+        );
+
+        if ($isolation || $strictDeptAccess) {
             $userDeptId = null;
             if ($user->admin) {
                 $userDeptId = $user->admin->department_id;
@@ -219,11 +274,6 @@ class Memo extends Model
             return true;
         }
 
-        // If it's a draft or pending signature, only the sender and signatories can view (already checked/authorized above)
-        if ($this->status === 'draft' || $this->status === 'pending_signature') {
-            return false;
-        }
-
         // Time-based boundary check (Academic Session)
         $userSession = AcademicSession::query()
             ->where('start_date', '<=', $user->created_at)
@@ -239,5 +289,69 @@ class Memo extends Model
         }
 
         return $this->resolveTargetRecipients()->contains('id', $user->id);
+    }
+
+    /**
+     * Get the visible tracking logs based on thread isolation settings.
+     */
+    public function getVisibleTrackingLogs(User $user)
+    {
+        $isolation = filter_var(
+            \App\Models\Setting::query()->where('setting_key', 'system_preferences.thread_isolation_on_forward')->value('setting_value') ?? false,
+            FILTER_VALIDATE_BOOLEAN
+        );
+
+        if (!$isolation || $user->isAdminOwner() || $user->adminRoleSlug() === 'system_admin' || $this->sender_id === $user->id) {
+            return $this->trackingLogs;
+        }
+
+        // Find the last tracking log where this user acted or was the recipient
+        $lastLogUserInvolved = $this->trackingLogs()
+            ->where(function ($q) use ($user) {
+                $q->where('forwarded_by', $user->id)
+                  ->orWhere('to_entity_id', $user->id);
+            })
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        if ($lastLogUserInvolved) {
+            return $this->trackingLogs()
+                ->where('created_at', '<=', $lastLogUserInvolved->created_at)
+                ->orderBy('created_at', 'asc')
+                ->get();
+        }
+
+        return $this->trackingLogs;
+    }
+
+    /**
+     * Resolve all CC recipient users for this memo.
+     */
+    public function resolveCCRecipients()
+    {
+        if (!$this->cc_recipients) {
+            return collect();
+        }
+
+        $cc = $this->cc_recipients;
+        $users = collect();
+
+        if (isset($cc['users']) && !empty($cc['users'])) {
+            $users = $users->merge(User::query()->where('active', true)->whereIn('id', $cc['users'])->get());
+        }
+
+        if (isset($cc['departments']) && !empty($cc['departments'])) {
+            $users = $users->merge(User::query()->where('active', true)->where(function ($q) use ($cc) {
+                $q->whereHas('admin', fn($a) => $a->whereIn('department_id', $cc['departments']))
+                  ->orWhereHas('teacher', fn($t) => $t->whereIn('department_id', $cc['departments']))
+                  ->orWhereHas('nonTeachingStaff', fn($ns) => $ns->whereIn('department_id', $cc['departments']));
+            })->get());
+        }
+
+        if (isset($cc['roles']) && !empty($cc['roles'])) {
+            $users = $users->merge(User::query()->where('active', true)->whereHas('admin', fn($a) => $a->whereIn('type', $cc['roles']))->get());
+        }
+
+        return $users->unique('id');
     }
 }

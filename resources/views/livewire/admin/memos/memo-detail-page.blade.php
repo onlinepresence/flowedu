@@ -22,130 +22,450 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Main Memo Content Column -->
         <div class="lg:col-span-2 space-y-6">
-            <div class="bg-white shadow-sm rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800 p-6 space-y-6">
-                <!-- Header details -->
-                <div class="border-b border-gray-100 dark:border-gray-700 pb-6 space-y-4">
-                    <div class="flex flex-wrap items-center justify-between gap-2">
-                        <div class="flex items-center gap-2">
-                            <!-- Confidentiality Badge -->
-                            @if ($memo->confidentiality_level === 'public')
-                                <span class="inline-flex items-center rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-semibold text-green-700 dark:bg-green-950/40 dark:text-green-300">
-                                    {{ __('Public') }}
-                                </span>
-                            @elseif ($memo->confidentiality_level === 'internal')
-                                <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
-                                    {{ __('Internal') }}
-                                </span>
-                            @else
-                                <span class="inline-flex items-center rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
-                                    {{ __('Confidential') }}
-                                </span>
+            @if ($isEditing)
+                <div class="bg-white shadow-sm rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800 p-6 space-y-6">
+                    <h2 class="text-lg font-bold text-gray-900 dark:text-white">{{ __('Edit Draft Memo') }}</h2>
+                    
+                    <form wire:submit="resubmitMemo('send')" class="space-y-6">
+                        <!-- Title -->
+                        <div>
+                            <x-input-label for="editTitle" :value="__('Title')" />
+                            <x-text-input wire:model="editTitle" id="editTitle" type="text" class="mt-1 block w-full text-sm font-sans" required />
+                            <x-input-error :messages="$errors->get('editTitle')" class="mt-1" />
+                        </div>
+
+                        <!-- Content -->
+                        <div>
+                            <x-input-label for="editContent" :value="__('Content')" />
+                            <x-textarea-input wire:model="editContent" id="editContent" rows="10" class="mt-1 block w-full text-sm font-sans" required />
+                            <x-input-error :messages="$errors->get('editContent')" class="mt-1" />
+                        </div>
+
+                        <!-- Signatory review -->
+                        @php
+                            $memos_require_signature = filter_var(
+                                \App\Models\Setting::query()->where('setting_key', 'system_preferences.memos_require_signature')->value('setting_value') ?? false,
+                                FILTER_VALIDATE_BOOLEAN
+                            );
+                            $memos_multiple_signatories = filter_var(
+                                \App\Models\Setting::query()->where('setting_key', 'system_preferences.memos_multiple_signatories')->value('setting_value') ?? false,
+                                FILTER_VALIDATE_BOOLEAN
+                            );
+                        @endphp
+                        <div class="space-y-3 border-t border-gray-100 dark:border-gray-700 pt-4">
+                            <x-input-label :value="__('Sign-off / Signatures')" />
+                            
+                            @if (auth()->user()?->hasAdminPermission('self_sign_memo'))
+                                <div>
+                                    <label class="inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" wire:model.live="editSelfSign" class="rounded border-gray-300 text-purple-600 shadow-sm focus:ring-purple-500 dark:bg-gray-800 dark:border-gray-700">
+                                        <span class="ml-2 text-xs font-semibold text-purple-700 dark:text-purple-400">
+                                            <i class="fa-solid fa-file-signature mr-1"></i>
+                                            {{ __('Self-sign this memo') }}
+                                        </span>
+                                    </label>
+                                </div>
                             @endif
 
-                            <!-- Status Badge -->
-                            @if ($memo->status === 'draft')
-                                <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800 dark:bg-gray-700 dark:text-gray-300">
-                                    {{ __('Draft') }}
-                                </span>
-                            @elseif ($memo->status === 'pending_signature')
-                                <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
-                                    {{ __('Pending Signature') }}
-                                </span>
+                            @if (!$editSelfSign || $memos_multiple_signatories)
+                                <div class="space-y-2">
+                                    <!-- Selected signatories badges -->
+                                    @if (!empty($editSelectedSignatories))
+                                        <div class="flex flex-wrap gap-2 mb-2">
+                                            @foreach ($editSelectedSignatories as $index => $sigId)
+                                                @php $sigUser = \App\Models\User::find($sigId); @endphp
+                                                @if ($sigUser)
+                                                    <span class="inline-flex items-center gap-1.5 rounded bg-purple-50 px-2 py-1 text-xs font-semibold text-purple-700 dark:bg-purple-950/40 dark:text-purple-300">
+                                                        {{ $index + 1 }}. {{ $sigUser->name }}
+                                                        <button type="button" wire:click="removeSignatory({{ $sigId }})" class="hover:text-purple-900 text-purple-400 font-bold">&times;</button>
+                                                    </span>
+                                                @endif
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                    <!-- Search input -->
+                                    <div class="relative">
+                                        <input type="text" wire:model.live="signatorySearch" placeholder="Search staff to add as signatory..." class="block w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100">
+                                        @if ($signatorySearch !== '')
+                                            <div class="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg text-sm">
+                                                @php
+                                                    $searchResults = \App\Models\User::query()
+                                                        ->where('active', true)
+                                                        ->where('type', 'admin')
+                                                        ->where('id', '!=', auth()->id())
+                                                        ->where('name', 'like', '%' . $signatorySearch . '%')
+                                                        ->whereNotIn('id', $editSelectedSignatories)
+                                                        ->limit(5)
+                                                        ->get();
+                                                @endphp
+                                                @forelse($searchResults as $u)
+                                                    <button type="button" wire:click="addSignatory({{ $u->id }})" class="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white">
+                                                        {{ $u->name }} ({{ $u->adminRoleSlug() }})
+                                                    </button>
+                                                @empty
+                                                    <div class="px-3 py-2 text-gray-500">No results found</div>
+                                                @endforelse
+                                            </div>
+                                        @endif
+                                    </div>
+                                    <x-input-error :messages="$errors->get('editSelectedSignatories')" class="mt-1" />
+                                </div>
                             @endif
                         </div>
-                        <span class="text-xs font-mono text-gray-500 dark:text-gray-400">
-                            {{ $memo->created_at->format('F d, Y H:i') }}
-                        </span>
-                    </div>
 
-                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
-                        {{ $memo->title }}
-                    </h1>
-
-                    <!-- Metadata Table -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-md text-sm">
-                        <div>
-                            <span class="block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ __('Sender') }}</span>
-                            <span class="font-medium text-gray-900 dark:text-white">{{ $memo->sender_name }}</span>
-                        </div>
-                        <div>
-                            <span class="block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ __('Recipient') }}</span>
-                            <span class="font-medium text-gray-900 dark:text-white">{{ $memo->recipient_name }}</span>
-                        </div>
-                        @if ($memo->signatories->count() > 0)
-                            <div class="sm:col-span-2">
-                                <span class="block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">{{ __('Signatures & Approvals') }}</span>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                    @foreach ($memo->signatories as $sig)
-                                        <div class="flex items-center gap-2 p-2 rounded bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 text-xs">
-                                            @if ($sig->status === 'signed')
-                                                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400">
-                                                    <i class="fa-solid fa-check text-[10px]"></i>
-                                                </span>
-                                            @elseif ($sig->status === 'rejected')
-                                                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400">
-                                                    <i class="fa-solid fa-xmark text-[10px]"></i>
-                                                </span>
-                                            @else
-                                                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-750 dark:bg-amber-950/40 dark:text-amber-400">
-                                                    <i class="fa-solid fa-clock text-[10px]"></i>
+                        <!-- CC Recipients Section -->
+                        <div class="space-y-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+                            <x-input-label :value="__('CC (Carbon Copy) Recipients')" />
+                            
+                            <!-- CC Users search/badges -->
+                            <div class="space-y-2">
+                                @if (!empty($editCcUsers))
+                                    <div class="flex flex-wrap gap-2 mb-2">
+                                        @foreach ($editCcUsers as $ccId)
+                                            @php $ccUser = \App\Models\User::find($ccId); @endphp
+                                            @if ($ccUser)
+                                                <span class="inline-flex items-center gap-1.5 rounded bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+                                                    {{ $ccUser->name }}
+                                                    <button type="button" wire:click="removeCcUser({{ $ccId }})" class="hover:text-blue-900 text-blue-400 font-bold">&times;</button>
                                                 </span>
                                             @endif
-                                            <div class="truncate">
-                                                <p class="font-semibold text-gray-800 dark:text-gray-250 truncate">{{ $sig->user->name }}</p>
-                                                @if ($sig->remarks)
-                                                    <p class="text-[10px] text-gray-500 dark:text-gray-400 truncate italic">"{{ $sig->remarks }}"</p>
-                                                @endif
+                                        @endforeach
+                                    </div>
+                                @endif
+                                <div class="relative">
+                                    <input type="text" wire:model.live="ccSearch" placeholder="Search staff to CC..." class="block w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100">
+                                    @if ($ccSearch !== '')
+                                        <div class="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg text-sm">
+                                            @php
+                                                $ccSearchResults = \App\Models\User::query()
+                                                    ->where('active', true)
+                                                    ->where('type', 'admin')
+                                                    ->where('id', '!=', auth()->id())
+                                                    ->where('name', 'like', '%' . $ccSearch . '%')
+                                                    ->whereNotIn('id', $editCcUsers)
+                                                    ->limit(5)
+                                                    ->get();
+                                            @endphp
+                                            @forelse($ccSearchResults as $u)
+                                                <button type="button" wire:click="addCcUser({{ $u->id }})" class="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white">
+                                                    {{ $u->name }} ({{ $u->adminRoleSlug() }})
+                                                </button>
+                                            @empty
+                                                <div class="px-3 py-2 text-gray-500">No results found</div>
+                                            @endforelse
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <!-- CC Departments & Roles -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <x-input-label :value="__('CC Departments')" class="mb-1" />
+                                    <div x-data="{
+                                        search: '',
+                                        open: false,
+                                        options: @js($departments->map(fn($d) => ['id' => $d->id, 'name' => $d->name])),
+                                        selected: @entangle('editCcDepartments').live
+                                    }" class="relative">
+                                        <!-- Selected Badges -->
+                                        <div class="flex flex-wrap gap-1.5 mb-2">
+                                            <template x-for="id in selected" :key="id">
+                                                <span class="inline-flex items-center gap-1 rounded bg-purple-50 px-2 py-0.5 text-xs font-semibold text-purple-700 dark:bg-purple-950/40 dark:text-purple-300">
+                                                    <span x-text="options.find(o => o.id == id)?.name || id"></span>
+                                                    <button type="button" @click="selected = selected.filter(x => x != id)" class="hover:text-purple-900 font-bold">&times;</button>
+                                                </span>
+                                            </template>
+                                        </div>
+                                        <!-- Search Input -->
+                                        <input
+                                            type="text"
+                                            x-model="search"
+                                            @focus="open = true"
+                                            @click.away="open = false"
+                                            placeholder="Search departments to CC..."
+                                            class="block w-full text-xs rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
+                                        />
+                                        <!-- Dropdown -->
+                                        <div
+                                            x-show="open"
+                                            x-transition
+                                            class="absolute自动 z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg text-xs"
+                                            style="display: none;"
+                                        >
+                                            <template x-for="opt in options.filter(o => o.name.toLowerCase().includes(search.toLowerCase()) && !selected.includes(o.id))" :key="opt.id">
+                                                <button
+                                                    type="button"
+                                                    @click="selected.push(opt.id); search = '';"
+                                                    class="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-750 dark:text-white"
+                                                    x-text="opt.name"
+                                                ></button>
+                                            </template>
+                                            <div x-show="options.filter(o => o.name.toLowerCase().includes(search.toLowerCase()) && !selected.includes(o.id)).length === 0" class="px-3 py-2 text-gray-500 italic">
+                                                No departments found
                                             </div>
                                         </div>
-                                    @endforeach
+                                    </div>
                                 </div>
-                            </div>
-                        @elseif ($memo->signingUser)
-                            <div class="sm:col-span-2">
-                                <span class="block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ __('Assigned Signatory') }}</span>
-                                <span class="font-medium text-gray-900 dark:text-white">{{ $memo->signingUser->name }}</span>
-                            </div>
-                        @endif
-                    </div>
-                </div>
-
-                <!-- Memo Body -->
-                <div class="text-gray-800 dark:text-gray-250 leading-relaxed font-sans text-sm whitespace-pre-line">
-                    {!! nl2br(e($memo->content)) !!}
-                </div>
-
-                <!-- Attachments -->
-                @if ($memo->attachments->count() > 0)
-                    <div class="border-t border-gray-100 dark:border-gray-700 pt-6">
-                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">{{ __('Attachments') }} ({{ $memo->attachments->count() }})</h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            @foreach ($memo->attachments as $file)
-                                <div class="flex items-center justify-between p-3 rounded-md border border-gray-150 dark:border-gray-750 bg-gray-50/50 dark:bg-gray-800">
-                                    <div class="flex items-center gap-2 overflow-hidden mr-2">
-                                        <i class="fa-solid fa-file text-purple-500 dark:text-purple-400 shrink-0"></i>
-                                        <div class="text-xs truncate">
-                                            <p class="font-medium text-gray-900 dark:text-white truncate" title="{{ $file->file_name }}">
-                                                {{ $file->file_name }}
-                                            </p>
-                                            <p class="text-gray-500 dark:text-gray-400">
-                                                {{ $file->formatted_size }}
-                                            </p>
+                                <div>
+                                    <x-input-label :value="__('CC Staff Roles')" class="mb-1" />
+                                    <div x-data="{
+                                        search: '',
+                                        open: false,
+                                        options: @js($roles->map(fn($r) => ['id' => $r->id, 'name' => $r->display_name])),
+                                        selected: @entangle('editCcRoles').live
+                                    }" class="relative">
+                                        <!-- Selected Badges -->
+                                        <div class="flex flex-wrap gap-1.5 mb-2">
+                                            <template x-for="id in selected" :key="id">
+                                                <span class="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+                                                    <span x-text="options.find(o => o.id == id)?.name || id"></span>
+                                                    <button type="button" @click="selected = selected.filter(x => x != id)" class="hover:text-blue-900 font-bold">&times;</button>
+                                                </span>
+                                            </template>
+                                        </div>
+                                        <!-- Search Input -->
+                                        <input
+                                            type="text"
+                                            x-model="search"
+                                            @focus="open = true"
+                                            @click.away="open = false"
+                                            placeholder="Search roles to CC..."
+                                            class="block w-full text-xs rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
+                                        />
+                                        <!-- Dropdown -->
+                                        <div
+                                            x-show="open"
+                                            x-transition
+                                            class="absolute自动 z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg text-xs"
+                                            style="display: none;"
+                                        >
+                                            <template x-for="opt in options.filter(o => o.name.toLowerCase().includes(search.toLowerCase()) && !selected.includes(o.id))" :key="opt.id">
+                                                <button
+                                                    type="button"
+                                                    @click="selected.push(opt.id); search = '';"
+                                                    class="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-750 dark:text-white"
+                                                    x-text="opt.name"
+                                                ></button>
+                                            </template>
+                                            <div x-show="options.filter(o => o.name.toLowerCase().includes(search.toLowerCase()) && !selected.includes(o.id)).length === 0" class="px-3 py-2 text-gray-500 italic">
+                                                No roles found
+                                            </div>
                                         </div>
                                     </div>
-                                    <button
-                                        type="button"
-                                        wire:click="downloadAttachment({{ $file->id }})"
-                                        class="text-purple-600 hover:text-purple-500 dark:text-purple-400 dark:hover:text-purple-300 font-semibold text-xs shrink-0"
-                                    >
-                                        <i class="fa-solid fa-download"></i>
-                                    </button>
                                 </div>
-                            @endforeach
+                            </div>
+                        </div>
+
+                        <!-- Attachments Section (Edit Mode) -->
+                        <div class="space-y-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+                            <x-input-label :value="__('Attachments')" />
+                            
+                            <!-- Existing Attachments -->
+                            @if ($memo->attachments->count() > 0)
+                                <div class="space-y-2">
+                                    <p class="text-xs font-semibold text-gray-500 dark:text-gray-400">{{ __('Current Attachments') }}</p>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        @foreach ($memo->attachments as $file)
+                                            @php
+                                                $isStagedForDeletion = in_array($file->id, $deletedAttachmentIds);
+                                            @endphp
+                                            <div class="flex items-center justify-between p-3 rounded-md border {{ $isStagedForDeletion ? 'border-red-300 bg-red-50/50 dark:border-red-900/50 dark:bg-red-950/10' : 'border-gray-150 dark:border-gray-750 bg-gray-50/50 dark:bg-gray-800' }}">
+                                                <div class="flex items-center gap-2 overflow-hidden mr-2">
+                                                    <i class="fa-solid fa-file {{ $isStagedForDeletion ? 'text-red-500' : 'text-purple-500 dark:text-purple-400' }} shrink-0"></i>
+                                                    <div class="text-xs truncate {{ $isStagedForDeletion ? 'line-through text-red-700 dark:text-red-400' : '' }}">
+                                                        <p class="font-medium truncate" title="{{ $file->file_name }}">
+                                                            {{ $file->file_name }}
+                                                        </p>
+                                                        <p class="{{ $isStagedForDeletion ? 'text-red-500' : 'text-gray-500 dark:text-gray-400' }}">
+                                                            {{ $file->formatted_size }}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                @if ($isStagedForDeletion)
+                                                    <button type="button" wire:click="unstageAttachmentDeletion({{ $file->id }})" class="text-xs font-semibold text-blue-600 hover:text-blue-500 dark:text-blue-400 shrink-0">
+                                                        <i class="fa-solid fa-rotate-left mr-1"></i>{{ __('Undo') }}
+                                                    </button>
+                                                @else
+                                                    <button type="button" wire:click="stageAttachmentDeletion({{ $file->id }})" class="text-xs font-semibold text-red-600 hover:text-red-500 dark:text-red-400 shrink-0">
+                                                        <i class="fa-solid fa-trash-can mr-1"></i>{{ __('Remove') }}
+                                                    </button>
+                                                @endif
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+
+                            <!-- Add New Attachments -->
+                            <div class="space-y-2 pt-2">
+                                <x-input-label :value="__('Add New Attachments')" class="text-xs text-gray-500 dark:text-gray-400" />
+                                <input type="file" wire:model="attachments" multiple class="block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 dark:file:bg-gray-700 dark:file:text-gray-200" />
+                                <x-input-error :messages="$errors->get('attachments.*')" class="mt-1" />
+                            </div>
+                        </div>
+
+                        <!-- Resubmission choice if rejected -->
+                        @if ($memo->signatories()->where('status', 'rejected')->exists())
+                            <div class="space-y-3 border-t border-gray-150 dark:border-gray-700 pt-4">
+                                <x-input-label :value="__('Resubmission Option')" />
+                                <div class="flex flex-col gap-2">
+                                    <label class="inline-flex items-center cursor-pointer">
+                                        <input type="radio" wire:model="resubmissionChoice" value="restart" class="text-purple-600 focus:ring-purple-500 dark:bg-gray-950/20">
+                                        <span class="ml-2 text-xs font-semibold text-gray-805 dark:text-gray-250">
+                                            {{ __('Restart from beginning (resets all signature records)') }}
+                                        </span>
+                                    </label>
+                                    <label class="inline-flex items-center cursor-pointer">
+                                        <input type="radio" wire:model="resubmissionChoice" value="resume" class="text-purple-600 focus:ring-purple-500 dark:bg-gray-950/20">
+                                        <span class="ml-2 text-xs font-semibold text-gray-805 dark:text-gray-250">
+                                            {{ __('Resume from rejected signatory (preserves prior signatures)') }}
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                        @endif
+
+                        <!-- Form Actions -->
+                        <div class="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+                            <button type="button" wire:click="toggleEditing" class="rounded-md border border-gray-350 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-650 dark:bg-gray-900 dark:text-white">
+                                {{ __('Cancel') }}
+                            </button>
+                            <button type="button" wire:click="resubmitMemo('draft')" class="rounded-md border border-purple-300 bg-purple-50/50 px-4 py-2 text-sm font-medium text-purple-700 hover:bg-purple-100 dark:bg-purple-950/20 dark:text-purple-400">
+                                {{ __('Save Changes (Draft)') }}
+                            </button>
+                            <button type="submit" class="rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700">
+                                {{ __('Submit Memo') }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            @else
+                <div class="bg-white shadow-sm rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800 p-6 space-y-6">
+                    <!-- Header details -->
+                    <div class="border-b border-gray-100 dark:border-gray-700 pb-6 space-y-4">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div class="flex items-center gap-2">
+                                <!-- Confidentiality Badge -->
+                                @if ($memo->confidentiality_level === 'public')
+                                    <span class="inline-flex items-center rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-semibold text-green-700 dark:bg-green-950/40 dark:text-green-300">
+                                        {{ __('Public') }}
+                                    </span>
+                                @elseif ($memo->confidentiality_level === 'internal')
+                                    <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-green-300">
+                                        {{ __('Internal') }}
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
+                                        {{ __('Confidential') }}
+                                    </span>
+                                @endif
+
+                                <!-- Status Badge -->
+                                @if ($memo->status === 'draft')
+                                    <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                                        {{ __('Draft') }}
+                                    </span>
+                                @elseif ($memo->status === 'pending_signature')
+                                    <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                                        {{ __('Pending Signature') }}
+                                    </span>
+                                @endif
+                            </div>
+                            <span class="text-xs font-mono text-gray-500 dark:text-gray-400">
+                                {{ $memo->created_at->format('F d, Y H:i') }}
+                            </span>
+                        </div>
+
+                        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+                            {{ $memo->title }}
+                        </h1>
+
+                        <!-- Metadata Table -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-md text-sm">
+                            <div>
+                                <span class="block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ __('Sender') }}</span>
+                                <span class="font-medium text-gray-900 dark:text-white">{{ $memo->sender_name }}</span>
+                            </div>
+                            <div>
+                                <span class="block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ __('Recipient') }}</span>
+                                <span class="font-medium text-gray-900 dark:text-white">{{ $memo->recipient_name }}</span>
+                            </div>
+                            @if ($memo->signatories->count() > 0)
+                                <div class="sm:col-span-2">
+                                    <span class="block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">{{ __('Signatures & Approvals') }}</span>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        @foreach ($memo->signatories as $sig)
+                                            <div class="flex items-center gap-2 p-2 rounded bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 text-xs">
+                                                @if ($sig->status === 'signed')
+                                                    <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400">
+                                                        <i class="fa-solid fa-check text-[10px]"></i>
+                                                    </span>
+                                                @elseif ($sig->status === 'rejected')
+                                                    <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400">
+                                                        <i class="fa-solid fa-xmark text-[10px]"></i>
+                                                    </span>
+                                                @else
+                                                    <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-750 dark:bg-amber-950/40 dark:text-amber-400">
+                                                        <i class="fa-solid fa-clock text-[10px]"></i>
+                                                    </span>
+                                                @endif
+                                                <div class="truncate">
+                                                    <p class="font-semibold text-gray-800 dark:text-gray-250 truncate">{{ $sig->user->name }}</p>
+                                                    @if ($sig->remarks)
+                                                        <p class="text-[10px] text-gray-500 dark:text-gray-400 truncate italic">"{{ $sig->remarks }}"</p>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @elseif ($memo->signingUser)
+                                <div class="sm:col-span-2">
+                                    <span class="block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ __('Assigned Signatory') }}</span>
+                                    <span class="font-medium text-gray-900 dark:text-white">{{ $memo->signingUser->name }}</span>
+                                </div>
+                            @endif
                         </div>
                     </div>
-                @endif
-            </div>
+
+                    <!-- Memo Body -->
+                    <div class="text-gray-800 dark:text-gray-250 leading-relaxed font-sans text-sm whitespace-pre-line">
+                        {!! nl2br(e($memo->content)) !!}
+                    </div>
+
+                    <!-- Attachments -->
+                    @if ($memo->attachments->count() > 0)
+                        <div class="border-t border-gray-100 dark:border-gray-700 pt-6">
+                            <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">{{ __('Attachments') }} ({{ $memo->attachments->count() }})</h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                @foreach ($memo->attachments as $file)
+                                    <div class="flex items-center justify-between p-3 rounded-md border border-gray-150 dark:border-gray-750 bg-gray-50/50 dark:bg-gray-800">
+                                        <div class="flex items-center gap-2 overflow-hidden mr-2">
+                                            <i class="fa-solid fa-file text-purple-500 dark:text-purple-400 shrink-0"></i>
+                                            <div class="text-xs truncate">
+                                                <p class="font-medium text-gray-900 dark:text-white truncate" title="{{ $file->file_name }}">
+                                                    {{ $file->file_name }}
+                                                </p>
+                                                <p class="text-gray-500 dark:text-gray-400">
+                                                    {{ $file->formatted_size }}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            wire:click="downloadAttachment({{ $file->id }})"
+                                            class="text-purple-600 hover:text-purple-500 dark:text-purple-400 dark:hover:text-purple-300 font-semibold text-xs shrink-0"
+                                        >
+                                            <i class="fa-solid fa-download"></i>
+                                        </button>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+                </div>
+            @endif
 
             <!-- Contextual Actions Panel -->
             <div class="bg-white shadow-sm rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800 p-6 space-y-4">
@@ -155,6 +475,18 @@
                         $isPendingSignatory = $memo->signatories()->where('user_id', auth()->id())->where('status', 'pending')->exists()
                             || ($memo->status === 'pending_signature' && $memo->signing_user_id === auth()->id() && !$memo->signatories()->where('user_id', auth()->id())->exists());
                     @endphp
+
+                    <!-- Edit draft option -->
+                    @if ($memo->status === 'draft' && $memo->sender_id === auth()->id() && !$isEditing)
+                        <button
+                            type="button"
+                            wire:click="toggleEditing"
+                            class="inline-flex items-center gap-1.5 justify-center rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-purple-700"
+                        >
+                            <i class="fa-solid fa-pen-to-square"></i>
+                            {{ __('Edit Draft') }}
+                        </button>
+                    @endif
 
                     @if ($memo->status === 'pending_signature' && $isPendingSignatory)
                         <div class="w-full space-y-3 p-4 bg-purple-50/50 dark:bg-purple-950/10 border border-purple-100 dark:border-purple-900/50 rounded-lg">
@@ -190,7 +522,7 @@
                     @endif
 
                     <!-- Manual Forwarding -->
-                    @if (auth()->user()?->hasAdminPermission('forward_memo') && $memo->status === 'sent')
+                    @if (auth()->user()?->hasAdminPermission('forward_memo') && $memo->status === 'sent' && $memo->confidentiality_level !== 'public')
                         <button
                             type="button"
                             wire:click="openForward"

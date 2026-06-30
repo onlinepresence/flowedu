@@ -203,6 +203,33 @@ class MemosModuleTest extends TestCase
         $this->assertSame('Please display in library.', $log->remarks);
     }
 
+    public function test_manual_forwarding_is_disabled_for_public_memos(): void
+    {
+        $sender = $this->createStaffMember('owner');
+        $recipient1 = $this->createStaffMember('dean_of_students', ['nav_memos', 'forward_memo']);
+        $recipient2 = $this->createStaffMember('librarian', ['nav_memos']);
+
+        // Create a sent memo with public confidentiality
+        $memo = Memo::query()->create([
+            'title' => 'Public Policy Document',
+            'content' => 'Public policy updates.',
+            'sender_id' => $sender->id,
+            'recipient_type' => 'user',
+            'recipient_entity_id' => $recipient1->id,
+            'status' => 'sent',
+            'confidentiality_level' => 'public',
+        ]);
+
+        $this->withoutExceptionHandling();
+
+        // Attempting to forward a public memo should fail
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+
+        Livewire::actingAs($recipient1)
+            ->test(MemoDetailPage::class, ['memo' => $memo])
+            ->call('openForward');
+    }
+
     public function test_sequential_signatory_enforcement_and_progression(): void
     {
         $secretary = $this->createStaffMember('secretary');
@@ -315,5 +342,170 @@ class MemosModuleTest extends TestCase
 
         // Unauthorized user can view now
         $this->assertTrue($memo->canBeViewedBy($unauthorized));
+    }
+
+    public function test_memo_resubmission_and_cc_features(): void
+    {
+        $secretary = $this->createStaffMember('secretary');
+        $sig1 = $this->createStaffMember('sig1', ['nav_memos']);
+        $sig2 = $this->createStaffMember('sig2', ['nav_memos']);
+        $ccUser = $this->createStaffMember('cc_staff', ['nav_memos']);
+
+        // Enable multiple signatories setting
+        \App\Models\Setting::updateOrCreate(
+            ['setting_key' => 'system_preferences.memos_multiple_signatories'],
+            [
+                'setting_value' => '1',
+                'category' => 'system_preferences',
+                'data_type' => 'boolean',
+            ]
+        );
+
+        // Create a draft memo first with CC configurations
+        $memo = Memo::query()->create([
+            'title' => 'Resubmission and CC Test',
+            'content' => 'Original Draft content.',
+            'sender_id' => $secretary->id,
+            'recipient_type' => 'user',
+            'recipient_entity_id' => $sig2->id,
+            'status' => 'draft',
+            'confidentiality_level' => 'internal',
+            'cc_recipients' => [
+                'users' => [$ccUser->id],
+                'departments' => [],
+                'roles' => [],
+            ],
+        ]);
+
+        $memo->signatories()->create([
+            'user_id' => $sig1->id,
+            'step_number' => 1,
+            'status' => 'signed',
+            'signed_at' => now(),
+        ]);
+
+        $memo->signatories()->create([
+            'user_id' => $sig2->id,
+            'step_number' => 2,
+            'status' => 'rejected',
+            'remarks' => 'Typo in title.',
+        ]);
+
+        // Verify that the CC recipient is authorized to view
+        $this->assertTrue($memo->canBeViewedBy($ccUser));
+
+        // Test resubmission choice: resume (keeps sig1 as signed, sets sig2 to pending)
+        Livewire::actingAs($secretary)
+            ->test(MemoDetailPage::class, ['memo' => $memo])
+            ->set('isEditing', true)
+            ->set('editTitle', 'Resubmission and CC Test Fixed')
+            ->set('editContent', 'Updated Draft content.')
+            ->set('resubmissionChoice', 'resume')
+            ->call('resubmitMemo', 'send');
+
+        $memo->refresh();
+        $this->assertSame('pending_signature', $memo->status);
+        $this->assertSame('Resubmission and CC Test Fixed', $memo->title);
+        // Verify signatories status: sig1 should remain signed, sig2 should be pending
+        $this->assertSame('signed', $memo->signatories()->where('user_id', $sig1->id)->first()->status);
+        $this->assertSame('pending', $memo->signatories()->where('user_id', $sig2->id)->first()->status);
+
+        // Reset to rejected/draft status for restart test
+        $memo->update(['status' => 'draft']);
+        $memo->signatories()->where('user_id', $sig2->id)->update(['status' => 'rejected']);
+
+        // Test resubmission choice: restart (resets both to pending)
+        Livewire::actingAs($secretary)
+            ->test(MemoDetailPage::class, ['memo' => $memo])
+            ->set('isEditing', true)
+            ->set('editTitle', 'Resubmission Restarted')
+            ->set('editContent', 'Updated Draft content again.')
+            ->set('editSelectedSignatories', [$sig1->id, $sig2->id])
+            ->set('resubmissionChoice', 'restart')
+            ->call('resubmitMemo', 'send');
+
+        $memo->refresh();
+        $this->assertSame('pending_signature', $memo->status);
+        $this->assertSame('Resubmission Restarted', $memo->title);
+        // Both signatories must now be pending
+        $this->assertSame('pending', $memo->signatories()->where('user_id', $sig1->id)->first()->status);
+        $this->assertSame('pending', $memo->signatories()->where('user_id', $sig2->id)->first()->status);
+    }
+
+    public function test_memo_edit_attachments_and_signatories_persistence(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+
+        $secretary = $this->createStaffMember('secretary');
+        $sig1 = $this->createStaffMember('sig1', ['nav_memos']);
+        $ccUser = $this->createStaffMember('cc_staff', ['nav_memos']);
+
+        // Create a draft memo first
+        $memo = Memo::query()->create([
+            'title' => 'Initial Title',
+            'content' => 'Initial Content',
+            'sender_id' => $secretary->id,
+            'recipient_type' => 'user',
+            'recipient_entity_id' => $sig1->id,
+            'status' => 'draft',
+            'confidentiality_level' => 'internal',
+            'cc_recipients' => [
+                'users' => [$ccUser->id],
+                'departments' => [],
+                'roles' => [],
+            ],
+        ]);
+
+        // Add an existing attachment to the memo
+        $existingAttachment = $memo->attachments()->create([
+            'file_path' => 'memos/old_file.txt',
+            'file_name' => 'old_file.txt',
+            'file_size' => 1024,
+        ]);
+        \Illuminate\Support\Facades\Storage::disk('local')->put('memos/old_file.txt', 'old content');
+
+        // Create a signatory
+        $memo->signatories()->create([
+            'user_id' => $sig1->id,
+            'step_number' => 1,
+            'status' => 'pending',
+        ]);
+
+        // Verify setup
+        $this->assertCount(1, $memo->attachments);
+        $this->assertCount(1, $memo->signatories);
+
+        $newFile = \Illuminate\Http\UploadedFile::fake()->create('new_file.png', 500);
+
+        // Edit via Livewire
+        Livewire::actingAs($secretary)
+            ->test(MemoDetailPage::class, ['memo' => $memo])
+            ->assertSet('editSelfSign', false)
+            ->assertSet('editSelectedSignatories', [$sig1->id])
+            ->set('isEditing', true)
+            ->set('editTitle', 'Updated Title')
+            ->set('editContent', 'Updated Content')
+            ->upload('attachments', [$newFile])
+            ->call('stageAttachmentDeletion', $existingAttachment->id)
+            ->call('resubmitMemo', 'draft');
+
+        $memo->refresh();
+        // Title and content should be updated
+        $this->assertSame('Updated Title', $memo->title);
+        $this->assertSame('Updated Content', $memo->content);
+
+        // Signatories should be persistent (still present)
+        $this->assertCount(1, $memo->signatories);
+        $this->assertSame($sig1->id, $memo->signatories()->first()->user_id);
+
+        // Old attachment should be deleted and new one added
+        $this->assertCount(1, $memo->attachments);
+        $newAttachment = $memo->attachments()->first();
+        $this->assertSame('new_file.png', $newAttachment->file_name);
+        $this->assertNotEquals($existingAttachment->id, $newAttachment->id);
+
+        // Verify files in storage
+        \Illuminate\Support\Facades\Storage::disk('local')->assertMissing('memos/old_file.txt');
+        \Illuminate\Support\Facades\Storage::disk('tmp-for-tests')->assertExists($newAttachment->file_path);
     }
 }

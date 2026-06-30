@@ -107,6 +107,9 @@ Route::middleware($adminApp)->prefix('admin')->group(function () {
     Route::get('file-uploads/{file}/download', \App\Http\Controllers\Admin\UserFileDownloadController::class)
         ->name('admin.file-uploads.download')
         ->middleware('can:admin.manage_file_uploads');
+    Route::get('audit-logs', \App\Livewire\Admin\Audit\SystemAuditLogsPage::class)
+        ->middleware('college.licence:system_admin')
+        ->name('admin.audit-logs');
 });
 
 Route::middleware($adminApp)->prefix('admin/staff')->group(function () {

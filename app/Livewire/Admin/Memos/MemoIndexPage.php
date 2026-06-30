@@ -42,6 +42,16 @@ class MemoIndexPage extends Component
     // Multi-signatory state
     public array $selected_signatories = [];
     public bool $self_sign = false;
+    public bool $route_sequentially = false;
+    
+    // CC recipients state
+    public array $cc_users = [];
+    public array $cc_departments = [];
+    public array $cc_roles = [];
+    
+    // Search fields
+    public string $signatory_search = '';
+    public string $cc_search = '';
     
     /** @var array */
     public $attachments = []; // file uploads
@@ -83,7 +93,48 @@ class MemoIndexPage extends Component
         $this->signing_user_id = null;
         $this->selected_signatories = [];
         $this->self_sign = false;
+        $this->route_sequentially = false;
+        $this->cc_users = [];
+        $this->cc_departments = [];
+        $this->cc_roles = [];
+        $this->signatory_search = '';
+        $this->cc_search = '';
         $this->attachments = [];
+    }
+
+    public function addSignatory(int $userId): void
+    {
+        $memos_multiple_signatories = filter_var(
+            \App\Models\Setting::query()->where('setting_key', 'system_preferences.memos_multiple_signatories')->value('setting_value') ?? false,
+            FILTER_VALIDATE_BOOLEAN
+        );
+
+        if (!$memos_multiple_signatories) {
+            $this->selected_signatories = [$userId];
+        } else {
+            if (!in_array($userId, $this->selected_signatories)) {
+                $this->selected_signatories[] = $userId;
+            }
+        }
+        $this->signatory_search = '';
+    }
+
+    public function removeSignatory(int $userId): void
+    {
+        $this->selected_signatories = array_values(array_diff($this->selected_signatories, [$userId]));
+    }
+
+    public function addCcUser(int $userId): void
+    {
+        if (!in_array($userId, $this->cc_users)) {
+            $this->cc_users[] = $userId;
+        }
+        $this->cc_search = '';
+    }
+
+    public function removeCcUser(int $userId): void
+    {
+        $this->cc_users = array_values(array_diff($this->cc_users, [$userId]));
     }
 
     public function saveMemo(string $submitType = 'send'): void
@@ -175,9 +226,18 @@ class MemoIndexPage extends Component
             }
         }
 
-        $firstSignatoryId = !empty($signatories) ? reset($signatories) : null;
+        $firstPendingSignatoryId = null;
+        if (!empty($signatories)) {
+            foreach ($signatories as $sId) {
+                $isSelf = (int)$sId === (int)$user->id && $this->self_sign;
+                if (!$isSelf) {
+                    $firstPendingSignatoryId = $sId;
+                    break;
+                }
+            }
+        }
 
-        DB::transaction(function () use ($user, $senderEntityType, $senderEntityId, $status, $signatories, $firstSignatoryId) {
+        DB::transaction(function () use ($user, $senderEntityType, $senderEntityId, $status, $signatories, $firstPendingSignatoryId) {
             $memo = Memo::query()->create([
                 'title' => $this->title,
                 'content' => $this->content,
@@ -189,7 +249,13 @@ class MemoIndexPage extends Component
                 'recipient_role_id' => $this->recipient_type === 'role' ? $this->recipient_role_id : null,
                 'confidentiality_level' => $this->confidentiality_level,
                 'status' => $status,
-                'signing_user_id' => $firstSignatoryId,
+                'signing_user_id' => $firstPendingSignatoryId,
+                'route_sequentially' => $this->route_sequentially,
+                'cc_recipients' => [
+                    'users' => array_map('intval', array_filter($this->cc_users)),
+                    'departments' => array_map('intval', array_filter($this->cc_departments)),
+                    'roles' => array_map('intval', array_filter($this->cc_roles)),
+                ],
             ]);
 
             // Save tracking log
@@ -228,13 +294,20 @@ class MemoIndexPage extends Component
                 }
             }
 
-            // If dispatched, seed read receipts for recipients
+            // If dispatched, seed read receipts for recipients & CC recipients
             if ($status === 'sent') {
                 $recipients = $memo->resolveTargetRecipients();
                 foreach ($recipients as $recipient) {
                     \App\Models\MemoReadReceipt::query()->firstOrCreate([
                         'memo_id' => $memo->id,
                         'user_id' => $recipient->id,
+                    ]);
+                }
+                $ccRecipients = $memo->resolveCCRecipients();
+                foreach ($ccRecipients as $ccUser) {
+                    \App\Models\MemoReadReceipt::query()->firstOrCreate([
+                        'memo_id' => $memo->id,
+                        'user_id' => $ccUser->id,
                     ]);
                 }
             }
@@ -362,8 +435,11 @@ class MemoIndexPage extends Component
                 $query->where('status', 'pending_signature')
                     ->where(function ($q) use ($user) {
                         $q->where('signing_user_id', $user->id)
-                          ->orWhereHas('signatories', function ($sq) use ($user) {
-                              $sq->where('user_id', $user->id)->where('status', 'pending');
+                          ->orWhere(function ($sq) use ($user) {
+                              $sq->where('route_sequentially', false)
+                                 ->whereHas('signatories', function ($ssq) use ($user) {
+                                     $ssq->where('user_id', $user->id)->where('status', 'pending');
+                                 });
                           });
                     });
                 break;

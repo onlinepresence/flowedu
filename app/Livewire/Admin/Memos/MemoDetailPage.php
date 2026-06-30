@@ -38,6 +38,22 @@ class MemoDetailPage extends Component
     public string $return_remarks = '';
     public string $signature_remarks = '';
 
+    // Edit/Resubmit state
+    public bool $isEditing = false;
+    public string $editTitle = '';
+    public string $editContent = '';
+    public array $editSelectedSignatories = [];
+    public bool $editSelfSign = false;
+    public array $editCcUsers = [];
+    public array $editCcDepartments = [];
+    public array $editCcRoles = [];
+    public string $resubmissionChoice = 'restart'; // restart or resume
+    public string $signatorySearch = '';
+    public string $ccSearch = '';
+
+    public $attachments = []; // Staging new attachments
+    public array $deletedAttachmentIds = []; // Tracking existing attachment IDs slated for deletion
+
     public function mount(Memo $memo): void
     {
         // Enforce basic permissions
@@ -53,6 +69,60 @@ class MemoDetailPage extends Component
         if ($receipt && is_null($receipt->viewed_at)) {
             $receipt->update(['viewed_at' => now()]);
         }
+
+        // Initialize edit states if draft
+        if ($this->memo->status === 'draft') {
+            $this->editTitle = $this->memo->title;
+            $this->editContent = $this->memo->content;
+            $this->editSelfSign = $this->memo->signatories()->where('user_id', auth()->id())->exists();
+            $this->editSelectedSignatories = $this->memo->signatories()
+                ->where('user_id', '!=', auth()->id())
+                ->orderBy('step_number')
+                ->pluck('user_id')
+                ->toArray();
+            
+            $cc = $this->memo->cc_recipients;
+            if (is_array($cc)) {
+                $this->editCcUsers = $cc['users'] ?? [];
+                $this->editCcDepartments = $cc['departments'] ?? [];
+                $this->editCcRoles = $cc['roles'] ?? [];
+            }
+        }
+    }
+
+    public function addSignatory(int $userId): void
+    {
+        $memos_multiple_signatories = filter_var(
+            \App\Models\Setting::query()->where('setting_key', 'system_preferences.memos_multiple_signatories')->value('setting_value') ?? false,
+            FILTER_VALIDATE_BOOLEAN
+        );
+
+        if (!$memos_multiple_signatories) {
+            $this->editSelectedSignatories = [$userId];
+        } else {
+            if (!in_array($userId, $this->editSelectedSignatories)) {
+                $this->editSelectedSignatories[] = $userId;
+            }
+        }
+        $this->signatorySearch = '';
+    }
+
+    public function removeSignatory(int $userId): void
+    {
+        $this->editSelectedSignatories = array_values(array_diff($this->editSelectedSignatories, [$userId]));
+    }
+
+    public function addCcUser(int $userId): void
+    {
+        if (!in_array($userId, $this->editCcUsers)) {
+            $this->editCcUsers[] = $userId;
+        }
+        $this->ccSearch = '';
+    }
+
+    public function removeCcUser(int $userId): void
+    {
+        $this->editCcUsers = array_values(array_diff($this->editCcUsers, [$userId]));
     }
 
     public function signMemo(): void
@@ -179,6 +249,8 @@ class MemoDetailPage extends Component
 
     public function openForward(): void
     {
+        abort_if($this->memo->confidentiality_level === 'public', 403, 'Public memos cannot be forwarded.');
+
         $this->forward_recipient_type = 'department';
         $this->forward_recipient_entity_id = null;
         $this->forward_recipient_role_id = null;
@@ -194,6 +266,7 @@ class MemoDetailPage extends Component
     public function forwardMemo(): void
     {
         abort_unless(auth()->user()?->hasAdminPermission('forward_memo'), 403);
+        abort_if($this->memo->confidentiality_level === 'public', 403, 'Public memos cannot be forwarded.');
 
         $this->validate([
             'forward_recipient_type' => ['required', 'in:user,department,faculty,role'],
@@ -310,12 +383,6 @@ class MemoDetailPage extends Component
                 'remarks' => $this->return_remarks,
             ]);
 
-            // Reset other signatories' statuses back to pending since it was returned to draft
-            $this->memo->signatories()->update([
-                'status' => 'pending',
-                'signed_at' => null,
-            ]);
-
             // Notify sender
             if ($this->memo->sender) {
                 $this->memo->sender->notify(new CollegeNotification(
@@ -397,6 +464,224 @@ class MemoDetailPage extends Component
                 $u->notify(new CollegeNotification($title, $message, $url));
             }
         }
+    }
+
+    public function toggleEditing(): void
+    {
+        $this->isEditing = !$this->isEditing;
+        $this->attachments = [];
+        $this->deletedAttachmentIds = [];
+
+        if ($this->isEditing) {
+            $this->editTitle = $this->memo->title;
+            $this->editContent = $this->memo->content;
+            $this->editSelfSign = $this->memo->signatories()->where('user_id', auth()->id())->exists();
+            $this->editSelectedSignatories = $this->memo->signatories()
+                ->where('user_id', '!=', auth()->id())
+                ->orderBy('step_number')
+                ->pluck('user_id')
+                ->toArray();
+            
+            $cc = $this->memo->cc_recipients;
+            if (is_array($cc)) {
+                $this->editCcUsers = $cc['users'] ?? [];
+                $this->editCcDepartments = $cc['departments'] ?? [];
+                $this->editCcRoles = $cc['roles'] ?? [];
+            }
+        }
+    }
+
+    public function stageAttachmentDeletion(int $attachmentId): void
+    {
+        if (!in_array($attachmentId, $this->deletedAttachmentIds)) {
+            $this->deletedAttachmentIds[] = $attachmentId;
+        }
+    }
+
+    public function unstageAttachmentDeletion(int $attachmentId): void
+    {
+        $this->deletedAttachmentIds = array_values(array_diff($this->deletedAttachmentIds, [$attachmentId]));
+    }
+
+    public function resubmitMemo(string $submitType = 'send'): void
+    {
+        $memos_require_signature = filter_var(
+            \App\Models\Setting::query()->where('setting_key', 'system_preferences.memos_require_signature')->value('setting_value') ?? false,
+            FILTER_VALIDATE_BOOLEAN
+        );
+        $memos_multiple_signatories = filter_var(
+            \App\Models\Setting::query()->where('setting_key', 'system_preferences.memos_multiple_signatories')->value('setting_value') ?? false,
+            FILTER_VALIDATE_BOOLEAN
+        );
+
+        $rules = [
+            'editTitle' => ['required', 'string', 'max:255'],
+            'editContent' => ['required', 'string'],
+            'attachments.*' => ['nullable', 'file', 'max:10240'], // 10MB limit
+        ];
+
+        if ($submitType !== 'draft') {
+            if ($memos_require_signature && !$this->editSelfSign) {
+                $rules['editSelectedSignatories'] = ['required', 'array', 'min:1'];
+            } else {
+                $rules['editSelectedSignatories'] = ['nullable', 'array'];
+            }
+            $rules['editSelectedSignatories.*'] = ['exists:users,id'];
+        }
+
+        $this->validate($rules);
+
+        $user = auth()->user();
+
+        if ($submitType !== 'draft' && !$memos_multiple_signatories && count(array_filter($this->editSelectedSignatories)) > 1) {
+            $this->addError('editSelectedSignatories', __('Only one signatory is allowed.'));
+            return;
+        }
+
+        DB::transaction(function () use ($user, $submitType) {
+            $this->memo->update([
+                'title' => $this->editTitle,
+                'content' => $this->editContent,
+                'cc_recipients' => [
+                    'users' => array_map('intval', array_filter($this->editCcUsers)),
+                    'departments' => array_map('intval', array_filter($this->editCcDepartments)),
+                    'roles' => array_map('intval', array_filter($this->editCcRoles)),
+                ],
+            ]);
+
+            // Delete attachments staged for removal
+            foreach ($this->deletedAttachmentIds as $attId) {
+                $att = $this->memo->attachments()->find($attId);
+                if ($att) {
+                    \Illuminate\Support\Facades\Storage::delete($att->file_path);
+                    $att->delete();
+                }
+            }
+
+            // Save newly added attachments
+            foreach ($this->attachments as $file) {
+                $fileName = $file->getClientOriginalName();
+                $fileSize = $file->getSize();
+                $filePath = $file->store('memos');
+
+                $this->memo->attachments()->create([
+                    'file_path' => $filePath,
+                    'file_name' => $fileName,
+                    'file_size' => $fileSize,
+                ]);
+            }
+
+            // Prepare signatories list
+            $signatories = $this->editSelectedSignatories;
+            if ($this->editSelfSign) {
+                $signatories[] = $user->id;
+            }
+            $signatories = array_unique(array_filter($signatories));
+
+            // Sync signatories pivot table to preserve existing signatories' status/remarks
+            $existingSigs = $this->memo->signatories()->get()->keyBy('user_id');
+            $this->memo->signatories()->whereNotIn('user_id', $signatories)->delete();
+
+            $step = 1;
+            foreach ($signatories as $sId) {
+                $isSelf = (int)$sId === (int)$user->id && $this->editSelfSign;
+                if ($existingSigs->has($sId)) {
+                    $existingSigs[$sId]->update([
+                        'step_number' => $step++,
+                    ]);
+                } else {
+                    $this->memo->signatories()->create([
+                        'user_id' => $sId,
+                        'step_number' => $step++,
+                        'status' => $isSelf ? 'signed' : 'pending',
+                        'signed_at' => $isSelf ? now() : null,
+                        'remarks' => $isSelf ? 'Self-signed.' : null,
+                    ]);
+                }
+            }
+
+            if ($submitType === 'draft') {
+                return;
+            }
+
+            // Apply workflow resubmission options if we are submitting
+            $hasRejections = $this->memo->signatories()->where('status', 'rejected')->exists();
+
+            if ($hasRejections && $this->resubmissionChoice === 'restart') {
+                // Restart workflow: reset all signatories (except self) back to pending
+                foreach ($signatories as $sId) {
+                    $isSelf = (int)$sId === (int)$user->id && $this->editSelfSign;
+                    $this->memo->signatories()->where('user_id', $sId)->update([
+                        'status' => $isSelf ? 'signed' : 'pending',
+                        'signed_at' => $isSelf ? now() : null,
+                        'remarks' => $isSelf ? 'Self-signed at creation.' : null,
+                    ]);
+                }
+            } elseif ($hasRejections && $this->resubmissionChoice === 'resume') {
+                // Resume workflow: set the rejected signatories back to pending
+                $this->memo->signatories()->where('status', 'rejected')->update([
+                    'status' => 'pending',
+                    'signed_at' => null,
+                    'remarks' => null,
+                ]);
+            }
+
+            // Determine status
+            $pendingExists = $this->memo->signatories()->where('status', 'pending')->exists();
+            $status = $pendingExists ? 'pending_signature' : 'sent';
+
+            $firstPending = $this->memo->signatories()
+                ->where('status', 'pending')
+                ->orderBy('step_number', 'asc')
+                ->first();
+            
+            $this->memo->update([
+                'status' => $status,
+                'signing_user_id' => $firstPending ? $firstPending->user_id : null,
+            ]);
+
+            // Save tracking log
+            MemoTracking::query()->create([
+                'memo_id' => $this->memo->id,
+                'forwarded_by' => $user->id,
+                'action' => 'sent',
+                'remarks' => $status === 'pending_signature' ? 'Resubmitted for review and signature.' : 'Memo dispatched.',
+            ]);
+
+            // If dispatched, seed read receipts
+            if ($status === 'sent') {
+                $recipients = $this->memo->resolveTargetRecipients();
+                foreach ($recipients as $recipient) {
+                    \App\Models\MemoReadReceipt::query()->firstOrCreate([
+                        'memo_id' => $this->memo->id,
+                        'user_id' => $recipient->id,
+                    ]);
+                }
+                $ccRecipients = $this->memo->resolveCCRecipients();
+                foreach ($ccRecipients as $ccUser) {
+                    \App\Models\MemoReadReceipt::query()->firstOrCreate([
+                        'memo_id' => $this->memo->id,
+                        'user_id' => $ccUser->id,
+                    ]);
+                }
+                $this->notifyRecipients();
+            } else {
+                // Notify first pending signatory
+                if ($firstPending) {
+                    $firstPending->user->notify(new CollegeNotification(
+                        'Memo Signature Request',
+                        "{$user->name} has requested your signature on: '{$this->memo->title}'",
+                        route('admin.memos.show', $this->memo->id)
+                    ));
+                }
+            }
+        });
+
+        $this->attachments = [];
+        $this->deletedAttachmentIds = [];
+        $this->isEditing = false;
+        CollegeFlash::forNextRequestToo('status', __('Memo resubmitted successfully.'));
+        $this->redirect(route('admin.memos.show', $this->memo->id), navigate: true);
     }
 
     public function downloadAttachment(int $id)

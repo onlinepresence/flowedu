@@ -216,4 +216,232 @@ class StaffLeaveModuleTest extends TestCase
         $this->assertNotNull($audit);
         $this->assertEquals($principal->id, $audit->user_id);
     }
+
+    public function test_staff_leave_entitlements_calculation(): void
+    {
+        $staff = $this->createStaffMember('teacher', ['nav_staff_leaves']);
+        
+        // Assign the user to the leave type
+        $staff->update(['staff_leave_type_id' => $this->leaveType->id]); // 20 days max
+
+        // Create 1 approved request (5 days)
+        LeaveRequest::create([
+            'user_id' => $staff->id,
+            'staff_leave_type_id' => $this->leaveType->id,
+            'start_date' => now()->addDays(1),
+            'end_date' => now()->addDays(5),
+            'requested_days' => 5,
+            'status' => 'approved',
+            'current_stage' => 'approved',
+            'academic_session_id' => $this->session->id,
+        ]);
+
+        // Create 1 pending request (3 days)
+        LeaveRequest::create([
+            'user_id' => $staff->id,
+            'staff_leave_type_id' => $this->leaveType->id,
+            'start_date' => now()->addDays(10),
+            'end_date' => now()->addDays(12),
+            'requested_days' => 3,
+            'status' => 'pending',
+            'current_stage' => 'pending_registrar',
+            'academic_session_id' => $this->session->id,
+        ]);
+
+        // Access the component and assert entitlements
+        Livewire::actingAs($staff)
+            ->test(StaffLeavesPage::class)
+            ->assertSet('activeTab', 'my_leaves')
+            ->assertSee('Total Entitlement')
+            ->assertSee('20 Days')
+            ->assertSee('5 Days') // Approved
+            ->assertSee('3 Days') // Pending
+            ->assertSee('15 Days'); // Remaining (20 - 5)
+    }
+
+    public function test_submission_window_constraints_and_emergency_bypass(): void
+    {
+        $staff = $this->createStaffMember('teacher', ['nav_staff_leaves']);
+
+        // Set up submission window: today to +2 days
+        \App\Models\Setting::updateOrCreate(
+            ['setting_key' => 'leave_settings.submission_start_date'],
+            ['setting_value' => now()->format('Y-m-d'), 'category' => 'leave_settings', 'data_type' => 'string']
+        );
+        \App\Models\Setting::updateOrCreate(
+            ['setting_key' => 'leave_settings.submission_end_date'],
+            ['setting_value' => now()->addDays(2)->format('Y-m-d'), 'category' => 'leave_settings', 'data_type' => 'string']
+        );
+        // Disable emergency bypass first
+        \App\Models\Setting::updateOrCreate(
+            ['setting_key' => 'leave_settings.emergency_leave_enabled'],
+            ['setting_value' => '0', 'category' => 'leave_settings', 'data_type' => 'boolean']
+        );
+
+        // Submit outside window: starts +5 days (fails)
+        Livewire::actingAs($staff)
+            ->test(StaffLeavesPage::class)
+            ->call('openCreateModal')
+            ->set('staff_leave_type_id', $this->leaveType->id)
+            ->set('start_date', now()->addDays(5)->format('Y-m-d'))
+            ->set('end_date', now()->addDays(7)->format('Y-m-d'))
+            ->set('reason', 'Vacation outside window')
+            ->call('submitLeaveRequest')
+            ->assertHasErrors(['end_date']);
+
+        // Now toggle emergency leave bypass on
+        \App\Models\Setting::updateOrCreate(
+            ['setting_key' => 'leave_settings.emergency_leave_enabled'],
+            ['setting_value' => '1', 'category' => 'leave_settings', 'data_type' => 'boolean']
+        );
+
+        // Submit as emergency: starts +5 days (succeeds)
+        Livewire::actingAs($staff)
+            ->test(StaffLeavesPage::class)
+            ->call('openCreateModal')
+            ->set('staff_leave_type_id', $this->leaveType->id)
+            ->set('start_date', now()->addDays(5)->format('Y-m-d'))
+            ->set('end_date', now()->addDays(7)->format('Y-m-d'))
+            ->set('reason', 'Emergency bypass validation')
+            ->set('is_emergency', true)
+            ->call('submitLeaveRequest')
+            ->assertHasNoErrors();
+    }
+
+    public function test_leave_configurations_crud_and_staff_assignment(): void
+    {
+        $admin = $this->createStaffMember('system_admin', ['nav_staff_leaves']);
+
+        // Test configuration updates
+        Livewire::actingAs($admin)
+            ->test(StaffLeavesPage::class)
+            ->set('submission_start_date', '2026-07-01')
+            ->set('submission_end_date', '2026-07-15')
+            ->set('emergency_leave_enabled', true)
+            ->call('saveConfigurations');
+
+        $this->assertEquals('2026-07-01', \App\Models\Setting::query()->where('setting_key', 'leave_settings.submission_start_date')->value('setting_value'));
+        $this->assertEquals('2026-07-15', \App\Models\Setting::query()->where('setting_key', 'leave_settings.submission_end_date')->value('setting_value'));
+        $this->assertEquals('1', \App\Models\Setting::query()->where('setting_key', 'leave_settings.emergency_leave_enabled')->value('setting_value'));
+
+        // Test Leave Type CRUD
+        Livewire::actingAs($admin)
+            ->test(StaffLeavesPage::class)
+            ->call('openTypeModal')
+            ->set('type_name', 'Maternity Leave')
+            ->set('type_max_days', 90)
+            ->call('saveLeaveType');
+
+        $type = StaffLeaveType::query()->where('name', 'Maternity Leave')->first();
+        $this->assertNotNull($type);
+        $this->assertEquals(90, $type->max_leave_days);
+
+        // Test Staff Assignment
+        $staff = $this->createStaffMember('teacher', ['nav_staff_leaves']);
+        Livewire::actingAs($admin)
+            ->test(StaffLeavesPage::class)
+            ->call('assignLeaveType', $staff->id, $type->id);
+
+        $staff->refresh();
+        $this->assertEquals($type->id, $staff->staff_leave_type_id);
+    }
+
+    public function test_staff_assignments_filters_and_departmental_scoping_for_hod_and_hr(): void
+    {
+        $faculty = \App\Models\Faculty::create(['name' => 'Humanities']);
+        $deptCS = Department::create(['name' => 'CS', 'faculty_id' => $faculty->id]);
+        $deptMath = Department::create(['name' => 'Math', 'faculty_id' => $faculty->id]);
+
+        // Create HOD for CS
+        $hod = $this->createStaffMember('hod', ['nav_staff_leaves']);
+        $hod->admin->update(['department_id' => $deptCS->id]);
+        $deptCS->update(['hod' => $hod->id]);
+
+        // Create HR/Admin
+        $hr = $this->createStaffMember('system_admin', ['nav_staff_leaves']);
+
+        // Create Staff Members:
+        // 1. Teacher in CS
+        $teacherCS = User::factory()->create(['type' => 'teacher', 'name' => 'CS Teacher']);
+        $teacherProfileCS = new \App\Models\Teacher;
+        $teacherProfileCS->user_id = $teacherCS->id;
+        $teacherProfileCS->department_id = $deptCS->id;
+        $teacherProfileCS->phone_number = '123';
+        $teacherProfileCS->save();
+
+        // 2. Teacher in Math
+        $teacherMath = User::factory()->create(['type' => 'teacher', 'name' => 'Math Teacher']);
+        $teacherProfileMath = new \App\Models\Teacher;
+        $teacherProfileMath->user_id = $teacherMath->id;
+        $teacherProfileMath->department_id = $deptMath->id;
+        $teacherProfileMath->phone_number = '456';
+        $teacherProfileMath->save();
+
+        // 3. Non-teaching staff in CS
+        $staffCS = User::factory()->create(['type' => 'staff', 'name' => 'CS Staff']);
+        $staffProfileCS = new \App\Models\NonTeachingStaff;
+        $staffProfileCS->user_id = $staffCS->id;
+        $staffProfileCS->department_id = $deptCS->id;
+        $staffProfileCS->position = 'Janitor';
+        $staffProfileCS->phone_number = '789';
+        $staffProfileCS->save();
+
+        // 4. Non-teaching staff with no department
+        $staffNoDept = User::factory()->create(['type' => 'staff', 'name' => 'Admin Staff']);
+        $staffProfileNoDept = new \App\Models\NonTeachingStaff;
+        $staffProfileNoDept->user_id = $staffNoDept->id;
+        $staffProfileNoDept->department_id = null;
+        $staffProfileNoDept->position = 'Secretary';
+        $staffProfileNoDept->phone_number = '000';
+        $staffProfileNoDept->save();
+
+        // --- Test HOD Scoping ---
+        Livewire::actingAs($hod)
+            ->test(StaffLeavesPage::class)
+            ->set('activeTab', 'staff_assignments')
+            ->assertViewHas('staffMembers', function ($staffMembers) use ($teacherCS, $staffCS, $teacherMath, $staffNoDept) {
+                $ids = $staffMembers->pluck('id')->all();
+                return in_array($teacherCS->id, $ids) &&
+                       in_array($staffCS->id, $ids) &&
+                       !in_array($teacherMath->id, $ids) &&
+                       !in_array($staffNoDept->id, $ids);
+            })
+            // Filter HOD to teaching staff
+            ->set('filterStaffType', 'teaching')
+            ->assertViewHas('staffMembers', function ($staffMembers) use ($teacherCS, $staffCS) {
+                $ids = $staffMembers->pluck('id')->all();
+                return in_array($teacherCS->id, $ids) && !in_array($staffCS->id, $ids);
+            })
+            // Filter HOD to non-teaching staff
+            ->set('filterStaffType', 'non_teaching')
+            ->assertViewHas('staffMembers', function ($staffMembers) use ($teacherCS, $staffCS) {
+                $ids = $staffMembers->pluck('id')->all();
+                return !in_array($teacherCS->id, $ids) && in_array($staffCS->id, $ids);
+            });
+
+        // --- Test HR Scoping ---
+        Livewire::actingAs($hr)
+            ->test(StaffLeavesPage::class)
+            ->set('activeTab', 'staff_assignments')
+            // All departments by default should see all 4
+            ->assertViewHas('staffMembers', function ($staffMembers) use ($teacherCS, $staffCS, $teacherMath, $staffNoDept) {
+                $ids = $staffMembers->pluck('id')->all();
+                return in_array($teacherCS->id, $ids) &&
+                       in_array($staffCS->id, $ids) &&
+                       in_array($teacherMath->id, $ids) &&
+                       in_array($staffNoDept->id, $ids);
+            })
+            // Filter to Math department
+            ->set('filterStaffDepartment', $deptMath->id)
+            ->assertViewHas('staffMembers', function ($staffMembers) use ($teacherMath, $teacherCS) {
+                $ids = $staffMembers->pluck('id')->all();
+                return in_array($teacherMath->id, $ids) && !in_array($teacherCS->id, $ids);
+            })
+            // Filter to No Department
+            ->set('filterStaffDepartment', 'none')
+            ->assertViewHas('staffMembers', function ($staffMembers) use ($staffNoDept, $teacherCS) {
+                $ids = $staffMembers->pluck('id')->all();
+                return in_array($staffNoDept->id, $ids) && !in_array($teacherCS->id, $ids);
+            });
+    }
 }

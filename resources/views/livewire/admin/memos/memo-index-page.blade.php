@@ -235,7 +235,7 @@
                     </div>
 
                     <!-- Signatory review -->
-                    <div>
+                    <div class="space-y-3">
                         <x-input-label :value="__('Sign-off / Signatures')" />
                         
                         @if ($memos_require_signature)
@@ -262,25 +262,61 @@
                         @endif
 
                         @if (!$self_sign || $memos_multiple_signatories)
-                            @if ($memos_multiple_signatories)
-                                <div class="mt-2 block w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 max-h-40 overflow-y-auto space-y-2">
-                                    <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{{ __('Select Signatories:') }}</p>
-                                    @foreach ($users as $u)
-                                        <label class="flex items-center text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 p-1 rounded">
-                                            <input type="checkbox" wire:model="selected_signatories" value="{{ $u->id }}" class="rounded border-gray-300 text-purple-600 focus:ring-purple-500 dark:bg-gray-900 dark:border-gray-700">
-                                            <span class="ml-2 text-gray-700 dark:text-gray-300">{{ $u->name }} ({{ $u->adminRoleSlug() }})</span>
-                                        </label>
-                                    @endforeach
+                            <div class="space-y-2">
+                                <!-- Selected signatories badges -->
+                                @if (!empty($selected_signatories))
+                                    <div class="flex flex-wrap gap-2 mb-2">
+                                        @foreach ($selected_signatories as $index => $sigId)
+                                            @php $sigUser = \App\Models\User::find($sigId); @endphp
+                                            @if ($sigUser)
+                                                <span class="inline-flex items-center gap-1.5 rounded bg-purple-50 px-2 py-1 text-xs font-semibold text-purple-700 dark:bg-purple-950/40 dark:text-purple-300">
+                                                    {{ $index + 1 }}. {{ $sigUser->name }}
+                                                    <button type="button" wire:click="removeSignatory({{ $sigId }})" class="hover:text-purple-900 text-purple-400 font-bold">&times;</button>
+                                                </span>
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                @endif
+                                <!-- Search / Select dropdown -->
+                                <div class="relative">
+                                    <input type="text" wire:model.live="signatory_search" placeholder="Search staff to add as signatory..." class="block w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100">
+                                    @if ($signatory_search !== '')
+                                        <div class="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg text-sm">
+                                            @php
+                                                $searchResults = \App\Models\User::query()
+                                                    ->where('active', true)
+                                                    ->where('type', 'admin')
+                                                    ->where('id', '!=', auth()->id())
+                                                    ->where('name', 'like', '%' . $signatory_search . '%')
+                                                    ->whereNotIn('id', $selected_signatories)
+                                                    ->limit(5)
+                                                    ->get();
+                                            @endphp
+                                            @forelse($searchResults as $u)
+                                                <button type="button" wire:click="addSignatory({{ $u->id }})" class="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white">
+                                                    {{ $u->name }} ({{ $u->adminRoleSlug() }})
+                                                </button>
+                                            @empty
+                                                <div class="px-3 py-2 text-gray-500">No results found</div>
+                                            @endforelse
+                                        </div>
+                                    @endif
                                 </div>
-                            @else
-                                <x-select-input wire:model="selected_signatories.0" id="signing_user_id" class="mt-2 block w-full">
-                                    <option value="">{{ __('Select Signatory...') }}</option>
-                                    @foreach ($users as $u)
-                                        <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->adminRoleSlug() }})</option>
-                                    @endforeach
-                                </x-select-input>
+                                <x-input-error :messages="$errors->get('selected_signatories')" class="mt-1" />
+                            </div>
+
+                            @if ($memos_multiple_signatories)
+                                <!-- Route sequentially checkbox -->
+                                <div class="mt-2">
+                                    <label class="inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" wire:model="route_sequentially" class="rounded border-gray-300 text-purple-600 shadow-sm focus:ring-purple-500 dark:bg-gray-800 dark:border-gray-700">
+                                        <span class="ml-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                            <i class="fa-solid fa-arrow-down-1-9 mr-1"></i>
+                                            {{ __('Sign in Order (Route Sequentially)') }}
+                                        </span>
+                                    </label>
+                                </div>
                             @endif
-                            <x-input-error :messages="$errors->get('selected_signatories')" class="mt-1" />
                         @endif
                     </div>
                 </div>
@@ -290,6 +326,154 @@
                     <x-input-label for="memo_content" :value="__('Memo Content')" />
                     <x-textarea-input wire:model="content" id="memo_content" rows="8" required class="mt-1 block w-full font-sans text-sm" placeholder="{{ __('Type official memo context here...') }}" />
                     <x-input-error :messages="$errors->get('content')" class="mt-1" />
+                </div>
+
+                <!-- CC Recipients Section -->
+                <div class="space-y-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        <i class="fa-solid fa-copy mr-1.5"></i>
+                        {{ __('CC (Carbon Copy) Recipients') }}
+                    </h3>
+                    
+                    <!-- CC Users Search/Badges -->
+                    <div class="space-y-2">
+                        <x-input-label :value="__('CC Users')" />
+                        @if (!empty($cc_users))
+                            <div class="flex flex-wrap gap-2 mb-2">
+                                @foreach ($cc_users as $ccId)
+                                    @php $ccUser = \App\Models\User::find($ccId); @endphp
+                                    @if ($ccUser)
+                                        <span class="inline-flex items-center gap-1.5 rounded bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+                                            {{ $ccUser->name }}
+                                            <button type="button" wire:click="removeCcUser({{ $ccId }})" class="hover:text-blue-900 text-blue-400 font-bold">&times;</button>
+                                        </span>
+                                    @endif
+                                @endforeach
+                            </div>
+                        @endif
+                        <div class="relative">
+                            <input type="text" wire:model.live="cc_search" placeholder="Search staff to CC..." class="block w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100">
+                            @if ($cc_search !== '')
+                                <div class="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg text-sm">
+                                    @php
+                                        $ccSearchResults = \App\Models\User::query()
+                                            ->where('active', true)
+                                            ->where('type', 'admin')
+                                            ->where('id', '!=', auth()->id())
+                                            ->where('name', 'like', '%' . $cc_search . '%')
+                                            ->whereNotIn('id', $cc_users)
+                                            ->limit(5)
+                                            ->get();
+                                    @endphp
+                                    @forelse($ccSearchResults as $u)
+                                        <button type="button" wire:click="addCcUser({{ $u->id }})" class="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white">
+                                            {{ $u->name }} ({{ $u->adminRoleSlug() }})
+                                        </button>
+                                    @empty
+                                        <div class="px-3 py-2 text-gray-500">No results found</div>
+                                    @endforelse
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+
+                    <!-- CC Departments & Roles -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <x-input-label :value="__('CC Departments')" class="mb-1" />
+                            <div x-data="{
+                                search: '',
+                                open: false,
+                                options: @js($departments->map(fn($d) => ['id' => $d->id, 'name' => $d->name])),
+                                selected: @entangle('cc_departments').live
+                            }" class="relative">
+                                <!-- Selected Badges -->
+                                <div class="flex flex-wrap gap-1.5 mb-2">
+                                    <template x-for="id in selected" :key="id">
+                                        <span class="inline-flex items-center gap-1 rounded bg-purple-50 px-2 py-0.5 text-xs font-semibold text-purple-700 dark:bg-purple-950/40 dark:text-purple-300">
+                                            <span x-text="options.find(o => o.id == id)?.name || id"></span>
+                                            <button type="button" @click="selected = selected.filter(x => x != id)" class="hover:text-purple-900 font-bold">&times;</button>
+                                        </span>
+                                    </template>
+                                </div>
+                                <!-- Search Input -->
+                                <input
+                                    type="text"
+                                    x-model="search"
+                                    @focus="open = true"
+                                    @click.away="open = false"
+                                    placeholder="Search departments to CC..."
+                                    class="block w-full text-xs rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
+                                />
+                                <!-- Dropdown -->
+                                <div
+                                    x-show="open"
+                                    x-transition
+                                    class="absolute自动 z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg text-xs"
+                                    style="display: none;"
+                                >
+                                    <template x-for="opt in options.filter(o => o.name.toLowerCase().includes(search.toLowerCase()) && !selected.includes(o.id))" :key="opt.id">
+                                        <button
+                                            type="button"
+                                            @click="selected.push(opt.id); search = '';"
+                                            class="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-750 dark:text-white"
+                                            x-text="opt.name"
+                                        ></button>
+                                    </template>
+                                    <div x-show="options.filter(o => o.name.toLowerCase().includes(search.toLowerCase()) && !selected.includes(o.id)).length === 0" class="px-3 py-2 text-gray-500 italic">
+                                        No departments found
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <x-input-label :value="__('CC Staff Roles')" class="mb-1" />
+                            <div x-data="{
+                                search: '',
+                                open: false,
+                                options: @js($roles->map(fn($r) => ['id' => $r->id, 'name' => $r->display_name])),
+                                selected: @entangle('cc_roles').live
+                            }" class="relative">
+                                <!-- Selected Badges -->
+                                <div class="flex flex-wrap gap-1.5 mb-2">
+                                    <template x-for="id in selected" :key="id">
+                                        <span class="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+                                            <span x-text="options.find(o => o.id == id)?.name || id"></span>
+                                            <button type="button" @click="selected = selected.filter(x => x != id)" class="hover:text-blue-900 font-bold">&times;</button>
+                                        </span>
+                                    </template>
+                                </div>
+                                <!-- Search Input -->
+                                <input
+                                    type="text"
+                                    x-model="search"
+                                    @focus="open = true"
+                                    @click.away="open = false"
+                                    placeholder="Search roles to CC..."
+                                    class="block w-full text-xs rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
+                                />
+                                <!-- Dropdown -->
+                                <div
+                                    x-show="open"
+                                    x-transition
+                                    class="absolute自动 z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg text-xs"
+                                    style="display: none;"
+                                >
+                                    <template x-for="opt in options.filter(o => o.name.toLowerCase().includes(search.toLowerCase()) && !selected.includes(o.id))" :key="opt.id">
+                                        <button
+                                            type="button"
+                                            @click="selected.push(opt.id); search = '';"
+                                            class="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-750 dark:text-white"
+                                            x-text="opt.name"
+                                        ></button>
+                                    </template>
+                                    <div x-show="options.filter(o => o.name.toLowerCase().includes(search.toLowerCase()) && !selected.includes(o.id)).length === 0" class="px-3 py-2 text-gray-500 italic">
+                                        No roles found
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- File attachments -->

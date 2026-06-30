@@ -51,6 +51,9 @@ final class NavigationLicenceService
         if (preg_match('#^/admin/settings/(roles|users|image-validation|backup)$#', $path) === 1) {
             return 'system_admin';
         }
+        if (str_starts_with($path, '/admin/audit-logs')) {
+            return 'system_admin';
+        }
         if ($path === '/env-generator') {
             return 'system_admin';
         }

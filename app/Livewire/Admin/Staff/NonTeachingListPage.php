@@ -147,7 +147,7 @@ class NonTeachingListPage extends Component
             'email' => $validated['email'],
             'password' => $pw,
             'position' => $validated['position'],
-            'department_id' => (int) $validated['department_id'],
+            'department_id' => $validated['department_id'] ? (int) $validated['department_id'] : null,
             'phone_number' => $validated['phone_number'],
             'status' => 'active',
             'active' => true,
@@ -188,7 +188,7 @@ class NonTeachingListPage extends Component
 
         $row->forceFill([
             'position' => $validated['position'],
-            'department_id' => (int) $validated['department_id'],
+            'department_id' => $validated['department_id'] ? (int) $validated['department_id'] : null,
             'phone_number' => $validated['phone_number'],
             'status' => $validated['status'],
         ])->save();
@@ -223,7 +223,7 @@ class NonTeachingListPage extends Component
             'username' => ['required', 'string', 'max:255', 'unique:'.User::class.',username'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class.',email'],
             'position' => ['required', 'string', 'max:191'],
-            'department_id' => ['required', 'exists:departments,id'],
+            'department_id' => ['nullable', 'exists:departments,id'],
             'phone_number' => ['required', 'string', 'max:32'],
         ];
     }
@@ -238,7 +238,7 @@ class NonTeachingListPage extends Component
             'username' => ['required', 'string', 'max:255', 'unique:'.User::class.',username,'.$userId],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class.',email,'.$userId],
             'position' => ['required', 'string', 'max:191'],
-            'department_id' => ['required', 'exists:departments,id'],
+            'department_id' => ['nullable', 'exists:departments,id'],
             'phone_number' => ['required', 'string', 'max:32'],
             'status' => ['required', 'in:active,inactive'],
         ];
