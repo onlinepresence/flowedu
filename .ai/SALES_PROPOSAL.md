@@ -135,6 +135,9 @@ To accommodate your IT policies, FlowEdu offers two deployment paths. You can ch
 | **Internet Dependency** | Requires active internet connection to access the system. | Can be accessed locally without internet (intranet), saving data bandwidth. |
 | **Best For** | Colleges looking for a hands-off, zero-maintenance implementation. | Schools with strict data sovereignty policies or unreliable local internet. |
 
+> [!NOTE]
+> **Hosting Cost Management**: Under Option A (Managed Cloud Hosting), the ongoing annual cost of cloud servers, SSL security certificates, database storage, and automated offsite backups is fully managed by us and covered under your Core Academic Licence annual renewal fee. Under Option B (Self-Hosted), the school is responsible for all server physical hardware maintenance, electrical costs, and local network setups.
+
 ---
 
 ## 6. Implementation & Rollout Roadmap
@@ -212,8 +215,8 @@ Choose your modular integrations. The module fee is calculated as:
 | **Teaching Practice (TP)**| 2,000.00 | 500.00 | Practicum supervision tracking & grading rubrics |
 
 ### C. Server Deployment & Setup (One-time)
-* **Option A: Managed Cloud Hosting Setup**: **GHS 1,600.00**
-* **Option B: Self-Hosted / Local Server Setup**: **GHS 1,200.00**
+* **Option A: Managed Cloud Hosting Setup**: **GHS 1,600.00** *(Includes cloud server provisioning, custom domain linking, and SSL security installation. Ongoing cloud infrastructure hosting costs are fully covered by your Core annual renewal fee).*
+* **Option B: Self-Hosted / Local Server Setup**: **GHS 1,200.00** *(One-time installation on school-provided hardware. The school handles all physical server, network, power backup, and hardware maintenance costs).*
 
 ### D. Implementation & Onboarding Services (One-time)
 * **System Configuration & Initial Setup**: **GHS 800.00**

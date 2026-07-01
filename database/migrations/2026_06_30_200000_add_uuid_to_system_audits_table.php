@@ -30,8 +30,10 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('system_audits', function (Blueprint $table) {
-            $table->dropColumn('uuid');
-        });
+        if (DB::getDriverName() !== 'sqlite') {
+            Schema::table('system_audits', function (Blueprint $table) {
+                $table->dropColumn('uuid');
+            });
+        }
     }
 };

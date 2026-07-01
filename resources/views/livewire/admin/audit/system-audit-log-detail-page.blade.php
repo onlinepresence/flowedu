@@ -71,95 +71,286 @@
                 </div>
             </div>
 
-            <!-- Changed Data & Metadata Card -->
+            <!-- Affected Auditable Entity Card (Now positioned Second) -->
             <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 space-y-4">
-                <h3 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <i class="fa-solid fa-database text-purple-600"></i>
-                    {{ __('Captured Data & Structural Changes') }}
-                </h3>
-
-                <!-- If there are before/after arrays -->
-                @if (is_array($log->metadata) && isset($log->metadata['before']) && isset($log->metadata['after']))
-                    <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead class="bg-gray-50 dark:bg-gray-900/50">
-                                <tr>
-                                    <th scope="col" class="px-4 py-2.5 text-left text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{{ __('Property') }}</th>
-                                    <th scope="col" class="px-4 py-2.5 text-left text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{{ __('Before Change') }}</th>
-                                    <th scope="col" class="px-4 py-2.5 text-left text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{{ __('After Change') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800 text-xs">
-                                @php
-                                    $allKeys = array_unique(array_merge(array_keys($log->metadata['before']), array_keys($log->metadata['after'])));
-                                @endphp
-                                @foreach($allKeys as $key)
-                                    @php
-                                        $beforeVal = $log->metadata['before'][$key] ?? null;
-                                        $afterVal = $log->metadata['after'][$key] ?? null;
-                                        $isChanged = $beforeVal !== $afterVal;
-                                    @endphp
-                                    <tr class="{{ $isChanged ? 'bg-amber-50/20 dark:bg-amber-950/10' : '' }} transition-colors">
-                                        <td class="px-4 py-2.5 font-semibold text-gray-950 dark:text-white whitespace-nowrap">
-                                            {{ \App\Models\SystemAudit::formatMetadataKey($key) }}
-                                        </td>
-                                        <td class="px-4 py-2.5 text-gray-600 dark:text-gray-300 font-mono break-all max-w-[200px]">
-                                            {{ \App\Models\SystemAudit::formatMetadataValue($key, $beforeVal) }}
-                                        </td>
-                                        <td class="px-4 py-2.5 font-mono break-all max-w-[200px] {{ $isChanged ? 'text-amber-700 dark:text-amber-400 font-bold' : 'text-gray-650 dark:text-gray-300' }}">
-                                            {{ \App\Models\SystemAudit::formatMetadataValue($key, $afterVal) }}
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                @elseif (is_array($log->metadata) && count($log->metadata) > 0)
-                    <!-- Flat metadata key-value grid -->
-                    <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead class="bg-gray-50 dark:bg-gray-900/50">
-                                <tr>
-                                    <th scope="col" class="px-4 py-2.5 text-left text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{{ __('Property') }}</th>
-                                    <th scope="col" class="px-4 py-2.5 text-left text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{{ __('Value') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800 text-xs">
-                                @foreach($log->metadata as $key => $val)
-                                    @if ($key !== 'before' && $key !== 'after')
-                                        <tr>
-                                            <td class="px-4 py-2.5 font-semibold text-gray-950 dark:text-white whitespace-nowrap">
-                                                {{ \App\Models\SystemAudit::formatMetadataKey($key) }}
-                                            </td>
-                                            <td class="px-4 py-2.5 text-gray-650 dark:text-gray-300 font-mono break-all">
-                                                {{ \App\Models\SystemAudit::formatMetadataValue($key, $val) }}
-                                            </td>
-                                        </tr>
-                                    @endif
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                @else
-                    <div class="text-center py-6 border border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
-                        <p class="text-xs text-gray-500 dark:text-gray-400 italic">
-                            {{ __('No metadata captured for this operation.') }}
-                        </p>
-                    </div>
-                @endif
-            </div>
-
-            <!-- Affected Auditable Entity Card -->
-            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 space-y-4">
-                <h3 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <h3 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2 border-b border-gray-150 dark:border-gray-700 pb-3">
                     <i class="fa-solid fa-cube text-purple-600"></i>
                     {{ __('Affected Entity / Audit Target') }}
                 </h3>
 
-                @if ($log->auditable_type)
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm bg-gray-50/50 dark:bg-gray-900/30 p-4 rounded-lg border border-gray-150 dark:border-gray-700/60">
+                @if ($resolvedInvoice)
+                    <!-- Premium Live Invoice View -->
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">
+                                <i class="fa-solid fa-file-invoice mr-1.5"></i>{{ __('Live Invoice Summary') }}
+                            </h4>
+                            @php
+                                $invBadge = match($resolvedInvoice->status) {
+                                    'paid' => 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-250',
+                                    'partially_paid' => 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border-amber-250',
+                                    'cancelled' => 'bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border-rose-250',
+                                    default => 'bg-gray-100 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300 border-gray-250',
+                                };
+                            @endphp
+                            <span class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-3xs font-bold uppercase tracking-wider {{ $invBadge }}">
+                                {{ str_replace('_', ' ', $resolvedInvoice->status) }}
+                            </span>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 bg-gray-50 dark:bg-gray-900/30 p-4 rounded-xl border border-gray-150 dark:border-gray-700">
+                            <div>
+                                <span class="block text-[10px] uppercase tracking-wider text-gray-450">{{ __('Invoice Number') }}</span>
+                                <div class="text-xs font-bold text-gray-900 dark:text-white font-mono mt-0.5">{{ $resolvedInvoice->invoice_number }}</div>
+                            </div>
+                            <div>
+                                <span class="block text-[10px] uppercase tracking-wider text-gray-450">{{ __('Vendor / Supplier') }}</span>
+                                <div class="text-xs font-bold text-gray-900 dark:text-white mt-0.5">{{ $resolvedInvoice->vendor_name }}</div>
+                            </div>
+                            <div>
+                                <span class="block text-[10px] uppercase tracking-wider text-gray-450">{{ __('Invoice Date') }}</span>
+                                <div class="text-xs font-bold text-gray-800 dark:text-gray-200 mt-0.5">{{ $resolvedInvoice->invoice_date->format('M d, Y') }}</div>
+                            </div>
+                            <div>
+                                <span class="block text-[10px] uppercase tracking-wider text-gray-450">{{ __('Total Bill') }}</span>
+                                <div class="text-xs font-bold text-gray-950 dark:text-white mt-0.5">GHC {{ number_format((float) $resolvedInvoice->amount, 2) }}</div>
+                            </div>
+                        </div>
+
+                        <!-- Invoice Line Items -->
+                        <div class="overflow-x-auto rounded-lg border border-gray-150 dark:border-gray-700">
+                            <table class="w-full border-collapse text-left text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800">
+                                <thead class="bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 font-semibold uppercase">
+                                    <tr>
+                                        <th class="px-4 py-2">{{ __('Product Name') }}</th>
+                                        <th class="px-4 py-2">{{ __('SKU') }}</th>
+                                        <th class="px-4 py-2 text-center">{{ __('Quantity') }}</th>
+                                        <th class="px-4 py-2 text-right">{{ __('Unit Price') }}</th>
+                                        <th class="px-4 py-2 text-right">{{ __('Total Amount') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                                    @forelse ($resolvedInvoice->items as $activeItem)
+                                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/10">
+                                            <td class="px-4 py-2 font-bold text-gray-900 dark:text-white">
+                                                {{ $activeItem->product->name }}
+                                            </td>
+                                            <td class="px-4 py-2 font-mono text-purple-600 dark:text-purple-400">
+                                                {{ $activeItem->product->sku }}
+                                            </td>
+                                            <td class="px-4 py-2 text-center">
+                                                {{ $activeItem->quantity }}
+                                            </td>
+                                            <td class="px-4 py-2 text-right">
+                                                GHC {{ number_format((float) $activeItem->unit_price, 2) }}
+                                            </td>
+                                            <td class="px-4 py-2 text-right font-bold text-gray-900 dark:text-white">
+                                                GHC {{ number_format((float) $activeItem->total_amount, 2) }}
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="5" class="px-4 py-6 text-center text-gray-450 italic">
+                                                {{ __('No line items defined for this invoice.') }}
+                                            </td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Expenditure / Payment History (if paid/partially paid) -->
+                        @if ($resolvedInvoice->expenditures->count() > 0)
+                            <div class="space-y-2 pt-2">
+                                <h5 class="text-[11px] font-bold text-gray-455 uppercase tracking-wider">
+                                    <i class="fa-solid fa-receipt mr-1"></i>{{ __('Recorded Payment Operations') }}
+                                </h5>
+                                <div class="overflow-x-auto rounded-lg border border-gray-150 dark:border-gray-750">
+                                    <table class="w-full border-collapse text-left text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800">
+                                        <thead class="bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 font-semibold uppercase">
+                                            <tr>
+                                                <th class="px-4 py-1.5">{{ __('Expense Reference') }}</th>
+                                                <th class="px-4 py-1.5">{{ __('Payment Date') }}</th>
+                                                <th class="px-4 py-1.5">{{ __('Payment Method') }}</th>
+                                                <th class="px-4 py-1.5 text-right">{{ __('Amount Paid') }}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                                            @foreach ($resolvedInvoice->expenditures as $payment)
+                                                <tr>
+                                                    <td class="px-4 py-2 font-mono font-semibold text-gray-900 dark:text-white">{{ $payment->expense_number }}</td>
+                                                    <td class="px-4 py-2">{{ $payment->payment_date->format('M d, Y') }}</td>
+                                                    <td class="px-4 py-2">{{ $payment->payment_method }}</td>
+                                                    <td class="px-4 py-2 text-right font-bold text-emerald-600 dark:text-emerald-400">GHC {{ number_format((float) $payment->amount, 2) }}</td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        @endif
+
+                        <div class="flex items-center gap-2 pt-2">
+                            <a
+                                href="{{ route('admin.finance.invoices') }}"
+                                class="inline-flex items-center gap-1.5 rounded-lg bg-purple-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-purple-700 transition"
+                            >
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i>{{ __('Go to Invoices Dashboard') }}
+                            </a>
+                        </div>
+                    </div>
+                @elseif ($resolvedStudent)
+                    <!-- Premium Live Student Card -->
+                    <div class="space-y-4">
+                        <h4 class="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">
+                            <i class="fa-solid fa-user-graduate mr-1.5"></i>{{ __('Live Student Profile') }}
+                        </h4>
+
+                        <div class="flex flex-col sm:flex-row gap-4 items-start bg-gray-50 dark:bg-gray-900/30 p-4 rounded-xl border border-gray-150 dark:border-gray-700">
+                            <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 text-white font-bold text-xl shadow-sm">
+                                {{ strtoupper(substr($resolvedStudent->firstname, 0, 1) . substr($resolvedStudent->lastname, 0, 1)) }}
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full text-xs">
+                                <div>
+                                    <span class="block text-[10px] uppercase tracking-wider text-gray-450">{{ __('Student Name') }}</span>
+                                    <div class="text-xs font-bold text-gray-900 dark:text-white mt-0.5">{{ $resolvedStudent->firstname }} {{ $resolvedStudent->lastname }}</div>
+                                </div>
+                                <div>
+                                    <span class="block text-[10px] uppercase tracking-wider text-gray-450">{{ __('Index Number') }}</span>
+                                    <div class="text-xs font-bold text-purple-600 dark:text-purple-400 font-mono mt-0.5">{{ $resolvedStudent->index_number }}</div>
+                                </div>
+                                <div>
+                                    <span class="block text-[10px] uppercase tracking-wider text-gray-450">{{ __('Gender & Nationality') }}</span>
+                                    <div class="text-xs font-semibold text-gray-800 dark:text-gray-200 mt-0.5">{{ ucfirst($resolvedStudent->gender) }} / {{ $resolvedStudent->nationality }}</div>
+                                </div>
+                                <div>
+                                    <span class="block text-[10px] uppercase tracking-wider text-gray-450">{{ __('Phone Number') }}</span>
+                                    <div class="text-xs font-semibold text-gray-800 dark:text-gray-200 mt-0.5">{{ $resolvedStudent->phone_number }}</div>
+                                </div>
+                                <div>
+                                    <span class="block text-[10px] uppercase tracking-wider text-gray-450">{{ __('Assigned Hall') }}</span>
+                                    <div class="text-xs font-semibold text-gray-800 dark:text-gray-200 mt-0.5">{{ $resolvedStudent->hall?->name ?? __('No Hall') }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2 pt-2">
+                            <a
+                                href="{{ route('admin.students.show', $resolvedStudent->index_number) }}"
+                                class="inline-flex items-center gap-1.5 rounded-lg bg-purple-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-purple-700 transition"
+                            >
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i>{{ __('View Full Student Profile') }}
+                            </a>
+                        </div>
+                    </div>
+                @elseif ($resolvedMemo)
+                    <!-- Premium Live Memo Card -->
+                    <div class="space-y-4">
+                        <h4 class="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">
+                            <i class="fa-solid fa-envelope-open-text mr-1.5"></i>{{ __('Live Memo Document') }}
+                        </h4>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-gray-50 dark:bg-gray-900/30 p-4 rounded-xl border border-gray-150 dark:border-gray-700 text-xs">
+                            <div class="sm:col-span-3">
+                                <span class="block text-[10px] uppercase tracking-wider text-gray-450">{{ __('Subject / Title') }}</span>
+                                <div class="text-sm font-bold text-gray-900 dark:text-white mt-0.5">{{ $resolvedMemo->title }}</div>
+                            </div>
+                            <div>
+                                <span class="block text-[10px] uppercase tracking-wider text-gray-450">{{ __('Confidentiality Level') }}</span>
+                                <span class="inline-flex items-center rounded bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 mt-1 border border-blue-200/50">
+                                    {{ ucfirst($resolvedMemo->confidentiality_level) }}
+                                </span>
+                            </div>
+                            <div>
+                                <span class="block text-[10px] uppercase tracking-wider text-gray-450">{{ __('Document Status') }}</span>
+                                <span class="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 mt-1 border border-amber-200/50">
+                                    {{ ucfirst(str_replace('_', ' ', $resolvedMemo->status)) }}
+                                </span>
+                            </div>
+                            <div>
+                                <span class="block text-[10px] uppercase tracking-wider text-gray-450">{{ __('Route Sequentially') }}</span>
+                                <div class="text-xs font-semibold text-gray-800 dark:text-gray-200 mt-1">{{ $resolvedMemo->route_sequentially ? __('Yes') : __('No') }}</div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2 pt-2">
+                            <a
+                                href="{{ route('admin.memos.show', $resolvedMemo->id) }}"
+                                class="inline-flex items-center gap-1.5 rounded-lg bg-purple-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-purple-700 transition"
+                            >
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i>{{ __('Open Memo Detail View') }}
+                            </a>
+                        </div>
+                    </div>
+                @elseif ($resolvedLeaveRequest)
+                    <!-- Premium Live Leave Request Card -->
+                    <div class="space-y-4">
+                        <h4 class="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">
+                            <i class="fa-solid fa-calendar-minus mr-1.5"></i>{{ __('Live Leave Request') }}
+                        </h4>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-gray-50 dark:bg-gray-900/30 p-4 rounded-xl border border-gray-150 dark:border-gray-700 text-xs">
+                            <div>
+                                <span class="block text-[10px] uppercase tracking-wider text-gray-450">{{ __('Staff Member') }}</span>
+                                <div class="text-xs font-bold text-gray-900 dark:text-white mt-0.5">{{ $resolvedLeaveRequest->user?->name }}</div>
+                            </div>
+                            <div>
+                                <span class="block text-[10px] uppercase tracking-wider text-gray-450">{{ __('Leave Type') }}</span>
+                                <div class="text-xs font-bold text-purple-600 dark:text-purple-400 mt-0.5">{{ $resolvedLeaveRequest->staffLeaveType?->name }}</div>
+                            </div>
+                            <div>
+                                <span class="block text-[10px] uppercase tracking-wider text-gray-450">{{ __('Duration / Requested Days') }}</span>
+                                <div class="text-xs font-bold text-gray-900 dark:text-white mt-0.5">{{ $resolvedLeaveRequest->requested_days }} {{ __('Days') }}</div>
+                            </div>
+                            <div>
+                                <span class="block text-[10px] uppercase tracking-wider text-gray-450">{{ __('Start Date') }}</span>
+                                <div class="text-xs font-semibold text-gray-800 dark:text-gray-200 mt-0.5">{{ $resolvedLeaveRequest->start_date->format('M d, Y') }}</div>
+                            </div>
+                            <div>
+                                <span class="block text-[10px] uppercase tracking-wider text-gray-450">{{ __('End Date') }}</span>
+                                <div class="text-xs font-semibold text-gray-800 dark:text-gray-200 mt-0.5">{{ $resolvedLeaveRequest->end_date->format('M d, Y') }}</div>
+                            </div>
+                            <div>
+                                <span class="block text-[10px] uppercase tracking-wider text-gray-450">{{ __('Approval Status') }}</span>
+                                <span class="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 mt-1 border border-amber-200/50">
+                                    {{ ucfirst($resolvedLeaveRequest->status) }}
+                                </span>
+                            </div>
+                            <div class="sm:col-span-3">
+                                <span class="block text-[10px] uppercase tracking-wider text-gray-450">{{ __('Reason / Remarks') }}</span>
+                                <div class="text-xs text-gray-650 dark:text-gray-350 mt-0.5 italic">"{{ $resolvedLeaveRequest->reason }}"</div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2 pt-2">
+                            <a
+                                href="{{ route('admin.staff.leaves') }}"
+                                class="inline-flex items-center gap-1.5 rounded-lg bg-purple-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-purple-700 transition"
+                            >
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i>{{ __('Go to Leave Management') }}
+                            </a>
+                        </div>
+                    </div>
+                @elseif ($isTargetDeleted)
+                    <!-- Red Alert indicating Target Deleted -->
+                    <div class="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50/50 p-4 dark:border-red-900/50 dark:bg-red-950/20">
+                        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-750 dark:bg-red-950/60 dark:text-red-400">
+                            <i class="fa-solid fa-trash-can text-sm"></i>
+                        </span>
+                        <div class="space-y-1">
+                            <h4 class="text-xs font-bold text-red-800 dark:text-red-300">
+                                {{ __('Target Record Permanently Deleted') }}
+                            </h4>
+                            <p class="text-xxs text-red-700 dark:text-red-400">
+                                {{ __('The linked target model (:class #:id) has been removed from the live system. Only snapshot metadata and historical logs are preserved for security and diagnostics.', ['class' => class_basename($log->auditable_type), 'id' => $log->auditable_id]) }}
+                            </p>
+                        </div>
+                    </div>
+                @elseif ($log->auditable_type)
+                    <!-- Generic Target Model Card -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-gray-50/50 dark:bg-gray-900/30 p-4 rounded-lg border border-gray-150 dark:border-gray-700/60 font-medium">
                         <div>
-                            <span class="block text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400 mb-1">
+                            <span class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400 mb-1">
                                 {{ __('Target Model Class') }}
                             </span>
                             <span class="font-mono text-gray-900 dark:text-white break-all">
@@ -167,10 +358,10 @@
                             </span>
                         </div>
                         <div>
-                            <span class="block text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400 mb-1">
+                            <span class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400 mb-1">
                                 {{ __('Target Database ID') }}
                             </span>
-                            <span class="inline-flex items-center rounded-md bg-purple-50 px-2 py-0.5 text-xs font-bold text-purple-700 dark:bg-purple-950/40 dark:text-purple-400 border border-purple-200/50">
+                            <span class="inline-flex items-center rounded-md bg-purple-50 px-2 py-0.5 font-bold text-purple-700 dark:bg-purple-950/40 dark:text-purple-400 border border-purple-200/50">
                                 #{{ $log->auditable_id }}
                             </span>
                         </div>
@@ -178,6 +369,44 @@
                 @else
                     <div class="text-center py-6 border border-dashed border-gray-200 dark:border-gray-700 rounded-lg text-xs text-gray-500 dark:text-gray-400 italic">
                         {{ __('No specific target model was linked to this system action.') }}
+                    </div>
+                @endif
+            </div>
+
+            <!-- Changed Data & Metadata Card (Now positioned Third, collapsible for live objects) -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 space-y-4">
+                <h3 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <i class="fa-solid fa-database text-purple-600"></i>
+                    {{ __('Captured Data & Structural Changes') }}
+                </h3>
+
+                @php
+                    $hasLiveTarget = $resolvedInvoice || $resolvedStudent || $resolvedMemo || $resolvedLeaveRequest;
+                @endphp
+
+                @if ($hasLiveTarget)
+                    <!-- Note for Live Target -->
+                    <div class="rounded-lg border border-indigo-100 bg-indigo-50/40 p-3 dark:border-indigo-900/40 dark:bg-indigo-950/20 text-xxs text-indigo-700 dark:text-indigo-400 flex items-center gap-2">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <span>{{ __('This target entity is live. You can review its full live properties in the card above.') }}</span>
+                    </div>
+
+                    <!-- Collapsible Advanced Metadata Accordion for Premium UX -->
+                    <details class="group border border-gray-100 dark:border-gray-700 rounded-lg bg-gray-50/50 dark:bg-gray-900/10 p-3">
+                        <summary class="flex items-center justify-between cursor-pointer text-xs font-semibold text-gray-650 dark:text-gray-400 hover:text-purple-600 select-none">
+                            <span>{{ __('Show Advanced Database Audit Metadata') }}</span>
+                            <span class="transition group-open:rotate-180">
+                                <i class="fa-solid fa-chevron-down text-xxs"></i>
+                            </span>
+                        </summary>
+                        <div class="mt-4 pt-3 border-t border-gray-150 dark:border-gray-700/60 space-y-4">
+                            @include('livewire.admin.audit.partials.metadata-tables')
+                        </div>
+                    </details>
+                @else
+                    <!-- Display metadata tables directly for deleted/non-live entities -->
+                    <div class="space-y-4">
+                        @include('livewire.admin.audit.partials.metadata-tables')
                     </div>
                 @endif
             </div>

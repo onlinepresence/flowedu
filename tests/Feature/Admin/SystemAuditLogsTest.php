@@ -310,4 +310,66 @@ class SystemAuditLogsTest extends TestCase
             ->assertSee('Hall')
             ->assertSee('Gold House Hall');
     }
+
+    public function test_audit_detail_resolves_live_and_deleted_targets(): void
+    {
+        $admin = $this->createStaffMember('system_admin', ['view_audit_logs']);
+
+        // 1. Live target test: Create an invoice
+        $invoice = \App\Models\Invoice::create([
+            'invoice_number' => 'INV-TEST-999',
+            'vendor_name' => 'Acme Test Corp',
+            'description' => 'Test live resolution',
+            'amount' => 1250.50,
+            'invoice_date' => now(),
+            'due_date' => now()->addDays(30),
+            'status' => 'pending',
+            'created_by' => $admin->id,
+        ]);
+
+        $logLive = SystemAudit::create([
+            'user_id' => $admin->id,
+            'action' => 'invoice.created',
+            'description' => 'Created Invoice #INV-TEST-999',
+            'auditable_type' => \App\Models\Invoice::class,
+            'auditable_id' => $invoice->id,
+            'created_at' => now(),
+            'metadata' => [
+                'invoice_number' => 'INV-TEST-999',
+                'amount' => 1250.50,
+            ],
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(\App\Livewire\Admin\Audit\SystemAuditLogDetailPage::class, ['uuid' => $logLive->uuid])
+            ->assertStatus(200)
+            ->assertSee('Live Invoice Summary')
+            ->assertSee('INV-TEST-999')
+            ->assertSee('Acme Test Corp')
+            ->assertSee('Show Advanced Database Audit Metadata');
+
+        // 2. Deleted target test: Use non-existing invoice id
+        $logDeleted = SystemAudit::create([
+            'user_id' => $admin->id,
+            'action' => 'invoice.deleted',
+            'description' => 'Deleted Invoice #INV-TEST-999',
+            'auditable_type' => \App\Models\Invoice::class,
+            'auditable_id' => 999999, // Non-existent
+            'created_at' => now(),
+            'metadata' => [
+                'invoice_number' => 'INV-TEST-999',
+                'amount' => 1250.50,
+            ],
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(\App\Livewire\Admin\Audit\SystemAuditLogDetailPage::class, ['uuid' => $logDeleted->uuid])
+            ->assertStatus(200)
+            ->assertSee('Target Record Permanently Deleted')
+            ->assertSee('Invoice')
+            ->assertSee('999999')
+            ->assertSee('Property')
+            ->assertSee('Value');
+    }
 }
+

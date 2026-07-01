@@ -109,13 +109,13 @@
                                         {{ $invoice->invoice_date->format('M d, Y') }}
                                     </td>
                                     <td class="px-6 py-4 text-right font-semibold text-gray-950 dark:text-white">
-                                        ${{ number_format((float) $invoice->amount, 2) }}
+                                        GHC {{ number_format((float) $invoice->amount, 2) }}
                                     </td>
                                     <td class="px-6 py-4 text-right text-green-600 dark:text-green-400">
-                                        ${{ number_format($invoice->paid_amount, 2) }}
+                                        GHC {{ number_format($invoice->paid_amount, 2) }}
                                     </td>
                                     <td class="px-6 py-4 text-right font-semibold text-amber-600 dark:text-amber-400">
-                                        ${{ number_format($invoice->remaining_balance, 2) }}
+                                        GHC {{ number_format($invoice->remaining_balance, 2) }}
                                     </td>
                                     <td class="px-6 py-4 text-center">
                                         @php
@@ -224,9 +224,13 @@
                                     </td>
                                     <td class="px-6 py-4">
                                         @if ($exp->invoice)
-                                            <span class="inline-flex items-center gap-1 rounded bg-purple-50 px-2 py-0.5 text-3xs font-semibold text-purple-700 dark:bg-purple-950/40 dark:text-purple-300">
-                                                <i class="fa-solid fa-file-invoice"></i>{{ $exp->invoice->invoice_number }}
-                                            </span>
+                                            <button
+                                                type="button"
+                                                wire:click="viewInvoiceItems({{ $exp->invoice->id }})"
+                                                class="inline-flex items-center gap-1 rounded bg-purple-50 px-2 py-0.5 text-3xs font-semibold text-purple-700 hover:bg-purple-100 dark:bg-purple-950/40 dark:text-purple-300 dark:hover:bg-purple-900/30 transition border border-purple-200/50 cursor-pointer"
+                                            >
+                                                <i class="fa-solid fa-file-invoice text-[10px]"></i>{{ $exp->invoice->invoice_number }}
+                                            </button>
                                         @else
                                             <span class="text-gray-400 dark:text-gray-600 font-italic text-2xs">{{ __('Direct Expense') }}</span>
                                         @endif
@@ -238,7 +242,7 @@
                                         {{ $exp->payment_method }}
                                     </td>
                                     <td class="px-6 py-4 text-right font-bold text-gray-900 dark:text-white">
-                                        ${{ number_format((float) $exp->amount, 2) }}
+                                        GHC {{ number_format((float) $exp->amount, 2) }}
                                     </td>
                                     <td class="px-6 py-4 text-right">
                                         <div class="flex items-center justify-end gap-2">
@@ -322,7 +326,7 @@
                                         {{ $prod->category }}
                                     </td>
                                     <td class="px-6 py-4 text-right font-bold text-gray-950 dark:text-white">
-                                        ${{ number_format((float) $prod->unit_price, 2) }}
+                                        GHC {{ number_format((float) $prod->unit_price, 2) }}
                                     </td>
                                     <td class="px-6 py-4 max-w-sm truncate text-gray-400 dark:text-gray-500">
                                         {{ $prod->description ?? '-' }}
@@ -494,8 +498,8 @@
                                                 <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/20">
                                                     <td class="px-4 py-2.5 font-semibold text-gray-900 dark:text-white">{{ $item['name'] }}</td>
                                                     <td class="px-4 py-2.5 text-center">{{ $item['quantity'] }}</td>
-                                                    <td class="px-4 py-2.5 text-right">${{ number_format($item['unit_price'], 2) }}</td>
-                                                    <td class="px-4 py-2.5 text-right font-semibold">${{ number_format($item['total'], 2) }}</td>
+                                                    <td class="px-4 py-2.5 text-right">GHC {{ number_format($item['unit_price'], 2) }}</td>
+                                                    <td class="px-4 py-2.5 text-right font-semibold">GHC {{ number_format($item['total'], 2) }}</td>
                                                     <td class="px-4 py-2.5 text-right">
                                                         <button type="button" wire:click="removeLineItem({{ $index }})" class="text-red-500 hover:text-red-750">
                                                             <i class="fa-solid fa-circle-minus text-sm"></i>
@@ -514,7 +518,7 @@
                                             <tfoot class="bg-gray-50 dark:bg-gray-900 font-bold text-gray-900 dark:text-white">
                                                 <tr>
                                                     <td colspan="3" class="px-4 py-3 text-right uppercase tracking-wider text-2xs">{{ __('Total Invoice Bill:') }}</td>
-                                                    <td class="px-4 py-3 text-right">${{ number_format($amount, 2) }}</td>
+                                                    <td class="px-4 py-3 text-right">GHC {{ number_format($amount, 2) }}</td>
                                                     <td></td>
                                                 </tr>
                                             </tfoot>
@@ -569,14 +573,14 @@
                             <select wire:model.live="expenditure_invoice_id" class="block w-full rounded-lg border-gray-300 py-2.5 text-xs shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-650 dark:bg-gray-900 dark:text-white">
                                 <option value="">-- {{ __('Direct / No Invoice Link') }} --</option>
                                 @foreach ($unpaidInvoices as $unpaid)
-                                    <option value="{{ $unpaid->id }}">{{ $unpaid->invoice_number }} - {{ $unpaid->vendor_name }} (Bal: ${{ number_format($unpaid->remaining_balance, 2) }})</option>
+                                    <option value="{{ $unpaid->id }}">{{ $unpaid->invoice_number }} - {{ $unpaid->vendor_name }} (Bal: GHC {{ number_format($unpaid->remaining_balance, 2) }})</option>
                                 @endforeach
                             </select>
                             <x-input-error :messages="$errors->get('expenditure_invoice_id')" class="mt-1" />
                         </div>
 
                         <div class="space-y-1.5">
-                            <x-input-label for="expenditure_amount" :value="__('Amount Paid ($)')" />
+                            <x-input-label for="expenditure_amount" :value="__('Amount Paid (GHC)')" />
                             <x-text-input wire:model="expenditure_amount" id="expenditure_amount" type="number" step="0.01" min="0.01" class="block w-full text-xs" required />
                             <x-input-error :messages="$errors->get('expenditure_amount')" class="mt-1" />
                         </div>
@@ -686,7 +690,7 @@
                             </div>
                             <div>
                                 <span class="text-3xs uppercase tracking-wider text-gray-450">{{ __('Total Bill') }}</span>
-                                <div class="text-xs font-bold text-gray-950 dark:text-white">${{ number_format((float) $activeInvoice->amount, 2) }}</div>
+                                <div class="text-xs font-bold text-gray-950 dark:text-white">GHC {{ number_format((float) $activeInvoice->amount, 2) }}</div>
                             </div>
                         </div>
 
@@ -714,10 +718,10 @@
                                                 {{ $activeItem->quantity }}
                                             </td>
                                             <td class="px-4 py-2.5 text-right">
-                                                ${{ number_format((float) $activeItem->unit_price, 2) }}
+                                                GHC {{ number_format((float) $activeItem->unit_price, 2) }}
                                             </td>
                                             <td class="px-4 py-2.5 text-right font-bold text-gray-900 dark:text-white">
-                                                ${{ number_format((float) $activeItem->total_amount, 2) }}
+                                                GHC {{ number_format((float) $activeItem->total_amount, 2) }}
                                             </td>
                                         </tr>
                                     @endforeach
@@ -778,7 +782,7 @@
                             </div>
                             <div>
                                 <span class="text-3xs uppercase tracking-wider text-gray-450">{{ __('Amount Paid') }}</span>
-                                <div class="text-xs font-bold text-gray-950 dark:text-white">${{ number_format((float) $activeExpenditure->amount, 2) }}</div>
+                                <div class="text-xs font-bold text-gray-950 dark:text-white">GHC {{ number_format((float) $activeExpenditure->amount, 2) }}</div>
                             </div>
                         </div>
 

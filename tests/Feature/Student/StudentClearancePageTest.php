@@ -87,7 +87,7 @@ class StudentClearancePageTest extends TestCase
         $this->actingAs($user)
             ->get(route('student.clearance'))
             ->assertOk()
-            ->assertSee('Clearance status', false)
+            ->assertSee('Clearance Checklist', false)
             ->assertSee('Library', false);
     }
 
