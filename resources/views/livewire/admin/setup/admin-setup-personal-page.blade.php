@@ -74,6 +74,16 @@
                     @endif
                 </div>
             </x-card>
+
+            @if (auth()->user()?->hasAdminPermission('view_audit_logs'))
+                <x-card class="p-6 border border-gray-200 dark:border-gray-700 shadow-sm rounded-xl space-y-4 mt-6">
+                    <h3 class="text-sm font-bold text-gray-905 dark:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-clock-history text-purple-650 dark:text-purple-400"></i>
+                        {{ __('Your Activity Log') }}
+                    </h3>
+                    <livewire:admin.audit.contextual-timeline :model="auth()->user()" :key="'user-timeline-' . auth()->id()" />
+                </x-card>
+            @endif
         </div>
 
         <!-- Main Details Form area -->

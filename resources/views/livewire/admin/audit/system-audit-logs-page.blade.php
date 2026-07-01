@@ -63,7 +63,7 @@
             >
                 <option value="">{{ __('All Actions') }}</option>
                 @foreach ($availableActions as $action)
-                    <option value="{{ $action }}">{{ str_replace('_', ' ', ucfirst($action)) }}</option>
+                    <option value="{{ $action }}">{{ ucwords(str_replace(['_', '.'], ' ', $action)) }}</option>
                 @endforeach
             </select>
         </div>
@@ -99,8 +99,7 @@
                     <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ __('Performer') }}</th>
                     <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ __('Action') }}</th>
                     <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ __('Description') }}</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ __('Client Info') }}</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ __('Timestamp') }}</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ __('Occurred') }}</th>
                     <th scope="col" class="relative px-6 py-3">
                         <span class="sr-only">{{ __('Actions') }}</span>
                     </th>
@@ -129,22 +128,26 @@
                                 }
                             @endphp
                             <span class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold {{ $badgeColor }} border">
-                                {{ $log->action }}
+                                {{ $log->action_display_name }}
                             </span>
                         </td>
                         <td class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
                             {{ $log->description }}
                         </td>
-                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                            <div class="flex flex-col">
-                                <span class="font-mono text-xs">{{ $log->ip_address }}</span>
-                                <span class="text-xxs truncate max-w-xs" title="{{ $log->user_agent }}">{{ $log->user_agent }}</span>
+                        <td class="whitespace-nowrap px-6 py-4">
+                            <div class="flex flex-col text-sm text-gray-500 dark:text-gray-400">
+                                <span class="font-medium text-gray-900 dark:text-white">{{ $log->created_at ? $log->created_at->format('M d, Y h:i A') : '' }}</span>
+                                <span class="text-[10px] text-gray-450 dark:text-gray-500 font-mono mt-0.5">{{ $log->created_at ? $log->created_at->diffForHumans() : '' }}</span>
                             </div>
                         </td>
-                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                            {{ $log->created_at ? $log->created_at->format('M d, Y H:i:s') : '' }}
-                        </td>
                         <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium space-x-2">
+                            <a
+                                href="{{ route('admin.audit-logs.show', $log->uuid) }}"
+                                class="inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-400 dark:border-indigo-900/50 transition-all duration-150"
+                            >
+                                <i class="fa-solid fa-eye mr-1"></i>
+                                {{ __('Details') }}
+                            </a>
                             <button
                                 type="button"
                                 wire:click="toggleFlag({{ $log->id }})"
@@ -157,7 +160,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
+                        <td colspan="5" class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
                             {{ __('No audit logs found.') }}
                         </td>
                     </tr>

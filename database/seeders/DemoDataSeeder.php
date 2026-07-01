@@ -1786,5 +1786,72 @@ class DemoDataSeeder extends Seeder
             'notes' => 'Server AC repair',
             'recorded_by' => $adminUser->id,
         ]);
+
+        // Seed system audit logs under respective users to showcase contextual timelines
+        // Invoice logging under Demo Admin
+        auth()->login($adminUser);
+        \App\Helpers\AuditHelper::log(
+            'invoice_created',
+            "Invoice {$inv1->invoice_number} created for vendor Apex Supplies Ltd by Demo Admin",
+            $inv1
+        );
+        \App\Helpers\AuditHelper::log(
+            'invoice_paid',
+            "Invoice {$inv1->invoice_number} marked as paid by Demo Admin",
+            $inv1
+        );
+        \App\Helpers\AuditHelper::log(
+            'invoice_created',
+            "Invoice {$inv2->invoice_number} created for vendor Ghana Gown Rentals by Demo Admin",
+            $inv2
+        );
+
+        // Leave request logging (request under teacher/staff, approval under reviewer/HOD)
+        $leaveRequests = LeaveRequest::all();
+        foreach ($leaveRequests as $lr) {
+            $requester = User::find($lr->user_id);
+            if ($requester) {
+                auth()->login($requester);
+                \App\Helpers\AuditHelper::log(
+                    'leave_submitted',
+                    "Leave request submitted by {$requester->name}",
+                    $lr
+                );
+            }
+
+            if ($lr->status === 'approved') {
+                $reviewer = User::find($lr->reviewer_id ?? $hodUser->id);
+                if ($reviewer) {
+                    auth()->login($reviewer);
+                    \App\Helpers\AuditHelper::log(
+                        'leave_approved',
+                        "Leave request approved by {$reviewer->name}",
+                        $lr
+                    );
+                }
+            }
+        }
+
+        // Expenditure logging under Demo Admin
+        auth()->login($adminUser);
+        $expenditures = Expenditure::all();
+        foreach ($expenditures as $exp) {
+            \App\Helpers\AuditHelper::log(
+                'expenditure_recorded',
+                "Expenditure {$exp->expense_number} recorded by Demo Admin",
+                $exp
+            );
+        }
+
+        // Settings change audit log under Demo Admin
+        \App\Helpers\AuditHelper::log(
+            'settings_updated',
+            "System preferences updated and verified by Demo Admin",
+            null,
+            ['category' => 'system_preferences']
+        );
+
+        // Clear session after seeding
+        auth()->logout();
     }
 }

@@ -53,6 +53,12 @@ class MemoDetailPage extends Component
 
     public $attachments = []; // Staging new attachments
     public array $deletedAttachmentIds = []; // Tracking existing attachment IDs slated for deletion
+    public bool $showAllTracking = false;
+
+    public function toggleAllTracking(): void
+    {
+        $this->showAllTracking = !$this->showAllTracking;
+    }
 
     public function mount(Memo $memo): void
     {

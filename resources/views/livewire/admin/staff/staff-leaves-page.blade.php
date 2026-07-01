@@ -702,6 +702,14 @@
                     </div>
                 @endif
 
+                <!-- Contextual Audit Timeline for Leave Request -->
+                @if (auth()->user()?->hasAdminPermission('view_audit_logs') && isset($stats['request']) && $stats['request'])
+                    <div class="space-y-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <h4 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2"><i class="fa-solid fa-clock-history mr-1.5 text-purple-550"></i>{{ __('Leave Audit History') }}</h4>
+                        <livewire:admin.audit.contextual-timeline :model="$stats['request']" :key="'leave-timeline-' . $stats['request']->id" />
+                    </div>
+                @endif
+
                 <!-- Remarks & Decision -->
                 <div class="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-700">
                     <label for="rejection_reason" class="block text-sm font-semibold text-gray-700 dark:text-gray-300">{{ __('Remarks / Rejection Reason') }}</label>

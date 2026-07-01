@@ -30,6 +30,7 @@ class InvoicesIndexPage extends Component
     public bool $showInvoiceModal = false;
     public bool $showExpenditureModal = false;
     public bool $showItemsModal = false;
+    public bool $showExpenditureTimelineModal = false;
 
     // Invoice Form Fields
     public string $invoice_number = '';
@@ -59,6 +60,7 @@ class InvoicesIndexPage extends Component
 
     // Active View Invoice
     public ?Invoice $activeInvoice = null;
+    public ?Expenditure $activeExpenditure = null;
 
     // OCR Scan State
     public bool $isScanning = false;
@@ -389,6 +391,14 @@ class InvoicesIndexPage extends Component
         $this->activeInvoice = Invoice::with('items.product')->find($id);
         if ($this->activeInvoice) {
             $this->showItemsModal = true;
+        }
+    }
+
+    public function viewExpenditureTimeline(int $id): void
+    {
+        $this->activeExpenditure = Expenditure::find($id);
+        if ($this->activeExpenditure) {
+            $this->showExpenditureTimelineModal = true;
         }
     }
 

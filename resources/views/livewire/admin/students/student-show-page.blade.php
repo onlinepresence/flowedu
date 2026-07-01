@@ -65,6 +65,16 @@
                     @endif
                 </div>
             </x-card>
+
+            @if (auth()->user()?->hasAdminPermission('view_audit_logs'))
+                <x-card class="p-6">
+                    <h3 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-3">
+                        <i class="fa-solid fa-clock-history text-purple-650 dark:text-purple-400"></i>
+                        {{ __('Student Audit History') }}
+                    </h3>
+                    <livewire:admin.audit.contextual-timeline :model="$student" :key="'student-timeline-' . $student->id" />
+                </x-card>
+            @endif
         </div>
 
         <!-- Main Details area -->

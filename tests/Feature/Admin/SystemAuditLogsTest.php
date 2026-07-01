@@ -159,4 +159,155 @@ class SystemAuditLogsTest extends TestCase
             ->assertSee('Failed login attempt')
             ->assertSee('Staff submitted a leave request');
     }
+
+    public function test_demo_data_seeder_populates_system_audits_logs(): void
+    {
+        // Run the seeder
+        $this->seed(\Database\Seeders\DemoDataSeeder::class);
+
+        // Assert audits exist for invoice_created, invoice_paid, leave_submitted, leave_approved, expenditure_recorded, and settings_updated
+        $this->assertTrue(SystemAudit::query()->where('action', 'invoice_created')->exists());
+        $this->assertTrue(SystemAudit::query()->where('action', 'invoice_paid')->exists());
+        $this->assertTrue(SystemAudit::query()->where('action', 'leave_submitted')->exists());
+        $this->assertTrue(SystemAudit::query()->where('action', 'leave_approved')->exists());
+        $this->assertTrue(SystemAudit::query()->where('action', 'expenditure_recorded')->exists());
+        $this->assertTrue(SystemAudit::query()->where('action', 'settings_updated')->exists());
+    }
+
+    private function createStudent(): \App\Models\Student
+    {
+        $hall = \App\Models\Hall::query()->create([
+            'name' => 'Main Hall',
+            'cost' => 0,
+            'period' => 'per_year',
+        ]);
+
+        $user = User::factory()->create(['type' => 'student']);
+        return \App\Models\Student::query()->forceCreate([
+            'user_id' => $user->id,
+            'index_number' => 'STU-' . uniqid(),
+            'admission_index' => 'STU-' . uniqid(),
+            'lastname' => 'Test',
+            'firstname' => 'Student',
+            'date_of_birth' => '2001-05-05',
+            'gender' => 'male',
+            'nationality' => 'GH',
+            'phone_number' => '0240000000',
+            'approved' => true,
+            'contact_address' => 'Test Address',
+            'hall_id' => $hall->id,
+            'profile_pic' => 'placeholder.png',
+        ]);
+    }
+
+    public function test_contextual_timeline_component_displays_logs(): void
+    {
+        $admin = $this->createStaffMember('system_admin', ['view_audit_logs']);
+        $student = $this->createStudent();
+
+        // Create log entry for student
+        $log1 = SystemAudit::create([
+            'user_id' => $admin->id,
+            'action' => 'student.approved',
+            'description' => 'Student was approved by admin',
+            'auditable_type' => get_class($student),
+            'auditable_id' => $student->id,
+            'is_flagged' => false,
+            'ip_address' => '127.0.0.1',
+            'created_at' => now(),
+        ]);
+
+        // Test display under System Admin
+        Livewire::actingAs($admin)
+            ->test(\App\Livewire\Admin\Audit\ContextualTimeline::class, ['model' => $student])
+            ->assertSee('Student was approved by admin');
+
+        // Test unauthorized access (e.g. standard teacher without permission)
+        $teacher = $this->createStaffMember('teacher');
+        Livewire::actingAs($teacher)
+            ->test(\App\Livewire\Admin\Audit\ContextualTimeline::class, ['model' => $student])
+            ->assertStatus(403);
+    }
+
+    public function test_unauthorized_user_cannot_access_audit_detail_page_by_uuid(): void
+    {
+        $teacher = $this->createStaffMember('teacher');
+        $log = SystemAudit::create([
+            'user_id' => $teacher->id,
+            'action' => 'test_action',
+            'description' => 'Test action description',
+            'created_at' => now(),
+        ]);
+
+        Livewire::actingAs($teacher)
+            ->test(\App\Livewire\Admin\Audit\SystemAuditLogDetailPage::class, ['uuid' => $log->uuid])
+            ->assertStatus(403);
+    }
+
+    public function test_authorized_user_can_access_audit_detail_page_by_uuid(): void
+    {
+        $admin = $this->createStaffMember('system_admin', ['view_audit_logs']);
+        $log = SystemAudit::create([
+            'user_id' => $admin->id,
+            'action' => 'invoice.created',
+            'description' => 'Invoice #INV-1234 created',
+            'is_flagged' => false,
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'Mozilla/5.0',
+            'created_at' => now(),
+            'metadata' => [
+                'invoice_number' => 'INV-1234',
+                'amount' => 500,
+            ],
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(\App\Livewire\Admin\Audit\SystemAuditLogDetailPage::class, ['uuid' => $log->uuid])
+            ->assertStatus(200)
+            ->assertSee('Invoice Created')
+            ->assertSee('Invoice #INV-1234 created')
+            ->assertSee('Invoice Number')
+            ->assertSee('INV-1234')
+            ->assertSee('Mozilla/5.0')
+            ->call('toggleFlag');
+
+        $log->refresh();
+        $this->assertTrue($log->is_flagged);
+    }
+
+    public function test_audit_detail_page_renders_human_readable_metadata(): void
+    {
+        $admin = $this->createStaffMember('system_admin', ['view_audit_logs']);
+        $hall = \App\Models\Hall::query()->create([
+            'name' => 'Gold House Hall',
+            'cost' => 0,
+            'period' => 'per_year',
+        ]);
+
+        $log = SystemAudit::create([
+            'user_id' => $admin->id,
+            'action' => 'student.updated',
+            'description' => 'Student record updated',
+            'created_at' => now(),
+            'metadata' => [
+                'before' => [
+                    'firstname' => 'John',
+                    'hall_id' => null,
+                ],
+                'after' => [
+                    'firstname' => 'Johnny',
+                    'hall_id' => $hall->id,
+                ],
+            ],
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(\App\Livewire\Admin\Audit\SystemAuditLogDetailPage::class, ['uuid' => $log->uuid])
+            ->assertStatus(200)
+            ->assertSee('First Name')
+            ->assertSee('John')
+            ->assertSee('Johnny')
+            ->assertSee('Hall')
+            ->assertSee('Gold House Hall');
+    }
 }

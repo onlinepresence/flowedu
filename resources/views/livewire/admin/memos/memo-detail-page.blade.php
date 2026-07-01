@@ -571,9 +571,12 @@
                     </h3>
                     
                     @php
+                        $totalActiveCount = $memo->readReceipts()->whereNotNull('viewed_at')->count();
                         $activeReceipts = $memo->readReceipts()
                             ->whereNotNull('viewed_at')
                             ->with('user')
+                            ->orderBy('updated_at', 'desc')
+                            ->limit(10)
                             ->get();
                     @endphp
                     
@@ -610,6 +613,11 @@
                                 </li>
                             @endforelse
                         </ul>
+                        @if ($totalActiveCount > 10)
+                            <div class="text-[10px] text-gray-400 dark:text-gray-500 text-center pt-3 italic border-t border-gray-150 dark:border-gray-700 mt-2">
+                                {{ __('Showing 10 most recent views') }}
+                            </div>
+                        @endif
                     </div>
                 </div>
             @endif
@@ -621,11 +629,36 @@
 
                 <!-- Timeline list -->
                 <div class="flow-root">
+                    @php
+                        $allLogs = $memo->trackingLogs;
+                        $hasMoreLogs = $allLogs->count() > 3;
+                        $displayLogs = (!$showAllTracking && $hasMoreLogs) ? $allLogs->take(-3)->values() : $allLogs->values();
+                    @endphp
+
+                    @if ($hasMoreLogs)
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="text-xs text-gray-500 dark:text-gray-400">
+                                @if ($showAllTracking)
+                                    {{ __('Showing all routing events') }}
+                                @else
+                                    {{ __('Showing 3 most recent routing events') }}
+                                @endif
+                            </span>
+                            <button type="button" wire:click="toggleAllTracking" class="text-xs font-semibold text-purple-600 hover:text-purple-500 dark:text-purple-400">
+                                @if ($showAllTracking)
+                                    {{ __('Show Less') }}
+                                @else
+                                    {{ __('Show All History') }} (+{{ $allLogs->count() - 3 }} {{ __('more') }})
+                                @endif
+                            </button>
+                        </div>
+                    @endif
+
                     <ul class="-mb-8">
-                        @forelse ($memo->trackingLogs as $index => $log)
+                        @forelse ($displayLogs as $index => $log)
                             <li>
                                 <div class="relative pb-8">
-                                    @if ($index < $memo->trackingLogs->count() - 1)
+                                    @if ($index < count($displayLogs) - 1)
                                         <span class="absolute left-4 top-4 -ml-px h-full w-0.5 bg-gray-200 dark:bg-gray-700" aria-hidden="true"></span>
                                     @endif
                                     <div class="relative flex space-x-3">

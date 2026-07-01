@@ -253,6 +253,17 @@
                                                 </a>
                                             @endif
 
+                                            @if (auth()->user()?->hasAdminPermission('view_audit_logs'))
+                                                <button
+                                                    type="button"
+                                                    wire:click="viewExpenditureTimeline({{ $exp->id }})"
+                                                    title="{{ __('View Audit Timeline') }}"
+                                                    class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-955/30 dark:text-amber-400 dark:hover:bg-amber-900/30 transition"
+                                                >
+                                                    <i class="fa-solid fa-clock-history text-2xs"></i>
+                                                </button>
+                                            @endif
+
                                             <button
                                                 type="button"
                                                 wire:click="deleteExpenditure({{ $exp->id }})"
@@ -714,8 +725,69 @@
                             </table>
                         </div>
 
+                        @if (auth()->user()?->hasAdminPermission('view_audit_logs'))
+                            <div class="border-t border-gray-150 pt-4 dark:border-gray-700/60">
+                                <h4 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-clock-history mr-1.5 text-purple-500"></i>{{ __('Audit History') }}</h4>
+                                <livewire:admin.audit.contextual-timeline :model="$activeInvoice" :key="'invoice-timeline-' . $activeInvoice->id" />
+                            </div>
+                        @endif
+
                         <div class="flex justify-end pt-2">
                             <button type="button" wire:click="$set('showItemsModal', false)" class="rounded-lg bg-gray-100 px-5 py-2.5 text-xs font-semibold text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
+                                {{ __('Close') }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- MODAL: VIEW EXPENDITURE TIMELINE -->
+    @if ($showExpenditureTimelineModal && $activeExpenditure)
+        <div class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+            <div class="flex min-h-screen items-end justify-center px-4 pb-20 pt-4 text-center sm:block sm:p-0">
+                <div class="fixed inset-0 bg-gray-550/75 backdrop-blur-sm transition-opacity" wire:click="$set('showExpenditureTimelineModal', false)"></div>
+
+                <div class="inline-block transform overflow-hidden rounded-2xl bg-white text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl sm:align-middle dark:bg-gray-800">
+                    <div class="bg-gray-550 dark:bg-gray-900/50 px-6 py-4 border-b border-gray-150 dark:border-gray-700/60 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
+                                <i class="fa-solid fa-clock-history"></i>
+                            </span>
+                            <h3 class="text-sm font-bold text-gray-900 dark:text-white">{{ __('Expenditure Audit History') }}</h3>
+                        </div>
+                        <button type="button" wire:click="$set('showExpenditureTimelineModal', false)" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                            <i class="fa-solid fa-xmark text-sm"></i>
+                        </button>
+                    </div>
+
+                    <div class="p-6 space-y-4">
+                        <div class="flex flex-wrap justify-between gap-4 bg-gray-50 dark:bg-gray-900/30 p-4 rounded-xl border border-gray-150 dark:border-gray-700">
+                            <div>
+                                <span class="text-3xs uppercase tracking-wider text-gray-450">{{ __('Expense #') }}</span>
+                                <div class="text-xs font-bold text-purple-600 dark:text-purple-400">{{ $activeExpenditure->expense_number }}</div>
+                            </div>
+                            <div>
+                                <span class="text-3xs uppercase tracking-wider text-gray-450">{{ __('Category') }}</span>
+                                <div class="text-xs font-bold text-gray-900 dark:text-white">{{ $activeExpenditure->category }}</div>
+                            </div>
+                            <div>
+                                <span class="text-3xs uppercase tracking-wider text-gray-450">{{ __('Date') }}</span>
+                                <div class="text-xs font-bold text-gray-850 dark:text-gray-200">{{ $activeExpenditure->payment_date->format('M d, Y') }}</div>
+                            </div>
+                            <div>
+                                <span class="text-3xs uppercase tracking-wider text-gray-450">{{ __('Amount Paid') }}</span>
+                                <div class="text-xs font-bold text-gray-950 dark:text-white">${{ number_format((float) $activeExpenditure->amount, 2) }}</div>
+                            </div>
+                        </div>
+
+                        <div class="border-t border-gray-150 pt-4 dark:border-gray-700/60">
+                            <livewire:admin.audit.contextual-timeline :model="$activeExpenditure" :key="'expenditure-timeline-' . $activeExpenditure->id" />
+                        </div>
+
+                        <div class="flex justify-end pt-2">
+                            <button type="button" wire:click="$set('showExpenditureTimelineModal', false)" class="rounded-lg bg-gray-100 px-5 py-2.5 text-xs font-semibold text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
                                 {{ __('Close') }}
                             </button>
                         </div>

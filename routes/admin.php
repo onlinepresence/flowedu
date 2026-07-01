@@ -33,6 +33,7 @@ use App\Livewire\Admin\Settings\SchoolProfileForm;
 use App\Livewire\Admin\Settings\SettingsUserRolesPage;
 use App\Livewire\Admin\Settings\UsersIndexPage;
 use App\Livewire\Admin\Settings\SystemPreferencesPage;
+use App\Livewire\Admin\Audit\SystemAuditLogDetailPage;
 use App\Livewire\Admin\Memos\MemoIndexPage;
 use App\Livewire\Admin\Memos\MemoDetailPage;
 use App\Livewire\Admin\Setup\AdminSetupPersonalPage;
@@ -110,6 +111,9 @@ Route::middleware($adminApp)->prefix('admin')->group(function () {
     Route::get('audit-logs', \App\Livewire\Admin\Audit\SystemAuditLogsPage::class)
         ->middleware('college.licence:system_admin')
         ->name('admin.audit-logs');
+    Route::get('audit-logs/{uuid}', SystemAuditLogDetailPage::class)
+        ->middleware('college.licence:system_admin')
+        ->name('admin.audit-logs.show');
 });
 
 Route::middleware($adminApp)->prefix('admin/staff')->group(function () {
