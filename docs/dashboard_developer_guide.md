@@ -1,6 +1,6 @@
 # Developer Reference: Dynamic, Scoped Role-Based Dashboards
 
-This reference guide describes the architecture and extension patterns for the administrative dashboard in Teresco (College of Education portal).
+This reference guide describes the architecture and extension patterns for the administrative dashboard in FlowEdu (College of Education portal).
 
 ---
 
