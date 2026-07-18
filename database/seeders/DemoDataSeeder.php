@@ -306,7 +306,8 @@ class DemoDataSeeder extends Seeder
             GradePoint::create($gp);
         }
 
-        // 9. Seed Demo Superadmin/Owner & Secretary & HOD
+        // 9. Seed Demo Superadmin/Owner & Administrative Staff (Type: admin)
+        // 9.1 Owner
         $adminUser = User::create([
             'name' => 'Demo Admin',
             'username' => 'admin_demo',
@@ -336,35 +337,97 @@ class DemoDataSeeder extends Seeder
             'type' => $ownerRole?->id,
         ]);
 
-        $secretaryUser = User::create([
-            'name' => 'Jane Secretary',
-            'username' => 'secretary_demo',
-            'email' => 'secretary@demo.com',
+        // 9.2 System Administrator
+        $sysadminUser = User::create([
+            'name' => 'System Admin',
+            'username' => 'sysadmin_demo',
+            'email' => 'sysadmin@demo.com',
             'email_verified_at' => now(),
             'type' => 'admin',
-            'staff_leave_type_id' => $juniorStaffLeave->id,
+            'staff_leave_type_id' => $seniorStaffLeave->id,
             'password' => Hash::make('password'),
             'user_secret' => Str::random(16),
             'active' => true,
         ]);
 
-        $secretaryRole = UserRole::where('name', 'secretary')->first();
+        $sysadminRole = UserRole::where('name', 'system_admin')->first();
         Admin::create([
-            'user_id' => $secretaryUser->id,
-            'lastname' => 'Secretary',
-            'othernames' => 'Jane',
-            'phone_number' => '+233 24 999 0002',
-            'gender' => 'female',
-            'position_title' => 'Department Secretary',
+            'user_id' => $sysadminUser->id,
+            'lastname' => 'Admin',
+            'othernames' => 'System',
+            'phone_number' => '+233 24 999 0004',
+            'gender' => 'male',
+            'position_title' => 'System Administrator',
             'department_id' => 1,
             'faculty_id' => 1,
             'status' => 'active',
-            'date_of_appointment' => '2022-02-01',
+            'date_of_appointment' => '2020-01-15',
             'created_by' => $adminUser->id,
-            'ghana_card' => 'GHA-123456789-0',
-            'type' => $secretaryRole?->id,
+            'ghana_card' => 'GHA-789012345-7',
+            'type' => $sysadminRole?->id,
         ]);
 
+        // 9.3 College Principal
+        $principalUser = User::create([
+            'name' => 'Principal Demo',
+            'username' => 'principal_demo',
+            'email' => 'principal@demo.com',
+            'email_verified_at' => now(),
+            'type' => 'admin',
+            'staff_leave_type_id' => $principalLeave->id,
+            'password' => Hash::make('password'),
+            'user_secret' => Str::random(16),
+            'active' => true,
+        ]);
+
+        $principalRole = UserRole::where('name', 'principal')->first();
+        Admin::create([
+            'user_id' => $principalUser->id,
+            'lastname' => 'Principal',
+            'othernames' => 'Demo',
+            'phone_number' => '+233 24 999 0005',
+            'gender' => 'male',
+            'position_title' => 'College Principal',
+            'department_id' => 1,
+            'faculty_id' => 1,
+            'status' => 'active',
+            'date_of_appointment' => '2019-09-01',
+            'created_by' => $adminUser->id,
+            'ghana_card' => 'GHA-789012345-8',
+            'type' => $principalRole?->id,
+        ]);
+
+        // 9.4 Vice Principal
+        $vicePrincipalUser = User::create([
+            'name' => 'Vice Principal Demo',
+            'username' => 'viceprincipal_demo',
+            'email' => 'viceprincipal@demo.com',
+            'email_verified_at' => now(),
+            'type' => 'admin',
+            'staff_leave_type_id' => $principalLeave->id,
+            'password' => Hash::make('password'),
+            'user_secret' => Str::random(16),
+            'active' => true,
+        ]);
+
+        $vicePrincipalRole = UserRole::where('name', 'vice_principal')->first();
+        Admin::create([
+            'user_id' => $vicePrincipalUser->id,
+            'lastname' => 'Vice Principal',
+            'othernames' => 'Demo',
+            'phone_number' => '+233 24 999 0006',
+            'gender' => 'female',
+            'position_title' => 'Vice Principal',
+            'department_id' => 1,
+            'faculty_id' => 1,
+            'status' => 'active',
+            'date_of_appointment' => '2020-08-15',
+            'created_by' => $adminUser->id,
+            'ghana_card' => 'GHA-789012345-9',
+            'type' => $vicePrincipalRole?->id,
+        ]);
+
+        // 9.5 HOD
         $hodUser = User::create([
             'name' => 'Dr. Robert HOD',
             'username' => 'hod_demo',
@@ -392,6 +455,36 @@ class DemoDataSeeder extends Seeder
             'created_by' => $adminUser->id,
             'ghana_card' => 'GHA-234567890-1',
             'type' => $hodRole?->id,
+        ]);
+
+        // 9.6 Dean of Students
+        $deanUser = User::create([
+            'name' => 'Dean Demo',
+            'username' => 'dean_demo',
+            'email' => 'dean@demo.com',
+            'email_verified_at' => now(),
+            'type' => 'admin',
+            'staff_leave_type_id' => $seniorStaffLeave->id,
+            'password' => Hash::make('password'),
+            'user_secret' => Str::random(16),
+            'active' => true,
+        ]);
+
+        $deanRole = UserRole::where('name', 'dean_of_students')->first();
+        Admin::create([
+            'user_id' => $deanUser->id,
+            'lastname' => 'Dean',
+            'othernames' => 'Demo',
+            'phone_number' => '+233 24 999 0007',
+            'gender' => 'male',
+            'position_title' => 'Dean of Student Affairs',
+            'department_id' => 1,
+            'faculty_id' => 1,
+            'status' => 'active',
+            'date_of_appointment' => '2022-01-10',
+            'created_by' => $adminUser->id,
+            'ghana_card' => 'GHA-789012345-0',
+            'type' => $deanRole?->id,
         ]);
 
         // 10. Seed Teachers (8 to 15 total, including teacher@demo.com)
@@ -582,61 +675,173 @@ class DemoDataSeeder extends Seeder
             ]);
         }
 
-        // 12.1 Seed Non-Teaching Staff (3 to 6 total)
-        $nonTeachingCount = rand(3, 6);
+        // 12.1 Seed Non-Teaching Staff (Other Staff) - 1 for each of the remaining 12 roles
         $staffPositions = [
-            ['pos' => 'Academic Registrar', 'role' => 'registrar', 'office' => 'Main Registry Room 102'],
-            ['pos' => 'Finance Officer', 'role' => 'accountant', 'office' => 'Accounts Office Room 105'],
-            ['pos' => 'IT Administrator', 'role' => 'it_support', 'office' => 'Server Room / IT Helpdesk'],
-            ['pos' => 'Librarian', 'role' => 'librarian', 'office' => 'Campus Library Desk'],
-            ['pos' => 'Human Resource Assistant', 'role' => 'hr', 'office' => 'HR Department Room 201'],
-            ['pos' => 'Admissions Clerk', 'role' => 'admissions', 'office' => 'Admissions Office Room 101'],
+            [
+                'pos' => 'Academic Registrar',
+                'role' => 'registrar',
+                'office' => 'Main Registry Room 102',
+                'username' => 'registrar_demo',
+                'email' => 'registrar@demo.com',
+                'firstname' => 'Charles',
+                'lastname' => 'Registrar',
+                'gender' => 'male',
+                'leave_type' => $seniorStaffLeave->id
+            ],
+            [
+                'pos' => 'Finance Officer',
+                'role' => 'finance_officer',
+                'office' => 'Finance Block Room 104',
+                'username' => 'finance_demo',
+                'email' => 'finance@demo.com',
+                'firstname' => 'Felicia',
+                'lastname' => 'Finance',
+                'gender' => 'female',
+                'leave_type' => $seniorStaffLeave->id
+            ],
+            [
+                'pos' => 'Accountant',
+                'role' => 'accountant',
+                'office' => 'Accounts Office Room 105',
+                'username' => 'accountant_demo',
+                'email' => 'accountant@demo.com',
+                'firstname' => 'Albert',
+                'lastname' => 'Accountant',
+                'gender' => 'male',
+                'leave_type' => $juniorStaffLeave->id
+            ],
+            [
+                'pos' => 'College Librarian',
+                'role' => 'librarian',
+                'office' => 'Campus Library Desk',
+                'username' => 'librarian_demo',
+                'email' => 'librarian@demo.com',
+                'firstname' => 'Linda',
+                'lastname' => 'Librarian',
+                'gender' => 'female',
+                'leave_type' => $juniorStaffLeave->id
+            ],
+            [
+                'pos' => 'Internal Auditor',
+                'role' => 'internal_auditor',
+                'office' => 'Audit Room 202',
+                'username' => 'auditor_demo',
+                'email' => 'auditor@demo.com',
+                'firstname' => 'Arthur',
+                'lastname' => 'Auditor',
+                'gender' => 'male',
+                'leave_type' => $seniorStaffLeave->id
+            ],
+            [
+                'pos' => 'Department Secretary',
+                'role' => 'secretary',
+                'office' => 'Admin Wing Secretary Desk',
+                'username' => 'secretary_demo',
+                'email' => 'secretary@demo.com',
+                'firstname' => 'Jane',
+                'lastname' => 'Secretary',
+                'gender' => 'female',
+                'leave_type' => $juniorStaffLeave->id
+            ],
+            [
+                'pos' => 'Admissions Officer',
+                'role' => 'admissions_officer',
+                'office' => 'Admissions Office Room 101',
+                'username' => 'admissions_demo',
+                'email' => 'admissions@demo.com',
+                'firstname' => 'Amy',
+                'lastname' => 'Admissions',
+                'gender' => 'female',
+                'leave_type' => $juniorStaffLeave->id
+            ],
+            [
+                'pos' => 'Examinations Officer',
+                'role' => 'exams_officer',
+                'office' => 'Exams Control Room 108',
+                'username' => 'exams_demo',
+                'email' => 'exams@demo.com',
+                'firstname' => 'Edward',
+                'lastname' => 'Exams',
+                'gender' => 'male',
+                'leave_type' => $seniorStaffLeave->id
+            ],
+            [
+                'pos' => 'Quality Assurance Officer',
+                'role' => 'quality_assurance_officer',
+                'office' => 'QA Wing Room 203',
+                'username' => 'qa_demo',
+                'email' => 'qa@demo.com',
+                'firstname' => 'Quincy',
+                'lastname' => 'Quality',
+                'gender' => 'male',
+                'leave_type' => $seniorStaffLeave->id
+            ],
+            [
+                'pos' => 'Human Resource Manager',
+                'role' => 'human_resource_manager',
+                'office' => 'HR Department Room 201',
+                'username' => 'hr_demo',
+                'email' => 'hr@demo.com',
+                'firstname' => 'Hannah',
+                'lastname' => 'HR',
+                'gender' => 'female',
+                'leave_type' => $seniorStaffLeave->id
+            ],
+            [
+                'pos' => 'Public Relations Officer',
+                'role' => 'public_relations_officer',
+                'office' => 'PR Desk Main Reception',
+                'username' => 'pro_demo',
+                'email' => 'pro@demo.com',
+                'firstname' => 'Patrick',
+                'lastname' => 'PR',
+                'gender' => 'male',
+                'leave_type' => $juniorStaffLeave->id
+            ],
+            [
+                'pos' => 'Procurement Officer',
+                'role' => 'procurement_officer',
+                'office' => 'Logistics Room 110',
+                'username' => 'procurement_demo',
+                'email' => 'procurement@demo.com',
+                'firstname' => 'Paulina',
+                'lastname' => 'Procurement',
+                'gender' => 'female',
+                'leave_type' => $juniorStaffLeave->id
+            ],
         ];
 
-        for ($i = 0; $i < $nonTeachingCount; $i++) {
-            $posData = $staffPositions[$i % count($staffPositions)];
-            $first = fake()->firstName();
-            $last = fake()->lastName();
+        foreach ($staffPositions as $posData) {
             $deptId = fake()->randomElement($departmentIds);
 
             $staffUser = User::create([
-                'name' => "{$first} {$last}",
-                'username' => 'stf_'.Str::slug("{$first}_{$last}", '_').'_'.rand(10, 99),
-                'email' => fake()->unique()->safeEmail(),
+                'name' => "{$posData['firstname']} {$posData['lastname']}",
+                'username' => $posData['username'],
+                'email' => $posData['email'],
                 'email_verified_at' => now(),
-                'type' => 'staff',
-                'staff_leave_type_id' => $posData['role'] === 'registrar' ? $seniorStaffLeave->id : $juniorStaffLeave->id,
+                'type' => 'admin',
+                'staff_leave_type_id' => $posData['leave_type'],
                 'password' => Hash::make('password'),
                 'user_secret' => Str::random(16),
                 'active' => true,
             ]);
 
-            NonTeachingStaff::create([
+            $roleModel = UserRole::where('name', $posData['role'])->first();
+
+            Admin::create([
                 'user_id' => $staffUser->id,
-                'position' => $posData['pos'],
-                'department_id' => $deptId,
+                'lastname' => $posData['lastname'],
+                'othernames' => $posData['firstname'],
                 'phone_number' => '+233 20 '.rand(1000000, 9999999),
-                'status' => 'active',
-            ]);
-
-            StaffAssignment::create([
-                'staff_id' => $staffUser->id,
-                'department_id' => $deptId,
-                'office' => $posData['office'],
+                'gender' => $posData['gender'],
                 'position_title' => $posData['pos'],
-                'assignment_date' => now()->subMonths(6),
-                'assigned_by' => $adminUser->id,
-                'status' => 'active',
-            ]);
-
-            StaffRole::create([
-                'staff_id' => $staffUser->id,
-                'role' => $posData['role'],
                 'department_id' => $deptId,
-                'description' => 'Assigned to '.$posData['pos'].' duties.',
-                'assigned_by' => $adminUser->id,
-                'assigned_date' => now()->subMonths(6),
+                'faculty_id' => 1,
                 'status' => 'active',
+                'date_of_appointment' => now()->subMonths(6)->format('Y-m-d'),
+                'created_by' => $adminUser->id,
+                'ghana_card' => 'GHA-'.rand(100000000, 999999999).'-'.rand(0, 9),
+                'type' => $roleModel?->id,
             ]);
         }
 

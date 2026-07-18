@@ -187,4 +187,20 @@ class AuthenticationTest extends TestCase
 
         $this->assertGuest();
     }
+
+    public function test_users_can_authenticate_using_quick_login(): void
+    {
+        $user = User::factory()->create(['email' => 'registrar@demo.com']);
+
+        $component = Volt::test('pages.auth.login');
+
+        $component->call('quickLogin', 'registrar@demo.com');
+
+        $component
+            ->assertHasNoErrors()
+            ->assertRedirect(route('post.login.redirect', absolute: false));
+
+        $this->assertAuthenticatedAs($user);
+    }
 }
+

@@ -112,29 +112,239 @@ new #[Layout('layouts.guest')] class extends Component
     </form>
 
     @if(config('college.demo_mode') || session('demo_mode'))
-        <div class="mt-6 border-t border-gray-200 pt-6 dark:border-gray-700">
+        <div class="mt-6 border-t border-gray-200 pt-6 dark:border-gray-700" x-data>
             <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                 Quick Demo Login
             </h2>
-            <div class="grid grid-cols-3 gap-2">
-                <button type="button" wire:click="quickLogin('admin@demo.com')" class="flex flex-col items-center justify-center p-2 rounded-md bg-purple-50 text-purple-700 hover:bg-purple-100 dark:bg-purple-950/20 dark:text-purple-300 dark:hover:bg-purple-950/40 text-xs transition">
-                    <i class="fa-solid fa-user-shield mb-1 text-base"></i>
-                    <span>Admin</span>
-                </button>
-                <button type="button" wire:click="quickLogin('teacher@demo.com')" class="flex flex-col items-center justify-center p-2 rounded-md bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/20 dark:text-indigo-300 dark:hover:bg-indigo-950/40 text-xs transition">
-                    <i class="fa-solid fa-chalkboard-user mb-1 text-base"></i>
-                    <span>Teacher</span>
-                </button>
-                <button type="button" wire:click="quickLogin('student@demo.com')" class="flex flex-col items-center justify-center p-2 rounded-md bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-950/20 dark:text-sky-300 dark:hover:bg-sky-950/40 text-xs transition">
-                    <i class="fa-solid fa-user-graduate mb-1 text-base"></i>
-                    <span>Student</span>
-                </button>
+            
+            <div class="space-y-3">
+                <div class="grid grid-cols-3 gap-2">
+                    <button type="button" x-on:click="$dispatch('open-modal', 'admin-role-modal')" class="flex flex-col items-center justify-center p-2 rounded-md bg-purple-50 text-purple-700 hover:bg-purple-100 dark:bg-purple-950/20 dark:text-purple-300 dark:hover:bg-purple-950/40 text-xs transition">
+                        <i class="fa-solid fa-user-shield mb-1 text-base"></i>
+                        <span>Admin/Staff</span>
+                    </button>
+                    <button type="button" wire:click="quickLogin('teacher@demo.com')" class="flex flex-col items-center justify-center p-2 rounded-md bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/20 dark:text-indigo-300 dark:hover:bg-indigo-950/40 text-xs transition">
+                        <i class="fa-solid fa-chalkboard-user mb-1 text-base"></i>
+                        <span>Teacher</span>
+                    </button>
+                    <button type="button" wire:click="quickLogin('student@demo.com')" class="flex flex-col items-center justify-center p-2 rounded-md bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-950/20 dark:text-sky-300 dark:hover:bg-sky-950/40 text-xs transition">
+                        <i class="fa-solid fa-user-graduate mb-1 text-base"></i>
+                        <span>Student</span>
+                    </button>
+                </div>
             </div>
 
             <div class="mt-4 flex items-center justify-between">
                 <p class="text-xs text-gray-500 dark:text-gray-500">{{ __('All data resets automatically.') }}</p>
                 <x-college.demo-reset-button />
             </div>
+
+            <!-- Admin & Staff Roles Popup Modal -->
+            <x-college.modal name="admin-role-modal" :title="__('Choose an Administrative or Staff Role')" maxWidth="4xl">
+                <div class="space-y-6">
+                    <!-- Section 1: Administrative Staff -->
+                    <div>
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-3 border-b border-gray-100 dark:border-gray-700 pb-1">
+                            {{ __('Administrative Staff') }}
+                        </h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                            <button type="button" wire:click="quickLogin('admin@demo.com')" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition text-left group">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">
+                                    <i class="fa-solid fa-user-gear text-lg"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{{ __('Owner (Principal/CEO)') }}</div>
+                                    <div class="text-[10px] text-gray-500 dark:text-gray-400">admin@demo.com</div>
+                                </div>
+                            </button>
+
+                            <button type="button" wire:click="quickLogin('sysadmin@demo.com')" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition text-left group">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">
+                                    <i class="fa-solid fa-laptop-code text-lg"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{{ __('System Administrator') }}</div>
+                                    <div class="text-[10px] text-gray-500 dark:text-gray-400">sysadmin@demo.com</div>
+                                </div>
+                            </button>
+
+                            <button type="button" wire:click="quickLogin('principal@demo.com')" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition text-left group">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">
+                                    <i class="fa-solid fa-school text-lg"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{{ __('College Principal') }}</div>
+                                    <div class="text-[10px] text-gray-500 dark:text-gray-400">principal@demo.com</div>
+                                </div>
+                            </button>
+
+                            <button type="button" wire:click="quickLogin('viceprincipal@demo.com')" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition text-left group">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">
+                                    <i class="fa-solid fa-users-gear text-lg"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{{ __('Vice Principal') }}</div>
+                                    <div class="text-[10px] text-gray-500 dark:text-gray-400">viceprincipal@demo.com</div>
+                                </div>
+                            </button>
+
+                            <button type="button" wire:click="quickLogin('hod@demo.com')" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition text-left group">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">
+                                    <i class="fa-solid fa-sitemap text-lg"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{{ __('Head of Dept (HOD)') }}</div>
+                                    <div class="text-[10px] text-gray-500 dark:text-gray-400">hod@demo.com</div>
+                                </div>
+                            </button>
+
+                            <button type="button" wire:click="quickLogin('dean@demo.com')" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition text-left group">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">
+                                    <i class="fa-solid fa-graduation-cap text-lg"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{{ __('Dean of Student Affairs') }}</div>
+                                    <div class="text-[10px] text-gray-500 dark:text-gray-400">dean@demo.com</div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Other Staff / Operations -->
+                    <div>
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-3 border-b border-gray-100 dark:border-gray-700 pb-1">
+                            {{ __('Support & Operations Staff') }}
+                        </h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                            <button type="button" wire:click="quickLogin('registrar@demo.com')" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition text-left group">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400">
+                                    <i class="fa-solid fa-address-book text-lg"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400">{{ __('Academic Registrar') }}</div>
+                                    <div class="text-[10px] text-gray-500 dark:text-gray-400">registrar@demo.com</div>
+                                </div>
+                            </button>
+
+                            <button type="button" wire:click="quickLogin('finance@demo.com')" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition text-left group">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400">
+                                    <i class="fa-solid fa-money-check-dollar text-lg"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400">{{ __('Finance Officer') }}</div>
+                                    <div class="text-[10px] text-gray-500 dark:text-gray-400">finance@demo.com</div>
+                                </div>
+                            </button>
+
+                            <button type="button" wire:click="quickLogin('accountant@demo.com')" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition text-left group">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400">
+                                    <i class="fa-solid fa-calculator text-lg"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400">{{ __('Accountant') }}</div>
+                                    <div class="text-[10px] text-gray-500 dark:text-gray-400">accountant@demo.com</div>
+                                </div>
+                            </button>
+
+                            <button type="button" wire:click="quickLogin('librarian@demo.com')" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition text-left group">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400">
+                                    <i class="fa-solid fa-book-open text-lg"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400">{{ __('College Librarian') }}</div>
+                                    <div class="text-[10px] text-gray-500 dark:text-gray-400">librarian@demo.com</div>
+                                </div>
+                            </button>
+
+                            <button type="button" wire:click="quickLogin('auditor@demo.com')" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition text-left group">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400">
+                                    <i class="fa-solid fa-magnifying-glass-chart text-lg"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400">{{ __('Internal Auditor') }}</div>
+                                    <div class="text-[10px] text-gray-500 dark:text-gray-400">auditor@demo.com</div>
+                                </div>
+                            </button>
+
+                            <button type="button" wire:click="quickLogin('secretary@demo.com')" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition text-left group">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400">
+                                    <i class="fa-solid fa-keyboard text-lg"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400">{{ __('Department Secretary') }}</div>
+                                    <div class="text-[10px] text-gray-500 dark:text-gray-400">secretary@demo.com</div>
+                                </div>
+                            </button>
+
+                            <button type="button" wire:click="quickLogin('admissions@demo.com')" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition text-left group">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400">
+                                    <i class="fa-solid fa-user-plus text-lg"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400">{{ __('Admissions Officer') }}</div>
+                                    <div class="text-[10px] text-gray-500 dark:text-gray-400">admissions@demo.com</div>
+                                </div>
+                            </button>
+
+                            <button type="button" wire:click="quickLogin('exams@demo.com')" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition text-left group">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400">
+                                    <i class="fa-solid fa-file-signature text-lg"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400">{{ __('Examinations Officer') }}</div>
+                                    <div class="text-[10px] text-gray-500 dark:text-gray-400">exams@demo.com</div>
+                                </div>
+                            </button>
+
+                            <button type="button" wire:click="quickLogin('qa@demo.com')" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition text-left group">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400">
+                                    <i class="fa-solid fa-shield-halved text-lg"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400">{{ __('Quality Assurance Officer') }}</div>
+                                    <div class="text-[10px] text-gray-500 dark:text-gray-400">qa@demo.com</div>
+                                </div>
+                            </button>
+
+                            <button type="button" wire:click="quickLogin('hr@demo.com')" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition text-left group">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400">
+                                    <i class="fa-solid fa-users-viewfinder text-lg"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400">{{ __('HR Manager') }}</div>
+                                    <div class="text-[10px] text-gray-500 dark:text-gray-400">hr@demo.com</div>
+                                </div>
+                            </button>
+
+                            <button type="button" wire:click="quickLogin('pro@demo.com')" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition text-left group">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400">
+                                    <i class="fa-solid fa-bullhorn text-lg"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400">{{ __('Public Relations Officer') }}</div>
+                                    <div class="text-[10px] text-gray-500 dark:text-gray-400">pro@demo.com</div>
+                                </div>
+                            </button>
+
+                            <button type="button" wire:click="quickLogin('procurement@demo.com')" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition text-left group">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400">
+                                    <i class="fa-solid fa-box-open text-lg"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400">{{ __('Procurement Officer') }}</div>
+                                    <div class="text-[10px] text-gray-500 dark:text-gray-400">procurement@demo.com</div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <x-slot name="footer">
+                    <button type="button" x-on:click="show = false" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-xs font-semibold text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition">
+                        {{ __('Close') }}
+                    </button>
+                </x-slot>
+            </x-college.modal>
         </div>
     @endif
 </div>
