@@ -214,16 +214,14 @@ class AdminDashboardPage extends Component
         if ($admin->department_id) {
             return $query->whereHas('user', function ($q) use ($admin) {
                 $q->whereHas('admin', fn($a) => $a->where('department_id', $admin->department_id))
-                  ->orWhereHas('teacher', fn($t) => $t->where('department_id', $admin->department_id))
-                  ->orWhereHas('nonTeachingStaff', fn($nts) => $nts->where('department_id', $admin->department_id));
+                  ->orWhereHas('teacher', fn($t) => $t->where('department_id', $admin->department_id));
             });
         }
 
         if ($admin->faculty_id) {
             return $query->whereHas('user', function ($q) use ($admin) {
                 $q->whereHas('admin.department', fn($d) => $d->where('faculty_id', $admin->faculty_id))
-                  ->orWhereHas('teacher.department', fn($d) => $d->where('faculty_id', $admin->faculty_id))
-                  ->orWhereHas('nonTeachingStaff.department', fn($d) => $d->where('faculty_id', $admin->faculty_id));
+                  ->orWhereHas('teacher.department', fn($d) => $d->where('faculty_id', $admin->faculty_id));
             });
         }
 

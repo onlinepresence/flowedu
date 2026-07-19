@@ -378,21 +378,25 @@ class StaffLeaveModuleTest extends TestCase
         $teacherProfileMath->save();
 
         // 3. Non-teaching staff in CS
-        $staffCS = User::factory()->create(['type' => 'staff', 'name' => 'CS Staff']);
-        $staffProfileCS = new \App\Models\NonTeachingStaff;
+        $staffCS = User::factory()->create(['type' => 'admin', 'name' => 'CS Staff']);
+        $staffProfileCS = new \App\Models\Admin;
         $staffProfileCS->user_id = $staffCS->id;
         $staffProfileCS->department_id = $deptCS->id;
-        $staffProfileCS->position = 'Janitor';
+        $staffProfileCS->position_title = 'Janitor';
         $staffProfileCS->phone_number = '789';
+        $staffProfileCS->lastname = 'CS';
+        $staffProfileCS->othernames = 'Staff';
         $staffProfileCS->save();
 
         // 4. Non-teaching staff with no department
-        $staffNoDept = User::factory()->create(['type' => 'staff', 'name' => 'Admin Staff']);
-        $staffProfileNoDept = new \App\Models\NonTeachingStaff;
+        $staffNoDept = User::factory()->create(['type' => 'admin', 'name' => 'Admin Staff']);
+        $staffProfileNoDept = new \App\Models\Admin;
         $staffProfileNoDept->user_id = $staffNoDept->id;
         $staffProfileNoDept->department_id = null;
-        $staffProfileNoDept->position = 'Secretary';
+        $staffProfileNoDept->position_title = 'Secretary';
         $staffProfileNoDept->phone_number = '000';
+        $staffProfileNoDept->lastname = 'Admin';
+        $staffProfileNoDept->othernames = 'Staff';
         $staffProfileNoDept->save();
 
         // --- Test HOD Scoping ---

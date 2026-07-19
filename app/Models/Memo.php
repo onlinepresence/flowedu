@@ -98,8 +98,7 @@ class Memo extends Model
 
                 return $query->where(function ($q) {
                     $q->whereHas('admin', fn($a) => $a->where('department_id', $this->recipient_entity_id))
-                      ->orWhereHas('teacher', fn($t) => $t->where('department_id', $this->recipient_entity_id))
-                      ->orWhereHas('nonTeachingStaff', fn($ns) => $ns->where('department_id', $this->recipient_entity_id));
+                      ->orWhereHas('teacher', fn($t) => $t->where('department_id', $this->recipient_entity_id));
                     
                     if ($this->confidentiality_level === 'public') {
                         $q->orWhereHas('student', fn($s) => $s->where('department_id', $this->recipient_entity_id));
@@ -121,8 +120,7 @@ class Memo extends Model
 
                 return $query->where(function ($q) {
                     $q->whereHas('admin', fn($a) => $a->where('faculty_id', $this->recipient_entity_id))
-                      ->orWhereHas('teacher.department', fn($d) => $d->where('faculty_id', $this->recipient_entity_id))
-                      ->orWhereHas('nonTeachingStaff.department', fn($d) => $d->where('faculty_id', $this->recipient_entity_id));
+                      ->orWhereHas('teacher.department', fn($d) => $d->where('faculty_id', $this->recipient_entity_id));
 
                     if ($this->confidentiality_level === 'public') {
                         $q->orWhereHas('student.department', fn($d) => $d->where('faculty_id', $this->recipient_entity_id));
@@ -197,7 +195,6 @@ class Memo extends Model
                     $userDeptId = null;
                     if ($user->admin) $userDeptId = $user->admin->department_id;
                     elseif ($user->teacher) $userDeptId = $user->teacher->department_id;
-                    elseif ($user->nonTeachingStaff) $userDeptId = $user->nonTeachingStaff->department_id;
                     elseif ($user->student) $userDeptId = $user->student->department_id;
 
                     if ($userDeptId && in_array((int)$userDeptId, array_map('intval', $cc['departments']))) {
@@ -240,8 +237,6 @@ class Memo extends Model
                 $userDeptId = $user->admin->department_id;
             } elseif ($user->teacher) {
                 $userDeptId = $user->teacher->department_id;
-            } elseif ($user->nonTeachingStaff) {
-                $userDeptId = $user->nonTeachingStaff->department_id;
             } elseif ($user->student) {
                 $userDeptId = $user->student->department_id;
             }
@@ -343,8 +338,7 @@ class Memo extends Model
         if (isset($cc['departments']) && !empty($cc['departments'])) {
             $users = $users->merge(User::query()->where('active', true)->where(function ($q) use ($cc) {
                 $q->whereHas('admin', fn($a) => $a->whereIn('department_id', $cc['departments']))
-                  ->orWhereHas('teacher', fn($t) => $t->whereIn('department_id', $cc['departments']))
-                  ->orWhereHas('nonTeachingStaff', fn($ns) => $ns->whereIn('department_id', $cc['departments']));
+                  ->orWhereHas('teacher', fn($t) => $t->whereIn('department_id', $cc['departments']));
             })->get());
         }
 

@@ -19,12 +19,16 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('non_teaching_staff', function (Blueprint $table) {
-            $table->foreignId('department_id')->nullable(false)->change();
-        });
+        if (Schema::hasTable('non_teaching_staff')) {
+            Schema::table('non_teaching_staff', function (Blueprint $table) {
+                $table->foreignId('department_id')->nullable(false)->change();
+            });
+        }
 
-        Schema::table('staff_assignments', function (Blueprint $table) {
-            $table->foreignId('department_id')->nullable(false)->change();
-        });
+        if (Schema::hasTable('staff_assignments')) {
+            Schema::table('staff_assignments', function (Blueprint $table) {
+                $table->foreignId('department_id')->nullable(false)->change();
+            });
+        }
     }
 };

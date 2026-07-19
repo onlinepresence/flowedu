@@ -18,7 +18,7 @@ class PostLoginRedirectController extends Controller
         }
 
         return match ($user->type) {
-            'admin', 'staff' => $this->redirectAdmin($user),
+            'admin' => $this->redirectAdmin($user),
             'teacher' => $this->redirectTeacher($user),
             default => $this->redirectStudent($user),
         };
@@ -26,16 +26,11 @@ class PostLoginRedirectController extends Controller
 
     private function redirectAdmin(User $user): RedirectResponse
     {
-        if ($user->type === 'admin') {
-            $user->loadMissing('admin');
-            if ($user->admin === null) {
-                return redirect()->route('admin.setup.personal');
-            }
-        } elseif ($user->type === 'staff') {
-            $user->loadMissing('nonTeachingStaff');
-            if ($user->nonTeachingStaff === null) {
-                return redirect()->route('admin.setup.personal');
-            }
+        session(['active_portal_role' => 'admin']);
+
+        $user->loadMissing('admin');
+        if ($user->admin === null) {
+            return redirect()->route('admin.setup.personal');
         }
 
         $school = School::current();
@@ -48,6 +43,8 @@ class PostLoginRedirectController extends Controller
 
     private function redirectTeacher(User $user): RedirectResponse
     {
+        session(['active_portal_role' => 'teacher']);
+
         $user->loadMissing('teacher');
         $teacher = $user->teacher;
         if ($teacher !== null && ($teacher->password_reset_required || ! $teacher->is_onboarded)) {

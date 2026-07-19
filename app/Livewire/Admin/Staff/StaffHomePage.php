@@ -7,9 +7,6 @@ namespace App\Livewire\Admin\Staff;
 use App\Models\Admin;
 use App\Models\Announcement;
 use App\Models\CourseMaterial;
-use App\Models\NonTeachingStaff;
-use App\Models\StaffAssignment;
-use App\Models\StaffRole;
 use App\Models\Teacher;
 use App\Models\TeacherAssignment;
 use App\Models\TeacherRole;
@@ -36,8 +33,6 @@ class StaffHomePage extends Component
         return view('livewire.admin.staff.staff-home-page', [
             'adminCount' => Admin::query()->count(),
             'teacherCount' => Teacher::query()->count(),
-            'nonTeachingCount' => NonTeachingStaff::query()->count(),
-            'staffAssignmentCount' => StaffAssignment::query()->count(),
             'teacherAssignmentCount' => TeacherAssignment::query()->count(),
             'teacherRoleCount' => TeacherRole::query()->count(),
             'userRoleCount' => UserRole::query()->count(),
@@ -46,7 +41,7 @@ class StaffHomePage extends Component
         ])->layout('components.layouts.admin', [
             'title' => __('Staff Overview'),
             'headerTitle' => __('Administrative Overview'),
-            'headerDescription' => __('Central hub for managing administrators, teaching, and non-teaching staff assignments.'),
+            'headerDescription' => __('Central hub for managing administrators and lecturer assignments.'),
         ]);
     }
 }

@@ -14,7 +14,7 @@ use App\Models\Program;
 use App\Models\Student;
 use App\Models\TranscriptRequest;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\Concerns\ActsAsOwnerAdmin;
 use Tests\Concerns\CreatesTestSchool;
@@ -24,7 +24,7 @@ class TranscriptRequestTest extends TestCase
 {
     use ActsAsOwnerAdmin;
     use CreatesTestSchool;
-    use DatabaseMigrations;
+    use RefreshDatabase;
 
     protected function setUp(): void
     {

@@ -12,7 +12,7 @@
     @if ($showAddStaffModal)
         <x-college.modal name="staff-add-choice" :title="__('Add staff')" :show="true" maxWidth="md" livewireSynced>
             <p class="text-sm text-gray-600 dark:text-gray-400">{{ __('Choose the type of account to create.') }}</p>
-            <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <a
                     href="{{ route('admin.staff.administrators', ['create' => 1]) }}"
                     wire:navigate
@@ -27,15 +27,7 @@
                     wire:click="closeAddStaffModal"
                     class="inline-flex justify-center rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-800 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:bg-indigo-900/50"
                 >
-                    {{ __('Teacher') }}
-                </a>
-                <a
-                    href="{{ route('admin.staff.non-teaching', ['create' => 1]) }}"
-                    wire:navigate
-                    wire:click="closeAddStaffModal"
-                    class="inline-flex justify-center rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-800 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:bg-indigo-900/50"
-                >
-                    {{ __('Non-teaching staff') }}
+                    {{ __('Lecturer') }}
                 </a>
             </div>
             <x-slot:footer>
@@ -56,23 +48,15 @@
             <span class="mt-1 block text-2xl font-semibold text-indigo-600 dark:text-indigo-400">{{ $adminCount }}</span>
         </a>
         <a href="{{ route('admin.staff.teachers') }}" wire:navigate class="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-indigo-300 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-indigo-600">
-            <span class="text-sm font-medium text-gray-900 dark:text-white">{{ __('Teachers') }}</span>
+            <span class="text-sm font-medium text-gray-900 dark:text-white">{{ __('Lecturers') }}</span>
             <span class="mt-1 block text-2xl font-semibold text-indigo-600 dark:text-indigo-400">{{ $teacherCount }}</span>
         </a>
-        <a href="{{ route('admin.staff.non-teaching') }}" wire:navigate class="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-indigo-300 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-indigo-600">
-            <span class="text-sm font-medium text-gray-900 dark:text-white">{{ __('Non-teaching staff') }}</span>
-            <span class="mt-1 block text-2xl font-semibold text-indigo-600 dark:text-indigo-400">{{ $nonTeachingCount }}</span>
-        </a>
-        <a href="{{ route('admin.staff.assignments') }}" wire:navigate class="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-indigo-300 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-indigo-600">
-            <span class="text-sm font-medium text-gray-900 dark:text-white">{{ __('Staff office assignments') }}</span>
-            <span class="mt-1 block text-2xl font-semibold text-indigo-600 dark:text-indigo-400">{{ $staffAssignmentCount }}</span>
-        </a>
         <a href="{{ route('admin.staff.teacher-assignments') }}" wire:navigate class="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-indigo-300 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-indigo-600">
-            <span class="text-sm font-medium text-gray-900 dark:text-white">{{ __('Teacher assignments') }}</span>
+            <span class="text-sm font-medium text-gray-900 dark:text-white">{{ __('Lecturer assignments') }}</span>
             <span class="mt-1 block text-2xl font-semibold text-indigo-600 dark:text-indigo-400">{{ $teacherAssignmentCount }}</span>
         </a>
         <a href="{{ route('admin.staff.teacher-roles') }}" wire:navigate class="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-indigo-300 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-indigo-600">
-            <span class="text-sm font-medium text-gray-900 dark:text-white">{{ __('Teacher roles') }}</span>
+            <span class="text-sm font-medium text-gray-900 dark:text-white">{{ __('Lecturer roles') }}</span>
             <span class="mt-1 block text-2xl font-semibold text-indigo-600 dark:text-indigo-400">{{ $teacherRoleCount }}</span>
         </a>
         <a href="{{ route('admin.staff.roles') }}" wire:navigate class="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-indigo-300 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-indigo-600">

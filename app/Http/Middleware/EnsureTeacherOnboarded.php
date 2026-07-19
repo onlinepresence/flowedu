@@ -17,8 +17,8 @@ class EnsureTeacherOnboarded
     {
         $user = $request->user();
 
-        if ($user === null || $user->type !== 'teacher') {
-            return $next($request);
+        if ($user === null || !$user->isTeacherActive()) {
+            abort(403, 'Unauthorized. Please switch to Lecturer mode.');
         }
 
         $user->loadMissing('teacher');

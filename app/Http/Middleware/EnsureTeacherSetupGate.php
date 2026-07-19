@@ -17,7 +17,7 @@ class EnsureTeacherSetupGate
     {
         $user = $request->user();
 
-        if ($user === null || $user->type !== 'teacher') {
+        if ($user === null || !$user->isTeacherActive()) {
             return $next($request);
         }
 

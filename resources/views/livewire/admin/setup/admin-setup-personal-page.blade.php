@@ -36,7 +36,7 @@
                     <p class="text-xs font-mono text-gray-500 dark:text-gray-400 mt-1">@<span>{{ $username ?: 'username' }}</span></p>
                     
                     <span class="mt-3 inline-flex rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200">
-                        {{ $userType === 'admin' ? __('Administrator') : __('Non-Teaching Staff') }}
+                        {{ __('Administrator') }}
                     </span>
                 </div>
 
@@ -139,19 +139,6 @@
                                     @error('gender') <p class="mt-1 text-xs text-red-650 dark:text-red-400">{{ $message }}</p> @enderror
                                 </div>
                             @endif
-                        @endif
-
-                        @if ($userType === 'staff')
-                            <div>
-                                <label for="adm-dept" class="block text-sm font-semibold text-gray-700 dark:text-gray-305">{{ __('Department') }}</label>
-                                <select wire:model="department_id" id="adm-dept" required class="mt-1.5 block w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-550 focus:ring-purple-550 dark:border-gray-600 dark:bg-gray-900 dark:text-white">
-                                    <option value="">{{ __('Select Department…') }}</option>
-                                    @foreach ($departments as $d)
-                                        <option value="{{ $d->id }}">{{ $d->name }}</option>
-                                    @endforeach
-                                </select>
-                                @error('department_id') <p class="mt-1 text-xs text-red-650 dark:text-red-400">{{ $message }}</p> @enderror
-                            </div>
                         @endif
                     </div>
 

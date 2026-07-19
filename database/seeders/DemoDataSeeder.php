@@ -20,7 +20,6 @@ use App\Models\Hall;
 use App\Models\MedicalHistory;
 use App\Models\Memo;
 use App\Models\MemoTracking;
-use App\Models\NonTeachingStaff;
 use App\Models\ParentGuardian;
 use App\Models\Payment;
 use App\Models\Program;
@@ -33,8 +32,6 @@ use App\Models\School;
 use App\Models\SchoolLicence;
 use App\Models\Semester;
 use App\Models\Setting;
-use App\Models\StaffAssignment;
-use App\Models\StaffRole;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\TeacherRole;
@@ -82,7 +79,7 @@ class DemoDataSeeder extends Seeder
             'disciplinary_records', 'medical_histories', 'evaluation_forms',
             'evaluation_questions', 'evaluation_responses', 'response_details',
             'announcements', 'memos', 'memo_tracking', 'memo_attachments', 'notifications',
-            'non_teaching_staff', 'staff_assignments', 'staff_roles', 'scholarships', 'scholarship_recipients',
+            'scholarships', 'scholarship_recipients',
             'result_slips', 'transcript_requests', 'timetables', 'timetable_classes', 'teacher_courses', 'settings',
             'memo_signatories', 'memo_read_receipts', 'fee_breakdown_requests', 'job_alerts',
             'products', 'invoices', 'invoice_items', 'expenditures', 'staff_leave_types', 'leave_requests', 'fee_components', 'fee_structure_items', 'system_audits'

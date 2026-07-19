@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Admin extends Model
 {
@@ -15,6 +16,7 @@ class Admin extends Model
         'gender',
         'profile_pic',
         'position_title',
+        'office',
         'department_id',
         'faculty_id',
         'status',
@@ -27,6 +29,13 @@ class Admin extends Model
     protected $casts = [
         'date_of_appointment' => 'date',
     ];
+
+    protected static function booted()
+    {
+        static::saved(function (Admin $admin) {
+            $admin->recordAssignmentHistory();
+        });
+    }
 
     public function user(): BelongsTo
     {
@@ -103,6 +112,54 @@ class Admin extends Model
     public function canAccessCourse(Course $course): bool
     {
         return $this->canAccessDepartment($course->program?->department_id);
+    }
+
+    public function officeHistories(): HasMany
+    {
+        return $this->hasMany(OfficeAssignmentHistory::class);
+    }
+
+    public function recordAssignmentHistory(): void
+    {
+        // 1. Check if there's an active history record.
+        $active = $this->officeHistories()->where('status', 'active')->first();
+
+        if ($active) {
+            // If the active record has the exact same role (type), department, faculty, and office, do nothing.
+            if ($active->role_id === $this->type
+                && $active->department_id === $this->department_id
+                && $active->faculty_id === $this->faculty_id
+                && $active->office === $this->office
+            ) {
+                return;
+            }
+
+            // Otherwise, close the current active record.
+            $active->update([
+                'end_date' => now(),
+                'status' => 'ended',
+            ]);
+        }
+
+        // 2. Create a new active history record.
+        if ($this->status === 'active' && $this->type) {
+            $this->officeHistories()->create([
+                'role_id' => $this->type,
+                'department_id' => $this->department_id,
+                'faculty_id' => $this->faculty_id,
+                'office' => $this->office,
+                'start_date' => now(),
+                'status' => 'active',
+            ]);
+        }
+    }
+
+    public function closeAllAssignmentHistories(): void
+    {
+        $this->officeHistories()->where('status', 'active')->update([
+            'end_date' => now(),
+            'status' => 'ended',
+        ]);
     }
 }
 

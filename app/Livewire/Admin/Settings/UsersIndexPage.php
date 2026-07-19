@@ -157,7 +157,7 @@ class UsersIndexPage extends Component
             'createName' => ['required', 'string', 'max:255'],
             'createUsername' => ['required', 'string', 'max:255', Rule::unique('users', 'username')],
             'createEmail' => ['nullable', 'string', 'email', 'max:255'],
-            'createType' => ['required', 'string', Rule::in(['student', 'teacher', 'admin', 'staff'])],
+            'createType' => ['required', 'string', Rule::in(['student', 'teacher', 'admin'])],
             'createActive' => ['boolean'],
             'createPassword' => ['required', 'string', 'min:8'],
             'createPasswordConfirmation' => ['required', 'string', 'same:createPassword'],
@@ -206,7 +206,7 @@ class UsersIndexPage extends Component
             'editName' => ['required', 'string', 'max:255'],
             'editUsername' => ['required', 'string', 'max:255', Rule::unique('users', 'username')->ignore($user->id)],
             'editEmail' => ['nullable', 'string', 'email', 'max:255'],
-            'editType' => ['required', 'string', Rule::in(['student', 'teacher', 'admin', 'staff'])],
+            'editType' => ['required', 'string', Rule::in(['student', 'teacher', 'admin'])],
             'editActive' => ['boolean'],
         ]);
 
@@ -326,7 +326,7 @@ class UsersIndexPage extends Component
             return true;
         }
 
-        $user->loadMissing(['admin', 'teacher', 'student', 'nonTeachingStaff']);
+        $user->loadMissing(['admin', 'teacher', 'student']);
 
         if ($user->admin !== null && $newType !== 'admin') {
             return false;
@@ -337,10 +337,6 @@ class UsersIndexPage extends Component
         }
 
         if ($user->student !== null && $newType !== 'student') {
-            return false;
-        }
-
-        if ($user->nonTeachingStaff !== null && $newType !== 'staff') {
             return false;
         }
 

@@ -353,8 +353,8 @@
                         class="block w-full rounded-lg border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white sm:text-sm"
                     >
                         <option value="all">{{ __('All Staff') }}</option>
-                        <option value="teaching">{{ __('Teaching Staff') }}</option>
-                        <option value="non_teaching">{{ __('Non-Teaching Staff') }}</option>
+                        <option value="teaching">{{ __('Lecturers') }}</option>
+                        <option value="non_teaching">{{ __('Administrative Staff') }}</option>
                     </select>
                 </div>
                 @if (auth()->user()->adminRoleSlug() !== 'hod')
@@ -395,11 +395,7 @@
                                 <td class="whitespace-nowrap px-6 py-4 text-sm">
                                     @if ($staff->type === 'teacher')
                                         <span class="inline-flex items-center rounded-md bg-purple-50 px-2 py-1 text-xs font-medium text-purple-750 ring-1 ring-inset ring-purple-600/20 dark:bg-purple-950/30 dark:text-purple-300">
-                                            {{ __('Teacher') }}
-                                        </span>
-                                    @elseif ($staff->type === 'staff')
-                                        <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-750 ring-1 ring-inset ring-blue-600/20 dark:bg-blue-950/30 dark:text-blue-300">
-                                            {{ __('Non-Teaching Staff') }}
+                                            {{ __('Lecturer') }}
                                         </span>
                                     @elseif ($staff->type === 'admin')
                                         <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-750 ring-1 ring-inset ring-amber-600/20 dark:bg-amber-950/30 dark:text-amber-300">
@@ -410,8 +406,7 @@
                                 <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                                     @php
                                         $deptName = $staff->admin?->department?->name 
-                                            ?? $staff->teacher?->department?->name 
-                                            ?? $staff->nonTeachingStaff?->department?->name;
+                                            ?? $staff->teacher?->department?->name;
                                     @endphp
                                     {{ $deptName ?? __('No Department') }}
                                 </td>

@@ -16,7 +16,7 @@ class EnsureTeacherPermission
     public function handle(Request $request, Closure $next, string $permission): Response
     {
         $user = $request->user();
-        if ($user === null || $user->type !== 'teacher') {
+        if ($user === null || !$user->isTeacherActive()) {
             abort(403);
         }
 

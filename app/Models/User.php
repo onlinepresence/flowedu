@@ -86,19 +86,18 @@ class User extends Authenticatable
         return $this->hasMany(Backup::class, 'created_by');
     }
 
-    public function nonTeachingStaff(): HasOne
+    public function isTeacherActive(): bool
     {
-        return $this->hasOne(NonTeachingStaff::class);
-    }
+        if ($this->type === 'teacher') {
+            return true;
+        }
 
-    public function staffAssignments(): HasMany
-    {
-        return $this->hasMany(StaffAssignment::class, 'staff_id');
-    }
+        if ($this->type === 'admin' && session('active_portal_role') === 'teacher') {
+            $this->loadMissing('teacher');
+            return $this->teacher !== null;
+        }
 
-    public function staffRoles(): HasMany
-    {
-        return $this->hasMany(StaffRole::class, 'staff_id');
+        return false;
     }
 
     public function adminRoleSlug(): ?string
@@ -135,6 +134,10 @@ class User extends Authenticatable
     public function adminPermissionSlugs(): array
     {
         if ($this->type === 'admin') {
+            if (session('active_portal_role') === 'teacher') {
+                return [];
+            }
+
             $this->loadMissing('admin.role');
             $permissions = $this->admin?->role?->permissions;
 
@@ -145,30 +148,15 @@ class User extends Authenticatable
             return array_values(array_filter($permissions, fn ($p) => is_string($p)));
         }
 
-        if ($this->type === 'staff') {
-            $this->loadMissing('staffRoles.roleModel');
-            $slugs = [];
-            foreach ($this->staffRoles as $staffRole) {
-                if ($staffRole->status === 'active' && $staffRole->roleModel !== null) {
-                    $permissions = $staffRole->roleModel->permissions;
-                    if (is_array($permissions)) {
-                        foreach ($permissions as $p) {
-                            if (is_string($p)) {
-                                $slugs[] = $p;
-                            }
-                        }
-                    }
-                }
-            }
-
-            return array_values(array_unique($slugs));
-        }
-
         return [];
     }
 
     public function hasAdminPermission(string $slug): bool
     {
+        if (session('active_portal_role') === 'teacher') {
+            return false;
+        }
+
         if ($this->isAdminOwner()) {
             return true;
         }
@@ -207,7 +195,7 @@ class User extends Authenticatable
 
     public function teacherPermissions(): array
     {
-        if ($this->type !== 'teacher') {
+        if (!$this->isTeacherActive()) {
             return [];
         }
 
@@ -237,7 +225,7 @@ class User extends Authenticatable
 
     public function hasTeacherPermission(string $permission): bool
     {
-        if ($this->type !== 'teacher') {
+        if (!$this->isTeacherActive()) {
             return false;
         }
 

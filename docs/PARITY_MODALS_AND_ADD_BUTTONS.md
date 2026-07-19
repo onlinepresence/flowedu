@@ -64,12 +64,12 @@ Submit/AJAX detail lives in [`ADMIN_SUBMIT_INVENTORY.md`](./ADMIN_SUBMIT_INVENTO
 | `admin.evaluation.preview` | `EvaluationPreviewPage` | `pages/preview-evaluation.php` | M | — | P2 |
 | `admin.evaluation` | `EvaluationManagePage` | `admin/pages/staff/evaluation/manage.php` | L/C/M | Tabs, questions, modals | P1 |
 | `admin.staff.teachers` | `TeacherListPage` | `admin/pages/staff/teachers.php` | L/C/M | Add/edit teacher modals | P1 |
-| `admin.staff.non-teaching` | `NonTeachingListPage` | `admin/pages/staff/non-teaching.php` | L/C/M | Same | P1 |
-| `admin.staff.assignments` | `StaffAssignmentsListPage` | `admin/pages/staff/assignments.php` | L | Legacy redirect note | P3 |
+| `admin.staff.non-teaching` | Decommissioned | `admin/pages/staff/non-teaching.php` | — | Unified under Administrators list/Admin model | — |
+| `admin.staff.assignments` | Decommissioned | `admin/pages/staff/assignments.php` | — | Unified under Administrators list/Admin model | — |
 | `admin.staff.teacher-assignments` | `TeacherAssignmentsPage` | `admin/pages/staff/teacher-assignments.php` | L/C | Assign workflows | P1 |
 | `admin.staff.teacher-roles` | `TeacherRoleListPage` | `admin/pages/staff/teacher-roles.php` | L/C | Role edits | P2 |
-| `admin.staff.staff-assignments` | `StaffAssignmentsListPage` | `admin/pages/staff/staff-assignments.php` | L/C | — | P2 |
-| `admin.staff.staff-roles` | `StaffRoleListPage` | `admin/pages/staff/staff-roles.php` | L/C | — | P2 |
+| `admin.staff.staff-assignments` | Decommissioned | `admin/pages/staff/staff-assignments.php` | — | Unified under Administrators list/Admin model | — |
+| `admin.staff.staff-roles` | Decommissioned | `admin/pages/staff/staff-roles.php` | — | Unified under Administrators list/Admin model | — |
 | `admin.staff.roles` | `InstitutionRolesPage` | `admin/pages/staff/roles.php` | L/C | Legacy compatibility route | P2 |
 | `admin.staff.materials` | `CourseMaterialsPage` | `admin/pages/staff/materials.php` | L/C | Upload / manage | P2 |
 | `admin.staff.announcements` | `AnnouncementsStaffPage` | `admin/pages/staff/announcements.php` | L/C | Post / edit | P2 |

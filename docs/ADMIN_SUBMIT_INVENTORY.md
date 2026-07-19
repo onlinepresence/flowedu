@@ -45,9 +45,9 @@ Also handle `response_type=json` / AJAX siblings under `admin/ajax/` separately 
 
 | `submit` value | Laravel surface |
 |----------------|-----------------|
-| `add_non_teaching_staff` | [`NonTeachingListPage`](../app/Livewire/Admin/Staff/NonTeachingListPage.php) + [`CreateNonTeachingStaffUser`](../app/Actions/Staff/CreateNonTeachingStaffUser.php) |
-| `assign_staff` | [`StaffAssignmentsListPage`](../app/Livewire/Admin/Staff/StaffAssignmentsListPage.php) |
-| `assign_staff_role` | [`StaffRoleListPage`](../app/Livewire/Admin/Staff/StaffRoleListPage.php) |
+| `add_non_teaching_staff` | Decommissioned (Unified under Administrators management/Admin model) |
+| `assign_staff` | Decommissioned (Unified under Administrators management/Admin model) |
+| `assign_staff_role` | Decommissioned (Unified under Administrators management/Admin model) |
 | `assign_teacher` | [`TeacherListPage`](../app/Livewire/Admin/Staff/TeacherListPage.php) + [`CreateTeacherUser`](../app/Actions/Staff/CreateTeacherUser.php) |
 | Teacher bulk (spreadsheet) | [`TeacherListPage`](../app/Livewire/Admin/Staff/TeacherListPage.php) `runImport()` + [`TeacherSpreadsheetImportService`](../app/Services/TeacherSpreadsheetImportService.php) + Filepond `purpose=teacher_import` |
 | `assign_teacher_role` | [`TeacherRoleListPage`](../app/Livewire/Admin/Staff/TeacherRoleListPage.php) |

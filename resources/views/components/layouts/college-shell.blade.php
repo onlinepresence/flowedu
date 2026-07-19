@@ -288,6 +288,9 @@
                                     <i class="fa-solid fa-sun h-5 w-5" x-show="dark" x-cloak aria-hidden="true"></i>
                                 </button>
                             </li>
+                            <li>
+                                <livewire:navigation.portal-switcher />
+                            </li>
                             <livewire:navigation.notification-dropdown />
                             <li class="relative">
                                 <button

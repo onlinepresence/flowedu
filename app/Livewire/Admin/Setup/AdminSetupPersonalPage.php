@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\Setup;
 
 use App\Models\Admin;
-use App\Models\NonTeachingStaff;
 use App\Models\Department;
 use App\Models\Faculty;
 use App\Models\School;
@@ -53,7 +52,7 @@ class AdminSetupPersonalPage extends Component
     {
         /** @var User $user */
         $user = Auth::user();
-        abort_unless($user->type === 'admin' || $user->type === 'staff', 403);
+        abort_unless($user && $user->type === 'admin', 403);
 
         $this->isSetupFlow = request()->routeIs('admin.setup.*');
 
@@ -62,36 +61,17 @@ class AdminSetupPersonalPage extends Component
 
         $this->username = (string) ($user->username ?? '');
 
-        if ($user->type === 'admin') {
-            $admin = $user->admin;
-            if ($admin !== null) {
-                $this->lastname = (string) ($admin->lastname ?? '');
-                $this->othernames = (string) ($admin->othernames ?? '');
-                $this->ghana_card = (string) ($admin->ghana_card ?? '');
-                $this->gender = (string) ($admin->gender ?? '');
-                $this->phone_number = (string) ($admin->phone_number ?? '');
-                $this->position_title = (string) ($admin->position_title ?? '');
-                $this->department_id = $admin->department_id !== null ? (string) $admin->department_id : null;
-                $this->faculty_id = $admin->faculty_id !== null ? (string) $admin->faculty_id : null;
-                $this->date_of_appointment = $admin->date_of_appointment?->format('Y-m-d');
-            }
-        } elseif ($user->type === 'staff') {
-            $staff = $user->nonTeachingStaff;
-            
-            $nameParts = explode(' ', trim($user->name ?? ''));
-            if (count($nameParts) > 1) {
-                $this->lastname = (string) array_pop($nameParts);
-                $this->othernames = (string) implode(' ', $nameParts);
-            } else {
-                $this->lastname = (string) ($user->name ?? '');
-                $this->othernames = '';
-            }
-
-            if ($staff !== null) {
-                $this->phone_number = (string) ($staff->phone_number ?? '');
-                $this->position_title = (string) ($staff->position ?? '');
-                $this->department_id = $staff->department_id !== null ? (string) $staff->department_id : null;
-            }
+        $admin = $user->admin;
+        if ($admin !== null) {
+            $this->lastname = (string) ($admin->lastname ?? '');
+            $this->othernames = (string) ($admin->othernames ?? '');
+            $this->ghana_card = (string) ($admin->ghana_card ?? '');
+            $this->gender = (string) ($admin->gender ?? '');
+            $this->phone_number = (string) ($admin->phone_number ?? '');
+            $this->position_title = (string) ($admin->position_title ?? '');
+            $this->department_id = $admin->department_id !== null ? (string) $admin->department_id : null;
+            $this->faculty_id = $admin->faculty_id !== null ? (string) $admin->faculty_id : null;
+            $this->date_of_appointment = $admin->date_of_appointment?->format('Y-m-d');
         }
     }
 
@@ -99,42 +79,25 @@ class AdminSetupPersonalPage extends Component
     {
         /** @var User $user */
         $user = Auth::user();
-        abort_unless($user->type === 'admin' || $user->type === 'staff', 403);
+        abort_unless($user && $user->type === 'admin', 403);
 
         $this->validate([
             'profilePhotoPond' => ['required', 'string', 'max:500'],
         ]);
 
-        if ($user->type === 'admin') {
-            $admin = $user->admin;
-            if ($admin === null) {
-                $this->addError('profilePhotoPond', __('Please save your profile details first.'));
-                return;
-            }
+        $admin = $user->admin;
+        if ($admin === null) {
+            $this->addError('profilePhotoPond', __('Please save your profile details first.'));
+            return;
+        }
 
-            $moved = FilepondPendingFile::moveToPublicDisk(
-                $this->profilePhotoPond,
-                $user->id,
-                'college-uploads/admins/profiles'
-            );
-            if ($moved !== null) {
-                $admin->update(['profile_pic' => $moved]);
-            }
-        } elseif ($user->type === 'staff') {
-            $staff = $user->nonTeachingStaff;
-            if ($staff === null) {
-                $this->addError('profilePhotoPond', __('Please save your profile details first.'));
-                return;
-            }
-
-            $moved = FilepondPendingFile::moveToPublicDisk(
-                $this->profilePhotoPond,
-                $user->id,
-                'college-uploads/staff/profiles'
-            );
-            if ($moved !== null) {
-                $staff->update(['profile_pic' => $moved]);
-            }
+        $moved = FilepondPendingFile::moveToPublicDisk(
+            $this->profilePhotoPond,
+            $user->id,
+            'college-uploads/admins/profiles'
+        );
+        if ($moved !== null) {
+            $admin->update(['profile_pic' => $moved]);
         }
 
         $this->profilePhotoPond = null;
@@ -146,7 +109,7 @@ class AdminSetupPersonalPage extends Component
     {
         /** @var User $user */
         $user = Auth::user();
-        abort_unless($user->type === 'admin' || $user->type === 'staff', 403);
+        abort_unless($user && $user->type === 'admin', 403);
 
         $isOwner = $user->isAdminOwner() || $this->isSetupFlow;
 
@@ -157,147 +120,102 @@ class AdminSetupPersonalPage extends Component
             Rule::unique('users', 'username')->ignore($user->id),
         ];
 
-        if ($user->type === 'admin') {
-            $admin = $user->admin;
-            $adminId = $admin?->id;
+        $admin = $user->admin;
+        $adminId = $admin?->id;
 
-            if (! $this->schoolReady) {
-                $this->validate([
-                    'username' => $usernameRules,
-                    'lastname' => ['required', 'string', 'max:120'],
-                    'othernames' => ['required', 'string', 'max:120'],
-                    'ghana_card' => [
-                        'required',
-                        'string',
-                        'max:32',
-                        Rule::unique('admins', 'ghana_card')->ignore($adminId),
-                    ],
-                ]);
-            } else {
-                $slug = $user->adminRoleSlug();
-                $rules = [
-                    'username' => $usernameRules,
-                    'lastname' => ['required', 'string', 'max:120'],
-                    'othernames' => ['required', 'string', 'max:120'],
-                    'ghana_card' => [
-                        'required',
-                        'string',
-                        'max:32',
-                        Rule::unique('admins', 'ghana_card')->ignore($adminId),
-                    ],
-                    'gender' => ['required', 'in:male,female,other'],
-                    'phone_number' => ['required', 'string', 'max:20'],
-                ];
-
-                if (! $isOwner) {
-                    $rules['position_title'] = ['nullable', 'string', 'max:120'];
-                    $rules['department_id'] = ['nullable', 'exists:departments,id'];
-                    $rules['faculty_id'] = ['nullable', 'exists:faculties,id'];
-                    $rules['date_of_appointment'] = ['nullable', 'date'];
-
-                    if ($slug === 'hod') {
-                        $rules['department_id'] = ['required', 'exists:departments,id'];
-                    }
-                    if ($slug === 'dean') {
-                        $rules['faculty_id'] = ['required', 'exists:faculties,id'];
-                    }
-                }
-
-                $this->validate($rules);
-            }
-
-            $user->username = $this->username;
-            $user->name = trim($this->othernames.' '.$this->lastname);
-            $user->save();
-
-            UserRole::ensureSystemRoles();
-            $ownerRoleId = UserRole::query()->where('name', 'owner')->value('id');
-
-            $payload = [
-                'lastname' => $this->lastname,
-                'othernames' => $this->othernames,
-                'ghana_card' => $this->ghana_card,
-            ];
-
-            if ($this->schoolReady) {
-                $payload['gender'] = $this->gender;
-                $payload['phone_number'] = $this->phone_number;
-                
-                if (! $isOwner) {
-                    $payload['position_title'] = $this->position_title === '' ? null : $this->position_title;
-                    $payload['department_id'] = $this->department_id !== null && $this->department_id !== '' ? (int) $this->department_id : null;
-                    $payload['faculty_id'] = $this->faculty_id !== null && $this->faculty_id !== '' ? (int) $this->faculty_id : null;
-                    $payload['date_of_appointment'] = $this->date_of_appointment !== null && $this->date_of_appointment !== ''
-                        ? $this->date_of_appointment
-                        : null;
-                }
-            }
-
-            if ($admin === null) {
-                $payload['user_id'] = $user->id;
-                $payload['type'] = $ownerRoleId;
-                $admin = Admin::query()->create($payload);
-            } else {
-                if ($admin->type === null && $ownerRoleId !== null) {
-                    $payload['type'] = $ownerRoleId;
-                }
-                $admin->update($payload);
-            }
-
-            if ($this->schoolReady && $this->profilePhotoPond !== null && $this->profilePhotoPond !== '') {
-                $moved = FilepondPendingFile::moveToPublicDisk(
-                    $this->profilePhotoPond,
-                    $user->id,
-                    'college-uploads/admins/profiles'
-                );
-                if ($moved !== null) {
-                    $admin->update(['profile_pic' => $moved]);
-                }
-                $this->profilePhotoPond = null;
-            }
-        } elseif ($user->type === 'staff') {
-            $staff = $user->nonTeachingStaff;
-
+        if (! $this->schoolReady) {
+            $this->validate([
+                'username' => $usernameRules,
+                'lastname' => ['required', 'string', 'max:120'],
+                'othernames' => ['required', 'string', 'max:120'],
+                'ghana_card' => [
+                    'required',
+                    'string',
+                    'max:32',
+                    Rule::unique('admins', 'ghana_card')->ignore($adminId),
+                ],
+            ]);
+        } else {
+            $slug = $user->adminRoleSlug();
             $rules = [
                 'username' => $usernameRules,
                 'lastname' => ['required', 'string', 'max:120'],
                 'othernames' => ['required', 'string', 'max:120'],
+                'ghana_card' => [
+                    'required',
+                    'string',
+                    'max:32',
+                    Rule::unique('admins', 'ghana_card')->ignore($adminId),
+                ],
+                'gender' => ['required', 'in:male,female,other'],
                 'phone_number' => ['required', 'string', 'max:20'],
-                'department_id' => ['required', 'exists:departments,id'],
-                'position_title' => ['nullable', 'string', 'max:120'],
             ];
+
+            if (! $isOwner) {
+                $rules['position_title'] = ['nullable', 'string', 'max:120'];
+                $rules['department_id'] = ['nullable', 'exists:departments,id'];
+                $rules['faculty_id'] = ['nullable', 'exists:faculties,id'];
+                $rules['date_of_appointment'] = ['nullable', 'date'];
+
+                if ($slug === 'hod') {
+                    $rules['department_id'] = ['required', 'exists:departments,id'];
+                }
+                if ($slug === 'dean') {
+                    $rules['faculty_id'] = ['required', 'exists:faculties,id'];
+                }
+            }
 
             $this->validate($rules);
+        }
 
-            $user->username = $this->username;
-            $user->name = trim($this->othernames.' '.$this->lastname);
-            $user->save();
+        $user->username = $this->username;
+        $user->name = trim($this->othernames.' '.$this->lastname);
+        $user->save();
 
-            $payload = [
-                'phone_number' => $this->phone_number,
-                'position' => $this->position_title === '' ? 'Staff' : $this->position_title,
-                'department_id' => (int) $this->department_id,
-            ];
+        UserRole::ensureSystemRoles();
+        $ownerRoleId = UserRole::query()->where('name', 'owner')->value('id');
 
-            if ($staff === null) {
-                $payload['user_id'] = $user->id;
-                $payload['status'] = 'active';
-                $staff = NonTeachingStaff::query()->create($payload);
-            } else {
-                $staff->update($payload);
+        $payload = [
+            'lastname' => $this->lastname,
+            'othernames' => $this->othernames,
+            'ghana_card' => $this->ghana_card,
+        ];
+
+        if ($this->schoolReady) {
+            $payload['gender'] = $this->gender;
+            $payload['phone_number'] = $this->phone_number;
+            
+            if (! $isOwner) {
+                $payload['position_title'] = $this->position_title === '' ? null : $this->position_title;
+                $payload['department_id'] = $this->department_id !== null && $this->department_id !== '' ? (int) $this->department_id : null;
+                $payload['faculty_id'] = $this->faculty_id !== null && $this->faculty_id !== '' ? (int) $this->faculty_id : null;
+                $payload['date_of_appointment'] = $this->date_of_appointment !== null && $this->date_of_appointment !== ''
+                    ? $this->date_of_appointment
+                    : null;
             }
+        }
 
-            if ($this->profilePhotoPond !== null && $this->profilePhotoPond !== '') {
-                $moved = FilepondPendingFile::moveToPublicDisk(
-                    $this->profilePhotoPond,
-                    $user->id,
-                    'college-uploads/staff/profiles'
-                );
-                if ($moved !== null) {
-                    $staff->update(['profile_pic' => $moved]);
-                }
-                $this->profilePhotoPond = null;
+        if ($admin === null) {
+            $payload['user_id'] = $user->id;
+            $payload['type'] = $ownerRoleId;
+            $admin = Admin::query()->create($payload);
+        } else {
+            if ($admin->type === null && $ownerRoleId !== null) {
+                $payload['type'] = $ownerRoleId;
             }
+            $admin->update($payload);
+        }
+
+        if ($this->schoolReady && $this->profilePhotoPond !== null && $this->profilePhotoPond !== '') {
+            $moved = FilepondPendingFile::moveToPublicDisk(
+                $this->profilePhotoPond,
+                $user->id,
+                'college-uploads/admins/profiles'
+            );
+            if ($moved !== null) {
+                $admin->update(['profile_pic' => $moved]);
+            }
+            $this->profilePhotoPond = null;
         }
 
         CollegeFlash::forNextRequestToo('status', __('Your profile has been saved.'));
@@ -321,12 +239,9 @@ class AdminSetupPersonalPage extends Component
         
         $existingProfileUrl = null;
         $admin = $user->admin;
-        $staff = $user->nonTeachingStaff;
 
-        if ($user->type === 'admin' && $admin !== null && $admin->profile_pic) {
+        if ($admin !== null && $admin->profile_pic) {
             $existingProfileUrl = asset('storage/'.$admin->profile_pic);
-        } elseif ($user->type === 'staff' && $staff !== null && $staff->profile_pic) {
-            $existingProfileUrl = asset('storage/'.$staff->profile_pic);
         }
 
         $title = request()->routeIs('admin.profile')

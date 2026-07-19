@@ -220,8 +220,6 @@ class StaffLeavesPage extends Component
                 $applicantDeptId = $applicant->admin->department_id;
             } elseif ($applicant->teacher) {
                 $applicantDeptId = $applicant->teacher->department_id;
-            } elseif ($applicant->nonTeachingStaff) {
-                $applicantDeptId = $applicant->nonTeachingStaff->department_id;
             } elseif ($applicant->student) {
                 $applicantDeptId = $applicant->student->department_id;
             }
@@ -304,8 +302,6 @@ class StaffLeavesPage extends Component
                 $applicantDeptId = $applicant->admin->department_id;
             } elseif ($applicant->teacher) {
                 $applicantDeptId = $applicant->teacher->department_id;
-            } elseif ($applicant->nonTeachingStaff) {
-                $applicantDeptId = $applicant->nonTeachingStaff->department_id;
             } elseif ($applicant->student) {
                 $applicantDeptId = $applicant->student->department_id;
             }
@@ -394,8 +390,6 @@ class StaffLeavesPage extends Component
                 $applicantDeptId = $applicant->admin->department_id;
             } elseif ($applicant->teacher) {
                 $applicantDeptId = $applicant->teacher->department_id;
-            } elseif ($applicant->nonTeachingStaff) {
-                $applicantDeptId = $applicant->nonTeachingStaff->department_id;
             } elseif ($applicant->student) {
                 $applicantDeptId = $applicant->student->department_id;
             }
@@ -452,7 +446,6 @@ class StaffLeavesPage extends Component
                 $applicantDeptId = null;
                 if ($applicant->admin) $applicantDeptId = $applicant->admin->department_id;
                 elseif ($applicant->teacher) $applicantDeptId = $applicant->teacher->department_id;
-                elseif ($applicant->nonTeachingStaff) $applicantDeptId = $applicant->nonTeachingStaff->department_id;
                 elseif ($applicant->student) $applicantDeptId = $applicant->student->department_id;
 
                 if ($applicantDeptId) {
@@ -567,8 +560,6 @@ class StaffLeavesPage extends Component
                 $targetDeptId = $targetUser->admin->department_id;
             } elseif ($targetUser->teacher) {
                 $targetDeptId = $targetUser->teacher->department_id;
-            } elseif ($targetUser->nonTeachingStaff) {
-                $targetDeptId = $targetUser->nonTeachingStaff->department_id;
             }
             abort_unless($admin->canAccessDepartment($targetDeptId), 403);
         }
@@ -592,20 +583,18 @@ class StaffLeavesPage extends Component
 
         // 2. Pending reviews query
         $pendingReviewsQuery = LeaveRequest::query()
-            ->with(['user.admin', 'user.teacher', 'user.nonTeachingStaff', 'staffLeaveType'])
+            ->with(['user.admin', 'user.teacher', 'staffLeaveType'])
             ->where('status', 'pending')
             ->when($admin?->department_id, function ($q) use ($admin) {
                 $q->where(function ($sub) use ($admin) {
                     $sub->whereHas('user.admin', fn($inner) => $inner->where('department_id', $admin->department_id))
-                        ->orWhereHas('user.teacher', fn($inner) => $inner->where('department_id', $admin->department_id))
-                        ->orWhereHas('user.nonTeachingStaff', fn($inner) => $inner->where('department_id', $admin->department_id));
+                        ->orWhereHas('user.teacher', fn($inner) => $inner->where('department_id', $admin->department_id));
                 });
             })
             ->when($admin?->faculty_id, function ($q) use ($admin) {
                 $q->where(function ($sub) use ($admin) {
                     $sub->whereHas('user.admin.department', fn($inner) => $inner->where('faculty_id', $admin->faculty_id))
-                        ->orWhereHas('user.teacher.department', fn($inner) => $inner->where('faculty_id', $admin->faculty_id))
-                        ->orWhereHas('user.nonTeachingStaff.department', fn($inner) => $inner->where('faculty_id', $admin->faculty_id));
+                        ->orWhereHas('user.teacher.department', fn($inner) => $inner->where('faculty_id', $admin->faculty_id));
                 });
             });
 
@@ -626,15 +615,13 @@ class StaffLeavesPage extends Component
             ->when($admin?->department_id, function ($q) use ($admin) {
                 $q->where(function ($sub) use ($admin) {
                     $sub->whereHas('user.admin', fn($inner) => $inner->where('department_id', $admin->department_id))
-                        ->orWhereHas('user.teacher', fn($inner) => $inner->where('department_id', $admin->department_id))
-                        ->orWhereHas('user.nonTeachingStaff', fn($inner) => $inner->where('department_id', $admin->department_id));
+                        ->orWhereHas('user.teacher', fn($inner) => $inner->where('department_id', $admin->department_id));
                 });
             })
             ->when($admin?->faculty_id, function ($q) use ($admin) {
                 $q->where(function ($sub) use ($admin) {
                     $sub->whereHas('user.admin.department', fn($inner) => $inner->where('faculty_id', $admin->faculty_id))
-                        ->orWhereHas('user.teacher.department', fn($inner) => $inner->where('faculty_id', $admin->faculty_id))
-                        ->orWhereHas('user.nonTeachingStaff.department', fn($inner) => $inner->where('faculty_id', $admin->faculty_id));
+                        ->orWhereHas('user.teacher.department', fn($inner) => $inner->where('faculty_id', $admin->faculty_id));
                 });
             })
             ->orderBy('created_at', 'desc');
@@ -658,16 +645,15 @@ class StaffLeavesPage extends Component
             $hodDeptId = $user->admin?->department_id;
 
             $staffQuery = User::query()
-                ->whereIn('type', ['admin', 'teacher', 'staff'])
-                ->with(['admin.department', 'teacher.department', 'nonTeachingStaff.department', 'staffLeaveType']);
+                ->whereIn('type', ['admin', 'teacher'])
+                ->with(['admin.department', 'teacher.department', 'staffLeaveType']);
 
             // 1. Role-based scoping (HOD Mode vs HR Mode)
             if ($isHod) {
                 if ($hodDeptId) {
                     $staffQuery->where(function ($q) use ($hodDeptId) {
                         $q->whereHas('admin', fn($sub) => $sub->where('department_id', $hodDeptId))
-                          ->orWhereHas('teacher', fn($sub) => $sub->where('department_id', $hodDeptId))
-                          ->orWhereHas('nonTeachingStaff', fn($sub) => $sub->where('department_id', $hodDeptId));
+                          ->orWhereHas('teacher', fn($sub) => $sub->where('department_id', $hodDeptId));
                     });
                 } else {
                     $staffQuery->whereRaw('1 = 0');
@@ -677,14 +663,12 @@ class StaffLeavesPage extends Component
                 if ($admin?->department_id) {
                     $staffQuery->where(function ($q) use ($admin) {
                         $q->whereHas('admin', fn($sub) => $sub->where('department_id', $admin->department_id))
-                          ->orWhereHas('teacher', fn($sub) => $sub->where('department_id', $admin->department_id))
-                          ->orWhereHas('nonTeachingStaff', fn($sub) => $sub->where('department_id', $admin->department_id));
+                          ->orWhereHas('teacher', fn($sub) => $sub->where('department_id', $admin->department_id));
                     });
                 } elseif ($admin?->faculty_id) {
                     $staffQuery->where(function ($q) use ($admin) {
                         $q->whereHas('admin.department', fn($sub) => $sub->where('faculty_id', $admin->faculty_id))
-                          ->orWhereHas('teacher.department', fn($sub) => $sub->where('faculty_id', $admin->faculty_id))
-                          ->orWhereHas('nonTeachingStaff.department', fn($sub) => $sub->where('faculty_id', $admin->faculty_id));
+                          ->orWhereHas('teacher.department', fn($sub) => $sub->where('faculty_id', $admin->faculty_id));
                     });
                 } else {
                     // HR Mode (or owner/admin/principal) - filter by department if chosen
@@ -693,16 +677,13 @@ class StaffLeavesPage extends Component
                             $q->where(fn($sub) => $sub->whereHas('admin', fn($inner) => $inner->whereNull('department_id'))
                                                       ->orWhereDoesntHave('admin'))
                               ->where(fn($sub) => $sub->whereHas('teacher', fn($inner) => $inner->whereNull('department_id'))
-                                                      ->orWhereDoesntHave('teacher'))
-                              ->where(fn($sub) => $sub->whereHas('nonTeachingStaff', fn($inner) => $inner->whereNull('department_id'))
-                                                      ->orWhereDoesntHave('nonTeachingStaff'));
+                                                      ->orWhereDoesntHave('teacher'));
                         });
                     } elseif ($this->filterStaffDepartment !== 'all') {
                         $deptId = (int) $this->filterStaffDepartment;
                         $staffQuery->where(function ($q) use ($deptId) {
                             $q->whereHas('admin', fn($sub) => $sub->where('department_id', $deptId))
-                              ->orWhereHas('teacher', fn($sub) => $sub->where('department_id', $deptId))
-                              ->orWhereHas('nonTeachingStaff', fn($sub) => $sub->where('department_id', $deptId));
+                              ->orWhereHas('teacher', fn($sub) => $sub->where('department_id', $deptId));
                         });
                     }
                 }
@@ -712,7 +693,7 @@ class StaffLeavesPage extends Component
             if ($this->filterStaffType === 'teaching') {
                 $staffQuery->where('type', 'teacher');
             } elseif ($this->filterStaffType === 'non_teaching') {
-                $staffQuery->whereIn('type', ['staff', 'admin']);
+                $staffQuery->where('type', 'admin');
             }
 
             // 3. Search filter
