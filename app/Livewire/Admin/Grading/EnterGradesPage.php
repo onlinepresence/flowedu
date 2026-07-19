@@ -51,6 +51,10 @@ class EnterGradesPage extends Component
     {
         $this->isTeacherMode = request()->routeIs('teacher.*') || str_starts_with(request()->path(), 'teacher') || (auth()->check() && auth()->user()->type === 'teacher');
         
+        if (! $this->isTeacherMode) {
+            abort_unless(auth()->user()?->hasAdminPermission('nav_grading_enter'), 403);
+        }
+
         if ($this->isTeacherMode) {
             $user = auth()->user();
             $teacher = $user->teacher;
@@ -86,6 +90,22 @@ class EnterGradesPage extends Component
         }
         if (request()->query('academicSessionId')) {
             $this->academicSessionId = (int) request()->query('academicSessionId');
+        }
+
+        $admin = auth()->user()?->admin;
+        if ($admin && !$this->isTeacherMode) {
+            if ($this->programId) {
+                $program = Program::find($this->programId);
+                if ($program) {
+                    abort_unless($admin->canAccessProgram($program), 403);
+                }
+            }
+            if ($this->courseId) {
+                $course = Course::find($this->courseId);
+                if ($course) {
+                    abort_unless($admin->canAccessCourse($course), 403);
+                }
+            }
         }
 
         if ($this->teacherId && $this->programId && $this->semester && $this->courseId && $this->level && $this->academicSessionId) {
@@ -143,6 +163,16 @@ class EnterGradesPage extends Component
             return;
         }
 
+        $admin = auth()->user()?->admin;
+        if ($admin && !$this->isTeacherMode) {
+            $teacher = Teacher::findOrFail($this->teacherId);
+            abort_unless($admin->canAccessDepartment($teacher->department_id), 403);
+            $program = Program::findOrFail($this->programId);
+            abort_unless($admin->canAccessProgram($program), 403);
+            $course = Course::findOrFail($this->courseId);
+            abort_unless($admin->canAccessCourse($course), 403);
+        }
+
         $course = Course::query()->find($this->courseId);
         $semesterVal = 1;
         if ($course) {
@@ -172,6 +202,16 @@ class EnterGradesPage extends Component
 
         if (! $this->teacherId || ! $this->programId || ! $this->semester || ! $this->courseId || ! $this->level || ! $this->academicSessionId) {
             return;
+        }
+
+        $admin = auth()->user()?->admin;
+        if ($admin && !$this->isTeacherMode) {
+            $teacher = Teacher::findOrFail($this->teacherId);
+            abort_unless($admin->canAccessDepartment($teacher->department_id), 403);
+            $program = Program::findOrFail($this->programId);
+            abort_unless($admin->canAccessProgram($program), 403);
+            $course = Course::findOrFail($this->courseId);
+            abort_unless($admin->canAccessCourse($course), 403);
         }
 
         // Get course details for semester value
@@ -233,6 +273,16 @@ class EnterGradesPage extends Component
 
         if (empty($this->scores)) {
             return;
+        }
+
+        $admin = auth()->user()?->admin;
+        if ($admin && !$this->isTeacherMode) {
+            $teacher = Teacher::findOrFail($this->teacherId);
+            abort_unless($admin->canAccessDepartment($teacher->department_id), 403);
+            $program = Program::findOrFail($this->programId);
+            abort_unless($admin->canAccessProgram($program), 403);
+            $course = Course::findOrFail($this->courseId);
+            abort_unless($admin->canAccessCourse($course), 403);
         }
 
         // Filter out students that are checked AND are in an editable state
@@ -353,15 +403,26 @@ class EnterGradesPage extends Component
         $courses = [];
         $levels = [];
 
+        $admin = auth()->user()?->admin;
+
         // Dynamic selections
         if (! $this->isTeacherMode) {
             $teachers = Teacher::query()
                 ->with('user')
+                ->when($admin?->department_id, fn ($q) => $q->where('department_id', $admin->department_id))
+                ->when($admin?->faculty_id, fn ($q) => $q->whereHas('department', fn ($d) => $d->where('faculty_id', $admin->faculty_id)))
                 ->get()
                 ->sortBy(fn($t) => trim(($t->lastname ?? '').' '.($t->othernames ?? '')));
         }
 
         if ($this->teacherId) {
+            if ($admin && !$this->isTeacherMode) {
+                $teacher = Teacher::find($this->teacherId);
+                if ($teacher) {
+                    abort_unless($admin->canAccessDepartment($teacher->department_id), 403);
+                }
+            }
+
             $programs = TeacherAssignment::query()
                 ->where('teacher_id', $this->teacherId)
                 ->where('session_id', $this->academicSessionId)
@@ -373,6 +434,13 @@ class EnterGradesPage extends Component
         }
 
         if ($this->teacherId && $this->programId && $this->semester) {
+            if ($admin && !$this->isTeacherMode) {
+                $program = Program::find($this->programId);
+                if ($program) {
+                    abort_unless($admin->canAccessProgram($program), 403);
+                }
+            }
+
             $courses = TeacherAssignment::query()
                 ->where('teacher_id', $this->teacherId)
                 ->where('program_id', $this->programId)
@@ -388,6 +456,13 @@ class EnterGradesPage extends Component
         }
 
         if ($this->teacherId && $this->programId && $this->semester && $this->courseId) {
+            if ($admin && !$this->isTeacherMode) {
+                $course = Course::find($this->courseId);
+                if ($course) {
+                    abort_unless($admin->canAccessCourse($course), 403);
+                }
+            }
+
             $levels = TeacherAssignment::query()
                 ->where('teacher_id', $this->teacherId)
                 ->where('program_id', $this->programId)

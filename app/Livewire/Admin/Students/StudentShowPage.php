@@ -30,10 +30,17 @@ class StudentShowPage extends Component
 
     public function mount(string $index_number): void
     {
+        abort_unless(auth()->user()?->hasAdminPermission('nav_students_index'), 403);
+
         $this->student = Student::query()
             ->where('index_number', $index_number)
             ->with(['user', 'program.department', 'department', 'hall', 'medicalHistory', 'parentGuardians', 'clearances'])
             ->firstOrFail();
+
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessStudent($this->student), 403);
+        }
 
         $this->disciplinaryRecords = DisciplinaryRecord::query()
             ->where('index_number', $this->student->index_number)
@@ -54,6 +61,11 @@ class StudentShowPage extends Component
 
     public function addActivity(): void
     {
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessStudent($this->student), 403);
+        }
+
         $this->validate([
             'activityName' => ['required', 'string', 'max:255'],
             'activityRole' => ['required', 'string', 'max:255'],
@@ -79,6 +91,11 @@ class StudentShowPage extends Component
 
     public function deleteActivity(int $id): void
     {
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessStudent($this->student), 403);
+        }
+
         Activity::query()
             ->where('student_id', $this->student->id)
             ->where('id', $id)

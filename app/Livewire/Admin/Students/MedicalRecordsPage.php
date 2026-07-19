@@ -58,6 +58,11 @@ class MedicalRecordsPage extends Component
 
     public string $emergency_contacts = '';
 
+    public function mount(): void
+    {
+        abort_unless(auth()->user()?->hasAdminPermission('nav_students_medical'), 403);
+    }
+
     public function updatingSearch(): void
     {
         $this->resetPage();
@@ -87,6 +92,8 @@ class MedicalRecordsPage extends Component
             return;
         }
 
+        $admin = auth()->user()?->admin;
+
         $this->studentPickerHits = Student::query()
             ->where(function ($inner) use ($q): void {
                 $inner
@@ -96,6 +103,8 @@ class MedicalRecordsPage extends Component
                     ->orWhere('firstname', 'like', '%'.$q.'%')
                     ->orWhere('othernames', 'like', '%'.$q.'%');
             })
+            ->when($admin?->department_id, fn ($query) => $query->where('department_id', $admin->department_id))
+            ->when($admin?->faculty_id, fn ($query) => $query->whereHas('department', fn ($d) => $d->where('faculty_id', $admin->faculty_id)))
             ->orderBy('lastname')
             ->orderBy('firstname')
             ->limit(15)
@@ -109,6 +118,12 @@ class MedicalRecordsPage extends Component
 
     public function selectMedicalStudent(int $studentId): void
     {
+        $student = Student::findOrFail($studentId);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessStudent($student), 403);
+        }
+
         $this->editStudentId = $studentId;
         $this->studentPickerHits = [];
         $this->studentPickerSearch = '';
@@ -149,6 +164,11 @@ class MedicalRecordsPage extends Component
             ->with(['parentGuardians'])
             ->findOrFail($this->editStudentId);
 
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessStudent($student), 403);
+        }
+
         $this->allergies = (string) ($student->allergy ?? '');
         $this->insurance_number = (string) ($student->insurance_number ?? '');
         $this->blood_group = $student->blood_group;
@@ -180,6 +200,11 @@ class MedicalRecordsPage extends Component
     {
         $this->editRecordId = $id;
         $record = MedicalHistory::query()->with('student')->findOrFail($id);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($record->student && $admin->canAccessStudent($record->student), 403);
+        }
+
         $this->editStudentId = $record->student_id;
         $this->allergies = $record->allergies ?? '';
         $this->insurance_number = $record->student?->insurance_number ?? '';
@@ -196,14 +221,26 @@ class MedicalRecordsPage extends Component
     public function viewRecord(int $id): void
     {
         $this->viewRecordId = $id;
-        $this->selectedRecord = MedicalHistory::query()->with('student')->findOrFail($id);
+        $record = MedicalHistory::query()->with('student')->findOrFail($id);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($record->student && $admin->canAccessStudent($record->student), 403);
+        }
+
+        $this->selectedRecord = $record;
         $this->dispatch('open-modal', 'view-medical-modal');
     }
 
     public function viewSummary(int $studentId): void
     {
+        $student = Student::query()->findOrFail($studentId);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessStudent($student), 403);
+        }
+
         $this->summaryStudentId = $studentId;
-        $this->summaryStudent = Student::query()->findOrFail($studentId);
+        $this->summaryStudent = $student;
         $this->summaryRecords = MedicalHistory::query()
             ->where('student_id', $studentId)
             ->orderByDesc('created_at')
@@ -227,10 +264,23 @@ class MedicalRecordsPage extends Component
             'editStudentId' => __('student'),
         ]);
 
+        $student = Student::query()->findOrFail($this->editStudentId);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessStudent($student), 403);
+        }
+
+        if ($this->editRecordId) {
+            $record = MedicalHistory::query()->findOrFail($this->editRecordId);
+            if ($admin) {
+                abort_unless($record->student && $admin->canAccessStudent($record->student), 403);
+            }
+        }
+
         $allergyVal = trim($this->allergies);
         $insuranceVal = trim($this->insurance_number);
 
-        DB::transaction(function () use ($allergyVal, $insuranceVal): void {
+        DB::transaction(function () use ($allergyVal, $insuranceVal, $student): void {
             if ($this->editRecordId) {
                 $record = MedicalHistory::query()->findOrFail($this->editRecordId);
                 $record->update([
@@ -240,9 +290,7 @@ class MedicalRecordsPage extends Component
                     'immunization_records' => trim($this->immunization_records) !== '' ? trim($this->immunization_records) : null,
                     'emergency_contacts' => trim($this->emergency_contacts) !== '' ? trim($this->emergency_contacts) : null,
                 ]);
-                $student = $record->student;
             } else {
-                $student = Student::query()->findOrFail($this->editStudentId);
                 MedicalHistory::query()->create([
                     'student_id' => $student->id,
                     'medical_conditions' => trim($this->medical_conditions) !== '' ? trim($this->medical_conditions) : null,
@@ -270,6 +318,8 @@ class MedicalRecordsPage extends Component
 
     public function render(): View
     {
+        $admin = auth()->user()?->admin;
+
         $browseRows = MedicalHistory::query()
             ->with(['student'])
             ->when($this->periodFilter === 'current_month', function ($q): void {
@@ -300,6 +350,8 @@ class MedicalRecordsPage extends Component
                         ->orWhere('lastname', 'like', $term);
                 });
             })
+            ->when($admin?->department_id, fn ($q) => $q->whereHas('student', fn ($s) => $s->where('department_id', $admin->department_id)))
+            ->when($admin?->faculty_id, fn ($q) => $q->whereHas('student.department', fn ($d) => $d->where('faculty_id', $admin->faculty_id)))
             ->orderByDesc('id')
             ->paginate(15);
 

@@ -33,6 +33,11 @@ class ProgramIndex extends Component
 
     public ?int $deletingProgramId = null;
 
+    public function mount(): void
+    {
+        abort_unless(auth()->user()?->hasAdminPermission('nav_academic_program'), 403);
+    }
+
     #[On('open-add-program')]
     public function openAddModal(): void
     {
@@ -49,6 +54,11 @@ class ProgramIndex extends Component
             'cost' => ['required', 'numeric', 'min:0'],
             'program_length' => ['required', 'integer', 'min:1', 'max:20'],
         ]);
+
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessDepartment((int) $this->department_id), 403);
+        }
 
         Program::query()->create([
             'name' => trim($this->name),
@@ -69,6 +79,11 @@ class ProgramIndex extends Component
     public function editProgram(int $programId): void
     {
         $program = Program::query()->findOrFail($programId);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessProgram($program), 403);
+        }
+
         $this->editingProgramId = $program->id;
         $this->name = (string) $program->name;
         $this->department_id = (string) $program->department_id;
@@ -111,6 +126,12 @@ class ProgramIndex extends Component
         ]);
 
         $program = Program::query()->findOrFail($this->editingProgramId);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessProgram($program), 403);
+            abort_unless($admin->canAccessDepartment((int) $this->department_id), 403);
+        }
+
         $program->update([
             'name' => trim($this->name),
             'department_id' => (int) $this->department_id,
@@ -125,6 +146,12 @@ class ProgramIndex extends Component
 
     public function confirmDeleteProgram(int $programId): void
     {
+        $program = Program::query()->findOrFail($programId);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessProgram($program), 403);
+        }
+
         $this->deletingProgramId = $programId;
         $this->dispatch('open-modal', 'confirm-delete-program-modal');
     }
@@ -135,8 +162,14 @@ class ProgramIndex extends Component
             return;
         }
         $programId = $this->deletingProgramId;
+        $program = Program::query()->findOrFail($programId);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessProgram($program), 403);
+        }
+
         try {
-            Program::query()->findOrFail($programId)->delete();
+            $program->delete();
             if ($this->editingProgramId === $programId) {
                 $this->cancelEditProgram();
             }
@@ -151,15 +184,25 @@ class ProgramIndex extends Component
 
     public function render(): View
     {
+        $admin = auth()->user()?->admin;
+
         $programs = Program::query()
             ->with('department')
             ->withCount('courses')
+            ->when($admin?->department_id, fn ($q) => $q->where('department_id', $admin->department_id))
+            ->when($admin?->faculty_id, fn ($q) => $q->whereHas('department', fn ($d) => $d->where('faculty_id', $admin->faculty_id)))
             ->orderBy('name')
             ->paginate(20);
 
+        $departments = Department::query()
+            ->when($admin?->department_id, fn ($q) => $q->where('id', $admin->department_id))
+            ->when($admin?->faculty_id, fn ($q) => $q->where('faculty_id', $admin->faculty_id))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         return view('livewire.admin.academic.program-index', [
             'programs' => $programs,
-            'departments' => Department::query()->orderBy('name')->get(['id', 'name']),
+            'departments' => $departments,
         ])->layout('components.layouts.admin', [
             'title' => __('Programs'),
             'headerTitle' => __('Programs'),

@@ -211,6 +211,24 @@ class StaffLeavesPage extends Component
 
     public function openReviewModal(int $requestId): void
     {
+        $request = LeaveRequest::findOrFail($requestId);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            $applicant = $request->user;
+            $applicantDeptId = null;
+            if ($applicant->admin) {
+                $applicantDeptId = $applicant->admin->department_id;
+            } elseif ($applicant->teacher) {
+                $applicantDeptId = $applicant->teacher->department_id;
+            } elseif ($applicant->nonTeachingStaff) {
+                $applicantDeptId = $applicant->nonTeachingStaff->department_id;
+            } elseif ($applicant->student) {
+                $applicantDeptId = $applicant->student->department_id;
+            }
+
+            abort_unless($admin->canAccessDepartment($applicantDeptId), 403);
+        }
+
         $this->selected_request_id = $requestId;
         $this->rejection_reason = '';
         $this->showReviewModal = true;
@@ -276,6 +294,23 @@ class StaffLeavesPage extends Component
         if (!$this->canUserReview($user, $request)) {
             $this->addError('rejection_reason', __('You are not authorized to review this request at this stage.'));
             return;
+        }
+
+        $admin = $user->admin;
+        if ($admin) {
+            $applicant = $request->user;
+            $applicantDeptId = null;
+            if ($applicant->admin) {
+                $applicantDeptId = $applicant->admin->department_id;
+            } elseif ($applicant->teacher) {
+                $applicantDeptId = $applicant->teacher->department_id;
+            } elseif ($applicant->nonTeachingStaff) {
+                $applicantDeptId = $applicant->nonTeachingStaff->department_id;
+            } elseif ($applicant->student) {
+                $applicantDeptId = $applicant->student->department_id;
+            }
+
+            abort_unless($admin->canAccessDepartment($applicantDeptId), 403);
         }
 
         $nextStage = 'approved';
@@ -349,6 +384,23 @@ class StaffLeavesPage extends Component
         if (!$this->canUserReview($user, $request)) {
             $this->addError('rejection_reason', __('You are not authorized to review this request at this stage.'));
             return;
+        }
+
+        $admin = $user->admin;
+        if ($admin) {
+            $applicant = $request->user;
+            $applicantDeptId = null;
+            if ($applicant->admin) {
+                $applicantDeptId = $applicant->admin->department_id;
+            } elseif ($applicant->teacher) {
+                $applicantDeptId = $applicant->teacher->department_id;
+            } elseif ($applicant->nonTeachingStaff) {
+                $applicantDeptId = $applicant->nonTeachingStaff->department_id;
+            } elseif ($applicant->student) {
+                $applicantDeptId = $applicant->student->department_id;
+            }
+
+            abort_unless($admin->canAccessDepartment($applicantDeptId), 403);
         }
 
         DB::transaction(function () use ($user, $request) {
@@ -507,6 +559,20 @@ class StaffLeavesPage extends Component
     {
         abort_unless($this->canManageStaffAssignments, 403);
 
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            $targetUser = User::findOrFail($userId);
+            $targetDeptId = null;
+            if ($targetUser->admin) {
+                $targetDeptId = $targetUser->admin->department_id;
+            } elseif ($targetUser->teacher) {
+                $targetDeptId = $targetUser->teacher->department_id;
+            } elseif ($targetUser->nonTeachingStaff) {
+                $targetDeptId = $targetUser->nonTeachingStaff->department_id;
+            }
+            abort_unless($admin->canAccessDepartment($targetDeptId), 403);
+        }
+
         $user = User::findOrFail($userId);
         $user->update(['staff_leave_type_id' => $leaveTypeId ?: null]);
 
@@ -516,6 +582,7 @@ class StaffLeavesPage extends Component
     public function render(): View
     {
         $user = auth()->user();
+        $admin = $user?->admin;
 
         // 1. My leaves query
         $myLeavesQuery = LeaveRequest::query()
@@ -526,7 +593,21 @@ class StaffLeavesPage extends Component
         // 2. Pending reviews query
         $pendingReviewsQuery = LeaveRequest::query()
             ->with(['user.admin', 'user.teacher', 'user.nonTeachingStaff', 'staffLeaveType'])
-            ->where('status', 'pending');
+            ->where('status', 'pending')
+            ->when($admin?->department_id, function ($q) use ($admin) {
+                $q->where(function ($sub) use ($admin) {
+                    $sub->whereHas('user.admin', fn($inner) => $inner->where('department_id', $admin->department_id))
+                        ->orWhereHas('user.teacher', fn($inner) => $inner->where('department_id', $admin->department_id))
+                        ->orWhereHas('user.nonTeachingStaff', fn($inner) => $inner->where('department_id', $admin->department_id));
+                });
+            })
+            ->when($admin?->faculty_id, function ($q) use ($admin) {
+                $q->where(function ($sub) use ($admin) {
+                    $sub->whereHas('user.admin.department', fn($inner) => $inner->where('faculty_id', $admin->faculty_id))
+                        ->orWhereHas('user.teacher.department', fn($inner) => $inner->where('faculty_id', $admin->faculty_id))
+                        ->orWhereHas('user.nonTeachingStaff.department', fn($inner) => $inner->where('faculty_id', $admin->faculty_id));
+                });
+            });
 
         // Filter based on who can review what
         $allPending = $pendingReviewsQuery->get();
@@ -542,6 +623,20 @@ class StaffLeavesPage extends Component
         // 3. All leaves query (for admins/owners/principals)
         $allLeavesQuery = LeaveRequest::query()
             ->with(['user', 'staffLeaveType', 'reviewer'])
+            ->when($admin?->department_id, function ($q) use ($admin) {
+                $q->where(function ($sub) use ($admin) {
+                    $sub->whereHas('user.admin', fn($inner) => $inner->where('department_id', $admin->department_id))
+                        ->orWhereHas('user.teacher', fn($inner) => $inner->where('department_id', $admin->department_id))
+                        ->orWhereHas('user.nonTeachingStaff', fn($inner) => $inner->where('department_id', $admin->department_id));
+                });
+            })
+            ->when($admin?->faculty_id, function ($q) use ($admin) {
+                $q->where(function ($sub) use ($admin) {
+                    $sub->whereHas('user.admin.department', fn($inner) => $inner->where('faculty_id', $admin->faculty_id))
+                        ->orWhereHas('user.teacher.department', fn($inner) => $inner->where('faculty_id', $admin->faculty_id))
+                        ->orWhereHas('user.nonTeachingStaff.department', fn($inner) => $inner->where('faculty_id', $admin->faculty_id));
+                });
+            })
             ->orderBy('created_at', 'desc');
 
         // Limit visibility of "All Leaves" tab to authorized personnel
@@ -578,23 +673,38 @@ class StaffLeavesPage extends Component
                     $staffQuery->whereRaw('1 = 0');
                 }
             } else {
-                // HR Mode (or owner/admin/principal) - filter by department if chosen
-                if ($this->filterStaffDepartment === 'none') {
-                    $staffQuery->where(function ($q) {
-                        $q->where(fn($sub) => $sub->whereHas('admin', fn($inner) => $inner->whereNull('department_id'))
-                                                  ->orWhereDoesntHave('admin'))
-                          ->where(fn($sub) => $sub->whereHas('teacher', fn($inner) => $inner->whereNull('department_id'))
-                                                  ->orWhereDoesntHave('teacher'))
-                          ->where(fn($sub) => $sub->whereHas('nonTeachingStaff', fn($inner) => $inner->whereNull('department_id'))
-                                                  ->orWhereDoesntHave('nonTeachingStaff'));
+                // Scope by admin's own department/faculty if they are scoped admins
+                if ($admin?->department_id) {
+                    $staffQuery->where(function ($q) use ($admin) {
+                        $q->whereHas('admin', fn($sub) => $sub->where('department_id', $admin->department_id))
+                          ->orWhereHas('teacher', fn($sub) => $sub->where('department_id', $admin->department_id))
+                          ->orWhereHas('nonTeachingStaff', fn($sub) => $sub->where('department_id', $admin->department_id));
                     });
-                } elseif ($this->filterStaffDepartment !== 'all') {
-                    $deptId = (int) $this->filterStaffDepartment;
-                    $staffQuery->where(function ($q) use ($deptId) {
-                        $q->whereHas('admin', fn($sub) => $sub->where('department_id', $deptId))
-                          ->orWhereHas('teacher', fn($sub) => $sub->where('department_id', $deptId))
-                          ->orWhereHas('nonTeachingStaff', fn($sub) => $sub->where('department_id', $deptId));
+                } elseif ($admin?->faculty_id) {
+                    $staffQuery->where(function ($q) use ($admin) {
+                        $q->whereHas('admin.department', fn($sub) => $sub->where('faculty_id', $admin->faculty_id))
+                          ->orWhereHas('teacher.department', fn($sub) => $sub->where('faculty_id', $admin->faculty_id))
+                          ->orWhereHas('nonTeachingStaff.department', fn($sub) => $sub->where('faculty_id', $admin->faculty_id));
                     });
+                } else {
+                    // HR Mode (or owner/admin/principal) - filter by department if chosen
+                    if ($this->filterStaffDepartment === 'none') {
+                        $staffQuery->where(function ($q) {
+                            $q->where(fn($sub) => $sub->whereHas('admin', fn($inner) => $inner->whereNull('department_id'))
+                                                      ->orWhereDoesntHave('admin'))
+                              ->where(fn($sub) => $sub->whereHas('teacher', fn($inner) => $inner->whereNull('department_id'))
+                                                      ->orWhereDoesntHave('teacher'))
+                              ->where(fn($sub) => $sub->whereHas('nonTeachingStaff', fn($inner) => $inner->whereNull('department_id'))
+                                                      ->orWhereDoesntHave('nonTeachingStaff'));
+                        });
+                    } elseif ($this->filterStaffDepartment !== 'all') {
+                        $deptId = (int) $this->filterStaffDepartment;
+                        $staffQuery->where(function ($q) use ($deptId) {
+                            $q->whereHas('admin', fn($sub) => $sub->where('department_id', $deptId))
+                              ->orWhereHas('teacher', fn($sub) => $sub->where('department_id', $deptId))
+                              ->orWhereHas('nonTeachingStaff', fn($sub) => $sub->where('department_id', $deptId));
+                        });
+                    }
                 }
             }
 
@@ -624,7 +734,11 @@ class StaffLeavesPage extends Component
             'leaveTypes' => StaffLeaveType::all(),
             'canViewAllLeaves' => $canViewAllLeaves,
             'staffMembers' => $staffMembers,
-            'departments' => Department::query()->orderBy('name')->get(),
+            'departments' => Department::query()
+                ->when($admin?->department_id, fn($q) => $q->where('id', $admin->department_id))
+                ->when($admin?->faculty_id, fn($q) => $q->where('faculty_id', $admin->faculty_id))
+                ->orderBy('name')
+                ->get(),
             'canManageStaffAssignments' => $this->canManageStaffAssignments,
         ])->layout('components.layouts.admin', [
             'title' => __('Staff Leave Management'),

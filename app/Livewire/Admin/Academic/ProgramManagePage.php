@@ -33,7 +33,14 @@ class ProgramManagePage extends Component
 
     public function mount(int $program_id, string $form_level): void
     {
+        abort_unless(auth()->user()?->hasAdminPermission('nav_academic_program'), 403);
+
         $this->program = Program::query()->findOrFail($program_id);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessProgram($this->program), 403);
+        }
+
         $this->form_level = $form_level;
     }
 
@@ -45,6 +52,15 @@ class ProgramManagePage extends Component
             'course_semester' => ['required', Rule::in(['1', '2'])],
             'teacher_id' => ['nullable', 'integer', 'exists:teachers,id'],
         ]);
+
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessProgram($this->program), 403);
+            if ($this->teacher_id !== '') {
+                $teacher = Teacher::findOrFail((int) $this->teacher_id);
+                abort_unless($admin->canAccessDepartment($teacher->department_id), 403);
+            }
+        }
 
         $code = trim($this->course_code);
         if ($code === '') {
@@ -67,6 +83,11 @@ class ProgramManagePage extends Component
     public function editCourse(int $courseId): void
     {
         $course = Course::query()->where('program_id', $this->program->id)->findOrFail($courseId);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessCourse($course), 403);
+        }
+
         $this->editingCourseId = $course->id;
         $this->course_name = (string) $course->name;
         $this->course_code = (string) $course->code;
@@ -89,6 +110,15 @@ class ProgramManagePage extends Component
         ]);
 
         $course = Course::query()->where('program_id', $this->program->id)->findOrFail($this->editingCourseId);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessCourse($course), 403);
+            if ($this->teacher_id !== '') {
+                $teacher = Teacher::findOrFail((int) $this->teacher_id);
+                abort_unless($admin->canAccessDepartment($teacher->department_id), 403);
+            }
+        }
+
         $course->update([
             'name' => trim($this->course_name),
             'code' => trim($this->course_code),
@@ -107,6 +137,12 @@ class ProgramManagePage extends Component
 
     public function confirmDeleteCourse(int $courseId): void
     {
+        $course = Course::query()->where('program_id', $this->program->id)->findOrFail($courseId);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessCourse($course), 403);
+        }
+
         $this->deletingCourseId = $courseId;
         $this->dispatch('open-modal', 'confirm-delete-course-modal');
     }
@@ -117,8 +153,14 @@ class ProgramManagePage extends Component
             return;
         }
         $courseId = $this->deletingCourseId;
+        $course = Course::query()->where('program_id', $this->program->id)->findOrFail($courseId);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessCourse($course), 403);
+        }
+
         try {
-            Course::query()->where('program_id', $this->program->id)->findOrFail($courseId)->delete();
+            $course->delete();
             if ($this->editingCourseId === $courseId) {
                 $this->resetCourseForm();
             }
@@ -168,9 +210,18 @@ class ProgramManagePage extends Component
             ->orderBy('code')
             ->get();
 
+        $admin = auth()->user()?->admin;
+        $teachers = Teacher::query()
+            ->with('user')
+            ->when($admin?->department_id, fn ($q) => $q->where('department_id', $admin->department_id))
+            ->when($admin?->faculty_id, fn ($q) => $q->whereHas('department', fn ($d) => $d->where('faculty_id', $admin->faculty_id)))
+            ->orderBy('lastname')
+            ->orderBy('othernames')
+            ->get();
+
         return view('livewire.admin.academic.program-manage-page', [
             'courses' => $courses,
-            'teachers' => Teacher::query()->with('user')->orderBy('lastname')->orderBy('othernames')->get(),
+            'teachers' => $teachers,
         ])->layout('components.layouts.admin', [
             'title' => __('Manage program'),
             'headerTitle' => $this->program->name,

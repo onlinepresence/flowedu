@@ -50,6 +50,7 @@ class DisciplineRecordsPage extends Component
 
     public function mount(): void
     {
+        abort_unless(auth()->user()?->hasAdminPermission('nav_students_discipline'), 403);
         $this->date_of_action = now()->toDateString();
     }
 
@@ -77,6 +78,8 @@ class DisciplineRecordsPage extends Component
             return;
         }
 
+        $admin = auth()->user()?->admin;
+
         $this->studentPickerHits = Student::query()
             ->where(function ($inner) use ($q): void {
                 $inner
@@ -86,6 +89,8 @@ class DisciplineRecordsPage extends Component
                     ->orWhere('firstname', 'like', '%'.$q.'%')
                     ->orWhere('othernames', 'like', '%'.$q.'%');
             })
+            ->when($admin?->department_id, fn ($query) => $query->where('department_id', $admin->department_id))
+            ->when($admin?->faculty_id, fn ($query) => $query->whereHas('department', fn ($d) => $d->where('faculty_id', $admin->faculty_id)))
             ->orderBy('lastname')
             ->orderBy('firstname')
             ->limit(15)
@@ -100,6 +105,12 @@ class DisciplineRecordsPage extends Component
 
     public function selectDisciplineStudent(int $studentId): void
     {
+        $student = Student::findOrFail($studentId);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessStudent($student), 403);
+        }
+
         $this->disciplineStudentId = $studentId;
         $this->studentPickerHits = [];
         $this->studentPickerSearch = '';
@@ -121,13 +132,24 @@ class DisciplineRecordsPage extends Component
 
     public function viewCase(int $id): void
     {
-        $this->selectedCase = DisciplinaryRecord::query()->with(['program'])->findOrFail($id);
+        $case = DisciplinaryRecord::query()->with(['program'])->findOrFail($id);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($case->program_id && $admin->canAccessDepartment($case->program?->department_id), 403);
+        }
+
+        $this->selectedCase = $case;
         $this->dispatch('open-modal', 'view-case-modal');
     }
 
     public function confirmCloseFromView(): void
     {
         if ($this->selectedCase) {
+            $admin = auth()->user()?->admin;
+            if ($admin) {
+                abort_unless($this->selectedCase->program_id && $admin->canAccessDepartment($this->selectedCase->program?->department_id), 403);
+            }
+
             $this->closingRecordId = $this->selectedCase->id;
             $this->dispatch('close-modal', 'view-case-modal');
             $this->dispatch('open-modal', 'close-case-confirm-modal');
@@ -137,6 +159,11 @@ class DisciplineRecordsPage extends Component
     public function startEditComments(int $id): void
     {
         $record = DisciplinaryRecord::query()->findOrFail($id);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($record->program_id && $admin->canAccessDepartment($record->program?->department_id), 403);
+        }
+
         $this->editRecordId = $id;
         $this->editComments = $record->comments ?? '';
         $this->dispatch('close-modal', 'view-case-modal');
@@ -151,6 +178,11 @@ class DisciplineRecordsPage extends Component
 
         if ($this->editRecordId) {
             $record = DisciplinaryRecord::query()->findOrFail($this->editRecordId);
+            $admin = auth()->user()?->admin;
+            if ($admin) {
+                abort_unless($record->program_id && $admin->canAccessDepartment($record->program?->department_id), 403);
+            }
+
             $record->comments = trim($this->editComments) !== '' ? trim($this->editComments) : null;
             $record->save();
 
@@ -174,6 +206,11 @@ class DisciplineRecordsPage extends Component
         ]);
 
         $student = Student::query()->findOrFail($this->disciplineStudentId);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessStudent($student), 403);
+        }
+
         if ($student->program_id === null) {
             $this->addError('disciplineStudentId', __('Student has no program assigned.'));
 
@@ -208,6 +245,12 @@ class DisciplineRecordsPage extends Component
 
     public function confirmCloseRecord(int $id): void
     {
+        $record = DisciplinaryRecord::query()->findOrFail($id);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($record->program_id && $admin->canAccessDepartment($record->program?->department_id), 403);
+        }
+
         $this->closingRecordId = $id;
         $this->dispatch('open-modal', 'close-case-confirm-modal');
     }
@@ -218,9 +261,10 @@ class DisciplineRecordsPage extends Component
             return;
         }
 
-        $record = DisciplinaryRecord::query()->find($this->closingRecordId);
-        if ($record === null) {
-            return;
+        $record = DisciplinaryRecord::query()->findOrFail($this->closingRecordId);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($record->program_id && $admin->canAccessDepartment($record->program?->department_id), 403);
         }
 
         if ($record->return_status) {
@@ -242,6 +286,7 @@ class DisciplineRecordsPage extends Component
 
     public function render(): View
     {
+        $admin = auth()->user()?->admin;
         $programId = (int) $this->programFilter;
 
         $rows = DisciplinaryRecord::query()
@@ -258,6 +303,8 @@ class DisciplineRecordsPage extends Component
             ->when($programId > 0, fn ($q) => $q->where('program_id', $programId))
             ->when($this->returnStatus === 'open', fn ($q) => $q->where('return_status', false))
             ->when($this->returnStatus === 'closed', fn ($q) => $q->where('return_status', true))
+            ->when($admin?->department_id, fn ($q) => $q->whereHas('program', fn ($p) => $p->where('department_id', $admin->department_id)))
+            ->when($admin?->faculty_id, fn ($q) => $q->whereHas('program.department', fn ($d) => $d->where('faculty_id', $admin->faculty_id)))
             ->orderByDesc('date_of_action')
             ->paginate(20);
 
@@ -265,9 +312,15 @@ class DisciplineRecordsPage extends Component
             ? Student::query()->find($this->disciplineStudentId)
             : null;
 
+        $programs = Program::query()
+            ->when($admin?->department_id, fn ($q) => $q->where('department_id', $admin->department_id))
+            ->when($admin?->faculty_id, fn ($q) => $q->whereHas('department', fn ($d) => $d->where('faculty_id', $admin->faculty_id)))
+            ->orderBy('name')
+            ->get();
+
         return view('livewire.admin.students.discipline-records-page', [
             'rows' => $rows,
-            'programs' => Program::query()->orderBy('name')->get(),
+            'programs' => $programs,
             'selectedStudent' => $selectedStudent,
         ])->layout('components.layouts.admin', [
             'title' => __('Disciplinary Records'),

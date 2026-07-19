@@ -55,4 +55,54 @@ class Admin extends Model
     {
         return $this->belongsTo(UserRole::class, 'type');
     }
+
+    public function canAccessDepartment(?int $departmentId): bool
+    {
+        if (!$this->department_id && !$this->faculty_id) {
+            return true; // Global admin
+        }
+        if ($this->department_id) {
+            return $this->department_id === $departmentId;
+        }
+        if ($this->faculty_id) {
+            if (!$departmentId) {
+                return false;
+            }
+            return Department::where('id', $departmentId)->where('faculty_id', $this->faculty_id)->exists();
+        }
+        return false;
+    }
+
+    public function canAccessFaculty(?int $facultyId): bool
+    {
+        if (!$this->department_id && !$this->faculty_id) {
+            return true; // Global admin
+        }
+        if ($this->faculty_id) {
+            return $this->faculty_id === $facultyId;
+        }
+        if ($this->department_id) {
+            if (!$facultyId) {
+                return false;
+            }
+            return Department::where('id', $this->department_id)->where('faculty_id', $facultyId)->exists();
+        }
+        return false;
+    }
+
+    public function canAccessStudent(Student $student): bool
+    {
+        return $this->canAccessDepartment($student->department_id);
+    }
+
+    public function canAccessProgram(Program $program): bool
+    {
+        return $this->canAccessDepartment($program->department_id);
+    }
+
+    public function canAccessCourse(Course $course): bool
+    {
+        return $this->canAccessDepartment($course->program?->department_id);
+    }
 }
+

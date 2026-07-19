@@ -48,8 +48,19 @@ class StudentIndex extends Component
 
     public function mount(): void
     {
+        abort_unless(auth()->user()?->hasAdminPermission('nav_students_index'), 403);
+
         if (! in_array($this->approval, ['all', 'pending', 'approved'], true)) {
             $this->approval = 'all';
+        }
+
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            if ($admin->department_id) {
+                $this->departmentFilter = (string) $admin->department_id;
+            } elseif ($admin->faculty_id) {
+                $this->facultyFilter = (string) $admin->faculty_id;
+            }
         }
     }
 
@@ -89,6 +100,16 @@ class StudentIndex extends Component
     public function updatedSelectAll(bool $value): void
     {
         if ($value) {
+            $admin = auth()->user()?->admin;
+            if ($admin) {
+                if ($admin->department_id) {
+                    $this->departmentFilter = (string) $admin->department_id;
+                    $this->facultyFilter = '';
+                } elseif ($admin->faculty_id) {
+                    $this->facultyFilter = (string) $admin->faculty_id;
+                }
+            }
+
             $q = trim($this->search);
             $approval = in_array($this->approval, ['pending', 'approved'], true) ? $this->approval : 'all';
 
@@ -121,6 +142,12 @@ class StudentIndex extends Component
 
     public function confirmDeleteStudent(int $id): void
     {
+        $student = Student::findOrFail($id);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessStudent($student), 403);
+        }
+
         $this->deletingStudentId = $id;
         $this->dispatch('open-modal', 'delete-student-confirm-modal');
     }
@@ -132,6 +159,11 @@ class StudentIndex extends Component
         }
 
         $student = Student::findOrFail($this->deletingStudentId);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessStudent($student), 403);
+        }
+
         $user = $student->user;
         if ($user) {
             $user->delete(); // Cascade deletes student record too
@@ -152,6 +184,13 @@ class StudentIndex extends Component
         }
 
         $students = Student::whereIn('id', $ids)->get();
+        $admin = auth()->user()?->admin;
+        foreach ($students as $student) {
+            if ($admin) {
+                abort_unless($admin->canAccessStudent($student), 403);
+            }
+        }
+
         foreach ($students as $student) {
             if ($student->user) {
                 $student->user->delete();
@@ -168,6 +207,11 @@ class StudentIndex extends Component
     public function editStudent(int $id): void
     {
         $student = Student::findOrFail($id);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessStudent($student), 403);
+        }
+
         $this->editingStudentId = $id;
         $this->editFirstname = $student->firstname ?? '';
         $this->editOthernames = $student->othernames ?? '';
@@ -197,6 +241,12 @@ class StudentIndex extends Component
         $student = Student::findOrFail($this->editingStudentId);
         $program = Program::findOrFail((int) $this->editProgramId);
 
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessStudent($student), 403);
+            abort_unless($admin->canAccessProgram($program), 403);
+        }
+
         $student->forceFill([
             'firstname' => $this->editFirstname,
             'othernames' => $this->editOthernames ?: null,
@@ -216,6 +266,16 @@ class StudentIndex extends Component
 
     public function render(): View
     {
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            if ($admin->department_id) {
+                $this->departmentFilter = (string) $admin->department_id;
+                $this->facultyFilter = '';
+            } elseif ($admin->faculty_id) {
+                $this->facultyFilter = (string) $admin->faculty_id;
+            }
+        }
+
         $q = trim($this->search);
         $approval = in_array($this->approval, ['pending', 'approved'], true) ? $this->approval : 'all';
 
@@ -243,15 +303,29 @@ class StudentIndex extends Component
             ->paginate(20);
 
         // Fetch filter options
-        $faculties = Faculty::orderBy('name')->get();
+        $faculties = Faculty::query()
+            ->when($admin?->faculty_id, fn ($q) => $q->where('id', $admin->faculty_id))
+            ->when($admin?->department_id, fn ($q) => $q->whereHas('departments', fn ($d) => $d->where('id', $admin->department_id)))
+            ->orderBy('name')
+            ->get();
         
         $departments = Department::query()
+            ->when($admin?->department_id, fn ($q) => $q->where('id', $admin->department_id))
+            ->when($admin?->faculty_id, fn ($q) => $q->where('faculty_id', $admin->faculty_id))
             ->when($this->facultyFilter, fn ($q) => $q->where('faculty_id', $this->facultyFilter))
             ->orderBy('name')
             ->get();
 
         $programs = Program::query()
+            ->when($admin?->department_id, fn ($q) => $q->where('department_id', $admin->department_id))
+            ->when($admin?->faculty_id, fn ($q) => $q->whereHas('department', fn ($d) => $d->where('faculty_id', $admin->faculty_id)))
             ->when($this->departmentFilter, fn ($q) => $q->where('department_id', $this->departmentFilter))
+            ->orderBy('name')
+            ->get();
+
+        $allPrograms = Program::query()
+            ->when($admin?->department_id, fn ($q) => $q->where('department_id', $admin->department_id))
+            ->when($admin?->faculty_id, fn ($q) => $q->whereHas('department', fn ($d) => $d->where('faculty_id', $admin->faculty_id)))
             ->orderBy('name')
             ->get();
 
@@ -261,7 +335,7 @@ class StudentIndex extends Component
             'faculties' => $faculties,
             'departments' => $departments,
             'programs' => $programs,
-            'allPrograms' => Program::orderBy('name')->get(), // for edit modal dropdown
+            'allPrograms' => $allPrograms, // for edit modal dropdown
         ])->layout('components.layouts.admin', [
             'title' => __('Students'),
             'headerTitle' => __('Students Directory'),
@@ -269,4 +343,3 @@ class StudentIndex extends Component
         ]);
     }
 }
-

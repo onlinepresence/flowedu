@@ -26,12 +26,22 @@ class DepartmentIndex extends Component
 
     public ?int $deletingDepartmentId = null;
 
+    public function mount(): void
+    {
+        abort_unless(auth()->user()?->hasAdminPermission('nav_academic_department'), 403);
+    }
+
     public function saveDepartment(): void
     {
         $this->validate([
             'name' => ['required', 'string', 'max:255', 'unique:departments,name'],
             'faculty_id' => ['nullable', 'integer', 'exists:faculties,id'],
         ]);
+
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessFaculty($this->faculty_id ? (int) $this->faculty_id : null), 403);
+        }
 
         Department::query()->create([
             'name' => trim($this->name),
@@ -46,6 +56,11 @@ class DepartmentIndex extends Component
     public function editDepartment(int $departmentId): void
     {
         $department = Department::query()->findOrFail($departmentId);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessDepartment($department->id), 403);
+        }
+
         $this->editingDepartmentId = $department->id;
         $this->name = (string) $department->name;
         $this->faculty_id = $department->faculty_id !== null ? (string) $department->faculty_id : '';
@@ -76,6 +91,12 @@ class DepartmentIndex extends Component
         ]);
 
         $department = Department::query()->findOrFail($this->editingDepartmentId);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessDepartment($department->id), 403);
+            abort_unless($admin->canAccessFaculty($this->faculty_id ? (int) $this->faculty_id : null), 403);
+        }
+
         $department->update([
             'name' => trim($this->name),
             'faculty_id' => $this->faculty_id === '' ? null : (int) $this->faculty_id,
@@ -87,6 +108,12 @@ class DepartmentIndex extends Component
 
     public function confirmDeleteDepartment(int $departmentId): void
     {
+        $department = Department::query()->findOrFail($departmentId);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessDepartment($department->id), 403);
+        }
+
         $this->deletingDepartmentId = $departmentId;
         $this->dispatch('open-modal', 'confirm-delete-department-modal');
     }
@@ -97,8 +124,14 @@ class DepartmentIndex extends Component
             return;
         }
         $departmentId = $this->deletingDepartmentId;
+        $department = Department::query()->findOrFail($departmentId);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessDepartment($department->id), 403);
+        }
+
         try {
-            Department::query()->findOrFail($departmentId)->delete();
+            $department->delete();
             if ($this->editingDepartmentId === $departmentId) {
                 $this->cancelEditDepartment();
             }
@@ -113,15 +146,25 @@ class DepartmentIndex extends Component
 
     public function render(): View
     {
+        $admin = auth()->user()?->admin;
+
         $departments = Department::query()
             ->with(['faculty', 'headOfDepartment'])
             ->withCount('programs')
+            ->when($admin?->department_id, fn ($q) => $q->where('id', $admin->department_id))
+            ->when($admin?->faculty_id, fn ($q) => $q->where('faculty_id', $admin->faculty_id))
             ->orderBy('name')
             ->paginate(20);
 
+        $faculties = Faculty::query()
+            ->when($admin?->faculty_id, fn ($q) => $q->where('id', $admin->faculty_id))
+            ->when($admin?->department_id, fn ($q) => $q->whereHas('departments', fn ($d) => $d->where('id', $admin->department_id)))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         return view('livewire.admin.academic.department-index', [
             'departments' => $departments,
-            'faculties' => Faculty::query()->orderBy('name')->get(['id', 'name']),
+            'faculties' => $faculties,
         ])->layout('components.layouts.admin', [
             'title' => __('Departments'),
             'headerTitle' => __('Departments'),

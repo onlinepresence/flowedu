@@ -59,6 +59,8 @@ class ApproveGradesPage extends Component
 
     public function mount(): void
     {
+        abort_unless(auth()->user()?->hasAdminPermission('nav_grading_approve'), 403);
+
         $this->academicSessionId = AcademicSession::query()
             ->where('is_current', true)
             ->value('id');
@@ -110,6 +112,12 @@ class ApproveGradesPage extends Component
 
     public function viewCohort(int $teacherId, int $courseId, int $sessionId, int $programId, string $level): void
     {
+        $program = Program::findOrFail($programId);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessProgram($program), 403);
+        }
+
         $this->selectedTeacherId = $teacherId;
         $this->selectedCourseId = $courseId;
         $this->selectedSessionId = $sessionId;
@@ -183,6 +191,11 @@ class ApproveGradesPage extends Component
         $grade = Grade::query()->findOrFail($gradeId);
         $slip = $grade->resultSlip;
 
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessDepartment($slip->program->department_id), 403);
+        }
+
         $totalScore = floatval($grade->class_score) + floatval($grade->exam_score);
         $gradeScale = GradePoint::query()->orderByDesc('min_score')->get();
         $gradeLetter = 'F';
@@ -233,6 +246,11 @@ class ApproveGradesPage extends Component
         $grade = Grade::query()->findOrFail($gradeId);
         $slip = $grade->resultSlip;
 
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessDepartment($slip->program->department_id), 403);
+        }
+
         Result::query()
             ->where('result_slip_id', $slip->id)
             ->where('student_id', $grade->student_id)
@@ -250,6 +268,12 @@ class ApproveGradesPage extends Component
 
     public function approveCohort(int $teacherId, int $courseId, int $sessionId, int $programId, string $level): void
     {
+        $program = Program::findOrFail($programId);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessProgram($program), 403);
+        }
+
         $slip = ResultSlip::query()
             ->where('teacher_id', $teacherId)
             ->where('course_id', $courseId)
@@ -270,6 +294,12 @@ class ApproveGradesPage extends Component
 
     public function rejectCohort(int $teacherId, int $courseId, int $sessionId, int $programId, string $level): void
     {
+        $program = Program::findOrFail($programId);
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessProgram($program), 403);
+        }
+
         $slip = ResultSlip::query()
             ->where('teacher_id', $teacherId)
             ->where('course_id', $courseId)
@@ -290,19 +320,37 @@ class ApproveGradesPage extends Component
 
     public function render(): View
     {
+        $admin = auth()->user()?->admin;
+
         // Cascading selects values
-        $faculties = Faculty::query()->orderBy('name')->get(['id', 'name']);
+        $faculties = Faculty::query()
+            ->when($admin?->faculty_id, fn ($q) => $q->where('id', $admin->faculty_id))
+            ->when($admin?->department_id, fn ($q) => $q->whereHas('departments', fn ($d) => $d->where('id', $admin->department_id)))
+            ->orderBy('name')
+            ->get(['id', 'name']);
         
-        $departments = $this->facultyId
-            ? Department::query()->where('faculty_id', $this->facultyId)->orderBy('name')->get(['id', 'name'])
+        $departmentsQuery = Department::query()
+            ->when($this->facultyId, fn ($q) => $q->where('faculty_id', $this->facultyId))
+            ->when($admin?->department_id, fn ($q) => $q->where('id', $admin->department_id))
+            ->when($admin?->faculty_id, fn ($q) => $q->where('faculty_id', $admin->faculty_id));
+        $departments = ($this->facultyId || $admin?->department_id || $admin?->faculty_id)
+            ? $departmentsQuery->orderBy('name')->get(['id', 'name'])
             : new Collection();
 
-        $programs = $this->departmentId
-            ? Program::query()->where('department_id', $this->departmentId)->orderBy('name')->get(['id', 'name'])
+        $programsQuery = Program::query()
+            ->when($this->departmentId, fn ($q) => $q->where('department_id', $this->departmentId))
+            ->when($admin?->department_id, fn ($q) => $q->where('department_id', $admin->department_id))
+            ->when($admin?->faculty_id, fn ($q) => $q->whereHas('department', fn ($d) => $d->where('faculty_id', $admin->faculty_id)));
+        $programs = ($this->departmentId || $admin?->department_id || $admin?->faculty_id)
+            ? $programsQuery->orderBy('name')->get(['id', 'name'])
             : new Collection();
 
-        $courses = $this->programId
-            ? Course::query()->where('program_id', $this->programId)->orderBy('code')->get(['id', 'code', 'name'])
+        $coursesQuery = Course::query()
+            ->when($this->programId, fn ($q) => $q->where('program_id', $this->programId))
+            ->when($admin?->department_id, fn ($q) => $q->whereHas('program', fn ($p) => $p->where('department_id', $admin->department_id)))
+            ->when($admin?->faculty_id, fn ($q) => $q->whereHas('program.department', fn ($d) => $d->where('faculty_id', $admin->faculty_id)));
+        $courses = ($this->programId || $admin?->department_id || $admin?->faculty_id)
+            ? $coursesQuery->orderBy('code')->get(['id', 'code', 'name'])
             : new Collection();
 
         // Cohorts Query on result_slips
@@ -349,6 +397,16 @@ class ApproveGradesPage extends Component
                   ->orWhere('teachers.othernames', 'like', '%'.$this->searchLecturer.'%');
             });
         }
+
+        // Apply admin jurisdiction scoping to query
+        $query->when($admin?->department_id, fn ($q) => $q->whereIn('result_slips.program_id', function ($sub) use ($admin) {
+            $sub->select('id')->from('programs')->where('department_id', $admin->department_id);
+        }))
+        ->when($admin?->faculty_id, fn ($q) => $q->whereIn('result_slips.program_id', function ($sub) use ($admin) {
+            $sub->select('programs.id')->from('programs')
+                ->join('departments', 'programs.department_id', '=', 'departments.id')
+                ->where('departments.faculty_id', $admin->faculty_id);
+        }));
 
         $cohorts = $query->select([
                 'result_slips.teacher_id',
