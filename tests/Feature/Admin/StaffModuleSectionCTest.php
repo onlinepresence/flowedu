@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Admin;
 
 use App\Livewire\Admin\Staff\EvaluationIndexPage;
+use App\Livewire\Admin\Staff\StaffHomePage;
 use App\Models\Department;
 use App\Models\EvaluationForm;
 use App\Models\Faculty;
@@ -98,5 +99,71 @@ class StaffModuleSectionCTest extends TestCase
             'email' => 'bulk1@example.test',
             'type' => 'teacher',
         ]);
+    }
+
+    public function test_admin_can_view_and_filter_staff_directory(): void
+    {
+        $admin = $this->actingOwnerAdmin();
+
+        // Create some sample staff
+        $dept1 = Department::query()->create(['name' => 'Computer Science']);
+        $dept2 = Department::query()->create(['name' => 'Mathematics']);
+
+        $teacherUser = User::factory()->create([
+            'name' => 'Alice Teacher',
+            'email' => 'alice@school.edu',
+            'username' => 'T12345',
+            'type' => 'teacher',
+            'active' => true,
+        ]);
+        $teacherUser->teacher()->create([
+            'lastname' => 'Teacher',
+            'othernames' => 'Alice',
+            'staff_id' => 'T12345',
+            'department_id' => $dept1->id,
+            'gender' => 'female',
+        ]);
+
+        $adminUser = User::factory()->create([
+            'name' => 'Bob Admin',
+            'email' => 'bob@school.edu',
+            'username' => 'A54321',
+            'type' => 'admin',
+            'active' => false,
+        ]);
+        $adminUser->admin()->create([
+            'lastname' => 'Admin',
+            'othernames' => 'Bob',
+            'department_id' => $dept2->id,
+            'type' => \App\Models\UserRole::query()->where('name', '!=', 'owner')->first()->id,
+            'status' => 'inactive',
+        ]);
+
+        // 1. View all staff
+        Livewire::actingAs($admin)
+            ->test(StaffHomePage::class)
+            ->assertSee('Alice Teacher')
+            ->assertSee('Bob Admin')
+            ->assertSee('T12345')
+            ->assertSee('A54321')
+            // 2. Search
+            ->set('search', 'Alice')
+            ->assertSee('Alice Teacher')
+            ->assertDontSee('Bob Admin')
+            // 3. Filter by type = admin
+            ->set('search', '')
+            ->set('filterType', 'admin')
+            ->assertSee('Bob Admin')
+            ->assertDontSee('Alice Teacher')
+            // 4. Filter by department
+            ->set('filterType', 'all')
+            ->set('filterDepartment', $dept1->id)
+            ->assertSee('Alice Teacher')
+            ->assertDontSee('Bob Admin')
+            // 5. Filter by status = inactive
+            ->set('filterDepartment', 'all')
+            ->set('filterStatus', 'inactive')
+            ->assertSee('Bob Admin')
+            ->assertDontSee('Alice Teacher');
     }
 }
