@@ -27,9 +27,18 @@ class UserRole extends Model
     /**
      * Baseline roles (also used by {@see \Database\Seeders\AdminSystemSeeder}).
      * Required so {@see \App\Models\Admin}'s `type` FK can point at `owner` when the first admin is created.
+     *
+     * Runs on every admin request via EnsureAdminProfileComplete middleware, so it must be cheap:
+     * single SELECT + save only when dirty. In-request guard skips repeat calls; reset per
+     * test via Tests\TestCase so RefreshDatabase re-seeds correctly.
      */
+    protected static bool $systemRolesEnsured = false;
+
     public static function ensureSystemRoles(): void
     {
+        if (static::$systemRolesEnsured) {
+            return;
+        }
         $roles = [
             ['role_name' => 'owner', 'name' => 'owner', 'display_name' => 'Owner', 'permissions' => []],
             ['role_name' => 'system_admin', 'name' => 'system_admin', 'display_name' => 'System administrator', 'permissions' => []],
@@ -202,15 +211,31 @@ class UserRole extends Model
             ],
         ];
 
+        $existing = static::query()
+            ->whereIn('name', array_column($roles, 'name'))
+            ->get()
+            ->keyBy('name');
+
         foreach ($roles as $row) {
-            $role = static::query()->firstOrNew(['name' => $row['name']]);
+            $role = $existing->get($row['name']) ?? new static(['name' => $row['name']]);
             $role->role_name = $row['role_name'];
             $role->display_name = $row['display_name'];
-            
+
             // Re-seed system roles cleanly, filtering out obsolete items
             $obsolete = ['view_profile', 'delete_user', 'nav_settings_env'];
             $role->permissions = array_values(array_diff($row['permissions'], $obsolete));
-            $role->save();
+
+            // Only write when new or actually changed — avoids 15 UPDATEs per admin request.
+            if (! $role->exists || $role->isDirty()) {
+                $role->save();
+            }
         }
+
+        static::$systemRolesEnsured = true;
+    }
+
+    public static function forgetSystemRolesEnsured(): void
+    {
+        static::$systemRolesEnsured = false;
     }
 }

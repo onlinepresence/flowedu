@@ -10,6 +10,14 @@ use Illuminate\Support\Facades\Cache;
 
 class SchoolLicenceService
 {
+    /**
+     * In-request memo: sidebar + search filter call can() ~10-20x per page.
+     * Singleton lives per request, so this turns N cache+DB hits into 1.
+     */
+    private ?array $licenceMemo = null;
+
+    private ?int $licenceMemoSchoolId = null;
+
     public function isEnforcementEnabled(): bool
     {
         return (bool) config('licence.enforce', true);
@@ -30,21 +38,39 @@ class SchoolLicenceService
             return $this->defaultLicenceArray();
         }
 
+        if ($this->licenceMemo !== null && $this->licenceMemoSchoolId === $school->id) {
+            return $this->licenceMemo;
+        }
+
         $ttl = max(1, (int) config('licence.cache_ttl', 300));
 
-        return Cache::remember(
+        $row = Cache::remember(
             $this->cacheKey($school->id),
             $ttl,
             fn (): array => $this->loadOrCreateLicenceArray($school)
         );
+
+        $this->licenceMemo = $row;
+        $this->licenceMemoSchoolId = $school->id;
+
+        return $row;
     }
 
     public function refresh(): void
     {
+        $this->licenceMemo = null;
+        $this->licenceMemoSchoolId = null;
+
         $school = School::current();
         if ($school !== null) {
             Cache::forget($this->cacheKey($school->id));
         }
+    }
+
+    public function forgetMemo(): void
+    {
+        $this->licenceMemo = null;
+        $this->licenceMemoSchoolId = null;
     }
 
     public function can(string $feature): bool
@@ -196,9 +222,14 @@ class SchoolLicenceService
      */
     protected function loadOrCreateLicenceArray(School $school): array
     {
-        $licence = $school->licence;
+        // Fresh query, not $school->licence: School::current() is memoized per request,
+        // so a cached null relation would otherwise cause a duplicate insert
+        // (UNIQUE school_licences.school_id) when two calls happen in one request.
+        $licence = $school->licence()->first();
         if ($licence === null) {
             $licence = $this->createDefaultLicenceRecord($school);
+            // Re-read so concurrent firstOrCreate winners return the same row shape.
+            $licence->refresh();
         }
 
         $data = [
@@ -231,7 +262,6 @@ class SchoolLicenceService
     {
         $today = now()->toDateString();
         $fields = [
-            'school_id' => $school->id,
             'max_active_students' => null,
             'licence_start' => $today,
             'licence_end' => null,
@@ -253,6 +283,10 @@ class SchoolLicenceService
             $fields[$feat['db_column']] = $isTesting ? true : $feat['default'];
         }
 
-        return SchoolLicence::query()->create($fields);
+        // firstOrCreate: race-safe when two calls in one request both see no licence.
+        return SchoolLicence::query()->firstOrCreate(
+            ['school_id' => $school->id],
+            $fields
+        );
     }
 }

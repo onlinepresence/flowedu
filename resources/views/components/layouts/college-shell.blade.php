@@ -68,6 +68,7 @@
                 /* Hide sidebar, top navigation header, impersonation bar, and explicitly hidden elements */
                 aside, 
                 header,
+                .no-print,
                 .print\:hidden,
                 [class*="print:hidden"],
                 #impersonation-bar {
@@ -104,8 +105,8 @@
     </head>
     <body class="h-full font-sans antialiased text-gray-900 dark:text-gray-100">
         {{-- Global Livewire request progress + offline banner (pure JS/Alpine, works outside Livewire scope) --}}
-        <div id="college-top-progress" class="fixed inset-x-0 top-0 z-[300] hidden h-0.5 bg-transparent" aria-hidden="true">
-            <div id="college-top-progress-bar" class="h-full w-1/3 rounded-r bg-indigo-600 transition-all duration-300"></div>
+        <div id="college-top-progress" class="fixed inset-x-0 top-0 z-[300] hidden h-1 bg-transparent" aria-hidden="true">
+            <div id="college-top-progress-bar" class="h-full w-1/3 rounded-r bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.9)] transition-all duration-300 dark:bg-amber-300 dark:shadow-[0_0_12px_rgba(252,211,77,0.95)]"></div>
         </div>
         <div id="college-offline-banner" class="fixed inset-x-0 top-0 z-[300] hidden items-center justify-center gap-2 bg-amber-500 px-4 py-2 text-center text-xs font-bold text-white" role="alert">
             <i class="fa-solid fa-triangle-exclamation"></i>

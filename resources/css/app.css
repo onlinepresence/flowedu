@@ -23,6 +23,14 @@
     }
 }
 
+@media print {
+    /* Global print guard: pages using .no-print (student docs, reports) hide correctly
+       even when they don't define a local <style> block. Mirrors print.blade.php. */
+    .no-print {
+        display: none !important;
+    }
+}
+
 @layer components {
     /* Dashboard quick-link chips: readable on gray-950 tray in dark mode */
     .dashboard-quick-link {
