@@ -1,13 +1,15 @@
-<div class="mx-auto max-w-7xl space-y-6">
+<div class="mx-auto max-w-7xl space-y-6" x-data x-on:open-add-staff-modal.window="$wire.openAddStaffModal()">
     <x-slot name="headerActions">
-        <button
-            type="button"
-            wire:click="openAddStaffModal"
-            class="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
-        >
-            <i class="fa-solid fa-plus me-2"></i>
-            {{ __('Add Staff') }}
-        </button>
+        <div x-data>
+            <button
+                type="button"
+                x-on:click="$dispatch('open-add-staff-modal')"
+                class="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+            >
+                <i class="fa-solid fa-plus me-2"></i>
+                {{ __('Add Staff') }}
+            </button>
+        </div>
     </x-slot>
 
     @if ($showAddStaffModal)
@@ -34,6 +36,7 @@
             <x-slot:footer>
                 <button
                     type="button"
+                    x-on:click="$dispatch('close-modal', 'staff-add-choice')"
                     wire:click="closeAddStaffModal"
                     class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                 >
@@ -97,7 +100,15 @@
     </div>
 
     <!-- Directory Table Section -->
-    <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+    <div class="relative overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        {{-- Targeted Loading Overlay --}}
+        <div wire:loading.delay wire:target="search, filterType, filterDepartment, filterStatus, previousPage, nextPage, gotoPage"
+             class="absolute inset-0 z-10 flex items-center justify-center bg-white/40 backdrop-blur-[1px] transition-opacity duration-200 dark:bg-gray-900/40">
+            <div class="flex items-center gap-2 rounded-lg border border-gray-100 bg-white/80 px-4 py-2 shadow-lg dark:border-gray-700 dark:bg-gray-800/80">
+                <i class="fa-solid fa-circle-notch fa-spin text-indigo-600 dark:text-indigo-400"></i>
+                <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">{{ __('Loading data...') }}</span>
+            </div>
+        </div>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead class="bg-gray-50 dark:bg-gray-900/50">

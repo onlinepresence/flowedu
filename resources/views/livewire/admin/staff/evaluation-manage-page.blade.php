@@ -144,7 +144,7 @@
                         <div class="relative">
                             <input
                                 type="text"
-                                wire:model.live="searchTeacher"
+                                wire:model.live.debounce.300ms="searchTeacher"
                                 class="block w-full rounded-md border-gray-300 pr-8 text-sm font-semibold focus:border-purple-500 focus:ring-purple-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 shadow-sm"
                                 placeholder="{{ __('Search lecturer…') }}"
                             />
@@ -275,20 +275,36 @@
                                         <button
                                             type="button"
                                             wire:click="downloadReport('xlsx', {{ $selectedTeacherId ?? 'null' }})"
+                                            wire:loading.attr="disabled"
+                                            wire:target="downloadReport"
                                             @click="open = false"
-                                            class="flex w-full items-center px-4 py-2.5 text-sm font-semibold rounded text-left text-gray-700 dark:text-gray-350 hover:bg-purple-50 hover:text-purple-750 dark:hover:bg-purple-950/40 dark:hover:text-purple-300"
+                                            class="flex w-full items-center px-4 py-2.5 text-sm font-semibold rounded text-left text-gray-700 dark:text-gray-350 hover:bg-purple-50 hover:text-purple-750 dark:hover:bg-purple-950/40 dark:hover:text-purple-300 disabled:opacity-50"
                                         >
-                                            <i class="fa-regular fa-file-excel mr-2 text-green-600 text-base"></i>
-                                            {{ __('Excel Spreadsheet') }}
+                                            <span wire:loading.remove wire:target="downloadReport" class="flex w-full items-center">
+                                                <i class="fa-regular fa-file-excel mr-2 text-green-600 text-base"></i>
+                                                {{ __('Excel Spreadsheet') }}
+                                            </span>
+                                            <span wire:loading wire:target="downloadReport" class="flex w-full items-center">
+                                                <i class="fa-solid fa-circle-notch fa-spin mr-2 text-green-600 text-base"></i>
+                                                {{ __('Exporting...') }}
+                                            </span>
                                         </button>
                                         <button
                                             type="button"
                                             wire:click="downloadReport('csv', {{ $selectedTeacherId ?? 'null' }})"
+                                            wire:loading.attr="disabled"
+                                            wire:target="downloadReport"
                                             @click="open = false"
                                             class="flex w-full items-center px-4 py-2.5 text-sm font-semibold rounded text-left text-gray-700 dark:text-gray-350 hover:bg-purple-50 hover:text-purple-750 dark:hover:bg-purple-950/40 dark:hover:text-purple-300"
                                         >
-                                            <i class="fa-solid fa-file-csv mr-2 text-blue-500 text-base"></i>
-                                            {{ __('CSV File') }}
+                                            <span wire:loading.remove wire:target="downloadReport" class="flex w-full items-center">
+                                                <i class="fa-solid fa-file-csv mr-2 text-blue-500 text-base"></i>
+                                                {{ __('CSV File') }}
+                                            </span>
+                                            <span wire:loading wire:target="downloadReport" class="flex w-full items-center">
+                                                <i class="fa-solid fa-circle-notch fa-spin mr-2 text-blue-500 text-base"></i>
+                                                {{ __('Exporting...') }}
+                                            </span>
                                         </button>
                                     </div>
                                 </div>

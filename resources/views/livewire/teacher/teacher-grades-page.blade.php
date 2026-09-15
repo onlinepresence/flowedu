@@ -65,7 +65,15 @@
             </x-slot:icon>
         </x-college.empty-state>
     @else
-        <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-750 dark:bg-gray-800">
+        <div class="relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-750 dark:bg-gray-800">
+            {{-- Targeted Loading Overlay --}}
+            <div wire:loading.delay wire:target="search, selectedSessionId, selectedCourseId, selectedLevel, previousPage, nextPage, gotoPage"
+                 class="absolute inset-0 z-10 flex items-center justify-center bg-white/40 backdrop-blur-[1px] transition-opacity duration-200 dark:bg-gray-900/40">
+                <div class="flex items-center gap-2 rounded-lg border border-gray-100 bg-white/80 px-4 py-2 shadow-lg dark:border-gray-700 dark:bg-gray-800/80">
+                    <i class="fa-solid fa-circle-notch fa-spin text-indigo-600 dark:text-indigo-400"></i>
+                    <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">{{ __('Loading data...') }}</span>
+                </div>
+            </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-750 text-left">
                     <thead class="bg-gray-50 dark:bg-gray-850">

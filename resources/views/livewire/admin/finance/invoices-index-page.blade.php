@@ -15,17 +15,31 @@
             <button
                 type="button"
                 wire:click="openAddInvoice"
-                class="inline-flex items-center gap-1.5 rounded-lg bg-purple-600 px-4 py-2.5 text-xs font-semibold text-white shadow hover:bg-purple-700 transition"
+                wire:loading.attr="disabled"
+                wire:target="openAddInvoice"
+                class="inline-flex items-center gap-1.5 rounded-lg bg-purple-600 px-4 py-2.5 text-xs font-semibold text-white shadow hover:bg-purple-700 transition disabled:opacity-50"
             >
-                <i class="fa-solid fa-receipt text-xs"></i>{{ __('Record Invoice') }}
+                <span wire:loading.remove wire:target="openAddInvoice" class="flex items-center gap-1.5">
+                    <i class="fa-solid fa-receipt text-xs"></i>{{ __('Record Invoice') }}
+                </span>
+                <span wire:loading wire:target="openAddInvoice" class="flex items-center gap-1.5">
+                    <i class="fa-solid fa-circle-notch fa-spin text-xs"></i>{{ __('Opening...') }}
+                </span>
             </button>
 
             <button
                 type="button"
                 wire:click="openRecordExpenditure"
-                class="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 transition"
+                wire:loading.attr="disabled"
+                wire:target="openRecordExpenditure"
+                class="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 transition disabled:opacity-50"
             >
-                <i class="fa-solid fa-wallet text-xs"></i>{{ __('Record Expenditure') }}
+                <span wire:loading.remove wire:target="openRecordExpenditure" class="flex items-center gap-1.5">
+                    <i class="fa-solid fa-wallet text-xs"></i>{{ __('Record Expenditure') }}
+                </span>
+                <span wire:loading wire:target="openRecordExpenditure" class="flex items-center gap-1.5">
+                    <i class="fa-solid fa-circle-notch fa-spin text-xs"></i>{{ __('Opening...') }}
+                </span>
             </button>
         </div>
     </div>
@@ -66,7 +80,7 @@
                 <i class="fa-solid fa-magnifying-glass text-gray-400 text-xs"></i>
             </div>
             <input
-                wire:model.live="search"
+                wire:model.live.debounce.300ms="search"
                 type="text"
                 placeholder="{{ __('Search by keyword...') }}"
                 class="block w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500 bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 text-xs transition"
@@ -78,7 +92,15 @@
     <div>
         <!-- PANEL: INVOICES -->
         <div x-show="activeTab === 'invoices'" class="space-y-4">
-            <div class="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 shadow-sm">
+            <div class="relative overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 shadow-sm">
+                {{-- Targeted Loading Overlay --}}
+                <div wire:loading.delay wire:target="search, previousPage, nextPage, gotoPage"
+                     class="absolute inset-0 z-10 flex items-center justify-center bg-white/40 backdrop-blur-[1px] transition-opacity duration-200 dark:bg-gray-900/40">
+                    <div class="flex items-center gap-2 rounded-lg border border-gray-100 bg-white/80 px-4 py-2 shadow-lg dark:border-gray-700 dark:bg-gray-800/80">
+                        <i class="fa-solid fa-circle-notch fa-spin text-purple-600 dark:text-purple-400"></i>
+                        <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">{{ __('Loading data...') }}</span>
+                    </div>
+                </div>
                 <div class="overflow-x-auto">
                     <table class="w-full border-collapse text-left text-xs text-gray-500 dark:text-gray-400">
                         <thead class="bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 font-semibold uppercase">

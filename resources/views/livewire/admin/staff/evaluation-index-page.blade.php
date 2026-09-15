@@ -123,8 +123,11 @@
     <x-college.modal name="ev-delete" :title="__('Delete Evaluation Form?')" maxWidth="md">
         <p class="text-sm text-gray-600 dark:text-gray-400 font-semibold">{{ __('This action cannot be undone. Only inactive or closed forms with zero student responses can be deleted.') }}</p>
         <x-slot:footer>
-            <button type="button" wire:click="closeDeleteModal" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-250">{{ __('Cancel') }}</button>
-            <button type="button" wire:click="confirmDeleteForm" class="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500">{{ __('Delete Form') }}</button>
+            <button type="button" x-on:click="$dispatch('close-modal', 'ev-delete')" wire:click="closeDeleteModal" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-250">{{ __('Cancel') }}</button>
+            <button type="button" wire:click="confirmDeleteForm" wire:loading.attr="disabled" wire:target="confirmDeleteForm" class="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-50">
+                <span wire:loading.remove wire:target="confirmDeleteForm">{{ __('Delete Form') }}</span>
+                <span wire:loading wire:target="confirmDeleteForm">{{ __('Deleting...') }}</span>
+            </button>
         </x-slot:footer>
     </x-college.modal>
 

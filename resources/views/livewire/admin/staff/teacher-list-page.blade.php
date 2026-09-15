@@ -209,7 +209,7 @@
                 </div>
             </form>
             <x-slot:footer>
-                <button type="button" wire:click="closeCreateModal" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-250">{{ __('Cancel') }}</button>
+                <button type="button" x-on:click="$dispatch('close-modal', 't-create')" wire:click="closeCreateModal" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-250">{{ __('Cancel') }}</button>
                 <button type="submit" form="t-create-form" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">{{ __('Create') }}</button>
             </x-slot:footer>
         </x-college.modal>
@@ -250,7 +250,7 @@
                 <p class="mt-3 text-sm font-medium text-green-700 dark:text-green-400">{{ __('Processed :n accounts.', ['n' => $importCreatedCount]) }}</p>
             @endif
             <x-slot:footer>
-                <button type="button" wire:click="closeImportModal" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-250">{{ __('Close') }}</button>
+                <button type="button" x-on:click="$dispatch('close-modal', 't-import')" wire:click="closeImportModal" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-250">{{ __('Close') }}</button>
                 <button type="button" wire:click="runImport" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500" wire:loading.attr="disabled">
                     <span wire:loading.remove><i class="fa-solid fa-cloud-arrow-up mr-1"></i> {{ __('Import') }}</span>
                     <span wire:loading><i class="fa-solid fa-spinner fa-spin mr-1"></i> {{ __('Processing…') }}</span>
@@ -318,7 +318,7 @@
                 </div>
             </form>
             <x-slot:footer>
-                <button type="button" wire:click="closeEditModal" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-250">{{ __('Cancel') }}</button>
+                <button type="button" x-on:click="$dispatch('close-modal', 't-edit')" wire:click="closeEditModal" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-250">{{ __('Cancel') }}</button>
                 <button type="submit" form="t-edit-form" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">{{ __('Save') }}</button>
             </x-slot:footer>
         </x-college.modal>
@@ -331,11 +331,12 @@
                 {{ __('Are you sure you want to archive this teacher account? The database record will be preserved (soft deleted) but the associated user credentials will be deactivated immediately, preventing them from logging in.') }}
             </p>
             <x-slot:footer>
-                <button type="button" wire:click="closeDeleteModal" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-250">
+                <button type="button" x-on:click="$dispatch('close-modal', 't-delete')" wire:click="closeDeleteModal" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-250">
                     {{ __('Cancel') }}
                 </button>
-                <button type="button" wire:click="confirmDelete" class="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500">
-                    {{ __('Archive Account') }}
+                <button type="button" wire:click="confirmDelete" wire:loading.attr="disabled" wire:target="confirmDelete" class="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-50">
+                    <span wire:loading.remove wire:target="confirmDelete">{{ __('Archive Account') }}</span>
+                    <span wire:loading wire:target="confirmDelete">{{ __('Archiving...') }}</span>
                 </button>
             </x-slot:footer>
         </x-college.modal>

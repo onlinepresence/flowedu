@@ -1,8 +1,14 @@
 <div class="mx-auto max-w-7xl space-y-6">
     <div class="flex flex-wrap items-center justify-end gap-3">
-        <button type="button" wire:click="exportToExcel" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">
-            <i class="fa-solid fa-file-excel text-green-600"></i>
-            {{ __('Export Excel') }}
+        <button type="button" wire:click="exportToExcel" wire:loading.attr="disabled" wire:target="exportToExcel" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 disabled:opacity-50">
+            <span wire:loading.remove wire:target="exportToExcel" class="flex items-center gap-2">
+                <i class="fa-solid fa-file-excel text-green-600"></i>
+                {{ __('Export Excel') }}
+            </span>
+            <span wire:loading wire:target="exportToExcel" class="flex items-center gap-2">
+                <i class="fa-solid fa-circle-notch fa-spin text-green-600"></i>
+                {{ __('Exporting...') }}
+            </span>
         </button>
         <button type="button" wire:click="openPrintModal" class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
             <i class="fa-solid fa-print"></i>
@@ -63,7 +69,15 @@
     </x-college.filter-card>
 
     <!-- Table -->
-    <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+    <div class="relative overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        {{-- Targeted Loading Overlay --}}
+        <div wire:loading.delay wire:target="search, filterSessionId, filterProgramId, filterLevel, previousPage, nextPage, gotoPage"
+             class="absolute inset-0 z-10 flex items-center justify-center bg-white/40 backdrop-blur-[1px] transition-opacity duration-200 dark:bg-gray-900/40">
+            <div class="flex items-center gap-2 rounded-lg border border-gray-100 bg-white/80 px-4 py-2 shadow-lg dark:border-gray-700 dark:bg-gray-800/80">
+                <i class="fa-solid fa-circle-notch fa-spin text-indigo-600 dark:text-indigo-400"></i>
+                <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">{{ __('Loading data...') }}</span>
+            </div>
+        </div>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead class="bg-gray-50 dark:bg-gray-900/50">

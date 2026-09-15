@@ -85,7 +85,7 @@
                                     @endif
                                     <!-- Search input -->
                                     <div class="relative">
-                                        <input type="text" wire:model.live="signatorySearch" placeholder="Search staff to add as signatory..." class="block w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100">
+                                        <input type="text" wire:model.live.debounce.300ms="signatorySearch" placeholder="Search staff to add as signatory..." class="block w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100">
                                         @if ($signatorySearch !== '')
                                             <div class="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg text-sm">
                                                 @php
@@ -133,7 +133,7 @@
                                     </div>
                                 @endif
                                 <div class="relative">
-                                    <input type="text" wire:model.live="ccSearch" placeholder="Search staff to CC..." class="block w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100">
+                                    <input type="text" wire:model.live.debounce.300ms="ccSearch" placeholder="Search staff to CC..." class="block w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100">
                                     @if ($ccSearch !== '')
                                         <div class="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg text-sm">
                                             @php

@@ -51,7 +51,15 @@
     </x-college.filter-card>
 
     <!-- Ledger Table -->
-    <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+    <div class="relative overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        {{-- Targeted Loading Overlay --}}
+        <div wire:loading.delay wire:target="searchQuery, filterSessionId, filterMethod, previousPage, nextPage, gotoPage"
+             class="absolute inset-0 z-10 flex items-center justify-center bg-white/40 backdrop-blur-[1px] transition-opacity duration-200 dark:bg-gray-900/40">
+            <div class="flex items-center gap-2 rounded-lg border border-gray-100 bg-white/80 px-4 py-2 shadow-lg dark:border-gray-700 dark:bg-gray-800/80">
+                <i class="fa-solid fa-circle-notch fa-spin text-indigo-600 dark:text-indigo-400"></i>
+                <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">{{ __('Loading data...') }}</span>
+            </div>
+        </div>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead class="bg-gray-50 dark:bg-gray-900/50">
@@ -110,7 +118,7 @@
             <!-- Student Selector -->
             <div class="relative">
                 <x-input-label for="searchStudent" :value="__('Search & Select Student')" />
-                <x-text-input id="searchStudent" type="text" class="mt-1 block w-full text-sm" placeholder="{{ __('Type student name or index number') }}" wire:model.live="searchStudent" />
+                <x-text-input id="searchStudent" type="text" class="mt-1 block w-full text-sm" placeholder="{{ __('Type student name or index number') }}" wire:model.live.debounce.300ms="searchStudent" />
                 <x-input-error :messages="$errors->get('student_id')" class="mt-1" />
 
                 @if (!empty($searchedStudents))
