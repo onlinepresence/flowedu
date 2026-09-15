@@ -117,8 +117,23 @@
                 dark: false,
                 notificationsOpen: false,
                 profileOpen: false,
+                syncTheme() {
+                    try {
+                        var raw = localStorage.getItem('dark');
+                        if (raw !== null) {
+                            this.dark = !!JSON.parse(raw);
+                        } else if (window.matchMedia) {
+                            this.dark = !!window.matchMedia('(prefers-color-scheme: dark)').matches;
+                        } else {
+                            this.dark = document.documentElement.classList.contains('dark');
+                        }
+                    } catch (e) {
+                        this.dark = document.documentElement.classList.contains('dark');
+                    }
+                    document.documentElement.classList.toggle('dark', this.dark);
+                },
                 init() {
-                    this.dark = document.documentElement.classList.contains('dark');
+                    this.syncTheme();
                 },
                 toggleTheme() {
                     this.dark = !this.dark;
@@ -149,6 +164,8 @@
                 },
             }"
             @keydown.escape.window="closeSidebar(); closeNotifications(); closeProfile();"
+            x-on:livewire:navigated.window="syncTheme()"
+            x-on:college:theme-synced.window="syncTheme()"
             :class="{ 'overflow-hidden': sidebarOpen }"
             class="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900"
         >

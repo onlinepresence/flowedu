@@ -10,6 +10,7 @@ function applyCollegeThemeFromStorage() {
                 ? JSON.parse(raw)
                 : window.matchMedia?.('(prefers-color-scheme: dark)').matches === true;
         document.documentElement.classList.toggle('dark', Boolean(dark));
+        window.dispatchEvent(new CustomEvent('college:theme-synced', { detail: Boolean(dark) }));
     } catch {
         /* ignore */
     }
