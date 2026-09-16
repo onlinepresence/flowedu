@@ -138,10 +138,10 @@
                                 </td>
                             @endif
                             <td class="whitespace-nowrap px-6 py-4">
-                                <span class="text-sm text-gray-900 dark:text-gray-150">{{ $leave->staffLeaveType->name }}</span>
+                                <span class="text-sm text-gray-900 dark:text-gray-200">{{ $leave->staffLeaveType->name }}</span>
                             </td>
                             <td class="whitespace-nowrap px-6 py-4">
-                                <div class="text-sm text-gray-900 dark:text-gray-150">
+                                <div class="text-sm text-gray-900 dark:text-gray-200">
                                     {{ $leave->start_date->format('M d, Y') }} - {{ $leave->end_date->format('M d, Y') }}
                                 </div>
                                 @if ($leave->is_emergency)
@@ -294,7 +294,7 @@
                                 </th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-850">
+                        <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
                             @foreach ($leaveTypes as $type)
                                 <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/30 transition-all duration-150">
                                     <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-950 dark:text-white">
@@ -385,7 +385,7 @@
                             <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ __('Assigned Leave Type') }}</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-850">
+                    <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
                         @forelse ($staffMembers as $staff)
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/30 transition-all duration-150">
                                 <td class="whitespace-nowrap px-6 py-4">

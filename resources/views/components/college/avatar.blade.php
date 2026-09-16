@@ -28,7 +28,7 @@
     $fontClass = str_contains($size, 'text-') ? '' : (str_contains($size, 'h-') ? 'text-xl font-bold' : '');
 @endphp
 
-<div {{ $attributes->merge(['class' => "relative flex shrink-0 items-center justify-center rounded-full bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 shadow-inner overflow-hidden border border-gray-200 dark:border-gray-750 {$sizeClasses}"]) }}>
+<div {{ $attributes->merge(['class' => "relative flex shrink-0 items-center justify-center rounded-full bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 shadow-inner overflow-hidden border border-gray-200 dark:border-gray-700 {$sizeClasses}"]) }}>
     @if ($src)
         <img src="{{ $src }}" alt="" class="h-full w-full object-cover" />
     @else

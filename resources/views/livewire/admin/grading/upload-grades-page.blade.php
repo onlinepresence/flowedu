@@ -36,7 +36,7 @@
     <div class="grid gap-6 lg:grid-cols-3">
         <!-- Configuration and Upload file -->
         <div class="lg:col-span-1 space-y-6">
-            <div class="rounded-lg border border-gray-250 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                 <h2 class="text-sm font-semibold text-gray-950 dark:text-white mb-4 uppercase tracking-wider text-purple-650">{{ __('1. Choose Cohort') }}</h2>
                 <div class="space-y-4">
                     <!-- Teacher Selector (Admin only) -->
@@ -108,10 +108,14 @@
                             <button 
                                 type="button"
                                 wire:click="downloadTemplate"
-                                class="w-full inline-flex items-center justify-center gap-2 rounded-md bg-purple-100 hover:bg-purple-200 text-purple-700 px-4 py-2.5 text-sm font-semibold transition dark:bg-purple-950/40 dark:hover:bg-purple-950/60 dark:text-purple-300"
+                                wire:loading.attr="disabled"
+                                wire:target="downloadTemplate"
+                                class="w-full inline-flex items-center justify-center gap-2 rounded-md bg-purple-100 hover:bg-purple-200 text-purple-700 px-4 py-2.5 text-sm font-semibold transition dark:bg-purple-950/40 dark:hover:bg-purple-950/60 dark:text-purple-300 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                <i class="fa-solid fa-file-excel text-base"></i>
-                                {{ __('Download Class List Template') }}
+                                <i class="fa-solid fa-file-excel text-base" wire:loading.remove wire:target="downloadTemplate"></i>
+                                <i class="fa-solid fa-spinner animate-spin text-base" wire:loading wire:target="downloadTemplate"></i>
+                                <span wire:loading.remove wire:target="downloadTemplate">{{ __('Download Class List Template') }}</span>
+                                <span wire:loading wire:target="downloadTemplate">{{ __('Preparing download…') }}</span>
                             </button>
                         </div>
                     @endif
@@ -119,7 +123,7 @@
             </div>
 
             <!-- Upload spreadsheet -->
-            <div class="rounded-lg border border-gray-250 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                 <h2 class="text-sm font-semibold text-gray-950 dark:text-white mb-4 uppercase tracking-wider text-purple-650">{{ __('2. Upload Excel File') }}</h2>
                 <div class="space-y-4">
                     @if (! $level)
@@ -167,7 +171,7 @@
 
         <!-- Preview and Confirm -->
         <div class="lg:col-span-2">
-            <div class="h-full rounded-lg border border-gray-250 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800 flex flex-col">
+            <div class="h-full rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800 flex flex-col">
                 <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
                     <div>
                         <h2 class="text-base font-semibold text-gray-900 dark:text-white">{{ __('Parsed Student Results Preview') }}</h2>
@@ -204,7 +208,7 @@
                                 @foreach ($previewRows as $i => $row)
                                     <tr 
                                         wire:key="preview-row-{{ $i }}" 
-                                        class="hover:bg-gray-50 dark:hover:bg-gray-850"
+                                        class="hover:bg-gray-50 dark:hover:bg-gray-700"
                                         x-data="{
                                             attendance: @entangle('previewRows.'.$i.'.attendance'),
                                             midsem: @entangle('previewRows.'.$i.'.midsem'),

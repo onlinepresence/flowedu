@@ -43,7 +43,7 @@
     </x-slot>
 
     <!-- Filters Section -->
-    <div class="rounded-lg border border-gray-250 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+    <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
         <h2 class="text-sm font-semibold text-gray-950 dark:text-white mb-4 uppercase tracking-wider text-purple-650">{{ __('Course Cohort Filters') }}</h2>
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <!-- Teacher Selector (Admin only) -->
@@ -128,7 +128,7 @@
 
     <!-- Student scores entry list -->
     @if (! empty($scores))
-        <div class="overflow-hidden rounded-lg border border-gray-250 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                     <thead class="bg-gray-50 dark:bg-gray-900/50">
@@ -151,7 +151,7 @@
                         @foreach ($scores as $studentId => $data)
                             <tr 
                                 wire:key="entry-row-{{ $studentId }}"
-                                class="hover:bg-gray-50 dark:hover:bg-gray-850"
+                                class="hover:bg-gray-50 dark:hover:bg-gray-700"
                                 x-data="{
                                     attendance: @entangle('scores.'.$studentId.'.attendance'),
                                     midsem: @entangle('scores.'.$studentId.'.midsem'),
@@ -198,7 +198,7 @@
                                         max="10"
                                         x-model="attendance"
                                         @disabled(! ($data['is_editing'] ?? false))
-                                        class="w-24 mx-auto rounded border-gray-350 px-2.5 py-1 text-center text-sm dark:border-gray-655 dark:bg-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed"
+                                        class="w-24 mx-auto rounded border-gray-200 px-2.5 py-1 text-center text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed"
                                         placeholder="0-10"
                                     />
                                     @error('scores.'.$studentId.'.attendance') <p class="mt-1 text-2xs text-red-500">{{ $message }}</p> @enderror
@@ -211,7 +211,7 @@
                                         max="20"
                                         x-model="midsem"
                                         @disabled(! ($data['is_editing'] ?? false))
-                                        class="w-24 mx-auto rounded border-gray-350 px-2.5 py-1 text-center text-sm dark:border-gray-655 dark:bg-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed"
+                                        class="w-24 mx-auto rounded border-gray-200 px-2.5 py-1 text-center text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed"
                                         placeholder="0-20"
                                     />
                                     @error('scores.'.$studentId.'.midsem') <p class="mt-1 text-2xs text-red-500">{{ $message }}</p> @enderror
@@ -224,7 +224,7 @@
                                         max="10"
                                         x-model="project"
                                         @disabled(! ($data['is_editing'] ?? false))
-                                        class="w-24 mx-auto rounded border-gray-350 px-2.5 py-1 text-center text-sm dark:border-gray-655 dark:bg-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed"
+                                        class="w-24 mx-auto rounded border-gray-200 px-2.5 py-1 text-center text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed"
                                         placeholder="0-10"
                                     />
                                     @error('scores.'.$studentId.'.project') <p class="mt-1 text-2xs text-red-500">{{ $message }}</p> @enderror
@@ -237,7 +237,7 @@
                                         max="60"
                                         x-model="exam"
                                         @disabled(! ($data['is_editing'] ?? false))
-                                        class="w-24 mx-auto rounded border-gray-350 px-2.5 py-1 text-center text-sm dark:border-gray-655 dark:bg-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed"
+                                        class="w-24 mx-auto rounded border-gray-200 px-2.5 py-1 text-center text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed"
                                         placeholder="0-60"
                                     />
                                     @error('scores.'.$studentId.'.exam') <p class="mt-1 text-2xs text-red-500">{{ $message }}</p> @enderror
@@ -255,7 +255,7 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-left">
                                     @if (($data['status'] ?? 'new') === 'draft')
                                         <span class="inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700 dark:bg-gray-700 dark:text-gray-300">
-                                            <i class="fa-solid fa-file-signature text-gray-550"></i>
+                                            <i class="fa-solid fa-file-signature text-gray-400"></i>
                                             {{ __('Draft') }}
                                         </span>
                                     @elseif (($data['status'] ?? 'new') === 'pending')
@@ -299,7 +299,7 @@
                         type="button"
                         wire:click="saveScores(true)"
                         wire:loading.attr="disabled"
-                        class="inline-flex justify-center items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-750 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                        class="inline-flex justify-center items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
                     >
                         <i class="fa-solid fa-file-pen mr-2"></i>
                         {{ __('Save as Draft') }}

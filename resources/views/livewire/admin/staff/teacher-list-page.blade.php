@@ -1,27 +1,22 @@
 <div
     class="mx-auto max-w-7xl space-y-6"
-    x-data
-    x-on:open-import-teachers-modal.window="$wire.openImportModal()"
-    x-on:open-create-teacher-modal.window="$wire.openCreateModal()"
 >
     <x-slot name="headerActions">
-        <div class="flex items-center gap-2" x-data>
-            <button
-                type="button"
-                x-on:click="$dispatch('open-import-teachers-modal')"
-                class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-250 dark:hover:bg-gray-700"
+        <div class="flex items-center gap-2">
+            <x-college.button
+                variant="secondary"
+                x-on:click="$dispatch('open-modal', 't-import'); $wire.openImportModal()"
             >
                 <i class="fa-solid fa-file-import"></i>
                 {{ __('Upload teachers') }}
-            </button>
-            <button
-                type="button"
-                x-on:click="$dispatch('open-create-teacher-modal')"
-                class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+            </x-college.button>
+            <x-college.button
+                variant="primary"
+                x-on:click="$dispatch('open-modal', 't-create'); $wire.openCreateModal()"
             >
                 <i class="fa-solid fa-plus"></i>
                 {{ __('Add teacher') }}
-            </button>
+            </x-college.button>
         </div>
     </x-slot>
 
@@ -49,13 +44,16 @@
             </select>
         </div>
         <div class="flex items-end pb-2">
-            <label for="showDeleted" class="inline-flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+            {{-- Single live boolean filter: styled switch on a real checkbox keeps
+                wire:model + keyboard/a11y intact (no JS to break in Livewire). --}}
+            <label for="showDeleted" class="inline-flex cursor-pointer select-none items-center gap-2.5 text-sm font-medium text-gray-700 dark:text-gray-300">
                 <input
                     wire:model.live="showDeleted"
                     id="showDeleted"
                     type="checkbox"
-                    class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700"
+                    class="peer sr-only"
                 />
+                <span aria-hidden="true" class="relative h-5 w-9 shrink-0 rounded-full bg-gray-200 transition-colors duration-200 peer-checked:bg-indigo-600 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-indigo-600 dark:bg-gray-700 dark:peer-checked:bg-indigo-500 after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow after:transition-transform after:duration-200 peer-checked:after:translate-x-4"></span>
                 <span>{{ __('Show Archived') }}</span>
             </label>
         </div>
@@ -78,8 +76,13 @@
                     @forelse ($teachers as $t)
                         <tr wire:key="t-{{ $t->id }}" class="{{ $t->trashed() ? 'bg-amber-50/50 dark:bg-amber-950/20' : '' }}">
                             <td class="px-6 py-4 text-sm">
-                                <div class="font-medium text-gray-900 dark:text-white">{{ $t->lastname }} {{ $t->othernames }}</div>
-                                <div class="text-xs text-gray-500 dark:text-gray-400">{{ $t->user?->email }}</div>
+                                <div class="flex items-center gap-3">
+                                    <x-college.avatar :src="$t->profile_pic ? asset('storage/' . $t->profile_pic) : null" :name="$t->lastname . ' ' . $t->othernames" size="sm" />
+                                    <div>
+                                        <div class="font-medium text-gray-900 dark:text-white">{{ $t->lastname }} {{ $t->othernames }}</div>
+                                        <div class="text-xs text-gray-500 dark:text-gray-400">{{ $t->user?->email }}</div>
+                                    </div>
+                                </div>
                             </td>
                             <td class="px-6 py-4 font-mono text-sm text-gray-600 dark:text-gray-300">
                                 {{ $t->staff_id ?? '—' }}
@@ -107,8 +110,9 @@
                                     <button
                                         type="button"
                                         wire:click="restoreTeacher({{ $t->id }})"
+                                        wire:loading.attr="disabled"
                                         title="{{ __('Restore Teacher') }}"
-                                        class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                                        class="text-green-600 hover:text-green-900 disabled:opacity-50 dark:text-green-400 dark:hover:text-green-300"
                                     >
                                         <i class="fa-solid fa-rotate-left fa-lg"></i>
                                     </button>
@@ -116,6 +120,7 @@
                                     <div class="flex justify-end gap-3">
                                         <button
                                             type="button"
+                                            x-on:click="$dispatch('open-modal', 't-edit')"
                                             wire:click="openEditModal({{ $t->id }})"
                                             title="{{ __('Edit') }}"
                                             class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
@@ -124,9 +129,10 @@
                                         </button>
                                         <button
                                             type="button"
+                                            x-on:click="$dispatch('open-modal', 't-delete')"
                                             wire:click="openDeleteModal({{ $t->id }})"
                                             title="{{ __('Archive') }}"
-                                            class="text-red-600 hover:text-red-900 dark:text-red-450 dark:hover:text-red-355"
+                                            class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
                                         >
                                             <i class="fa-solid fa-trash-can fa-lg"></i>
                                         </button>
@@ -139,12 +145,12 @@
                             <td colspan="5" class="px-6 py-10 text-center">
                                 <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('No teachers match the filter requirements.') }}</p>
                                 <div class="mt-4 flex flex-wrap justify-center gap-2">
-                                    <button type="button" wire:click="openImportModal" class="inline-flex rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-250">
+                                    <x-college.button variant="secondary" x-on:click="$dispatch('open-modal', 't-import'); $wire.openImportModal()">
                                         {{ __('Upload teachers') }}
-                                    </button>
-                                    <button type="button" wire:click="openCreateModal" class="inline-flex rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">
+                                    </x-college.button>
+                                    <x-college.button variant="primary" x-on:click="$dispatch('open-modal', 't-create'); $wire.openCreateModal()">
                                         {{ __('Add teacher') }}
-                                    </button>
+                                    </x-college.button>
                                 </div>
                             </td>
                         </tr>
@@ -155,9 +161,9 @@
         <div class="border-t border-gray-200 px-6 py-4 dark:border-gray-700">{{ $teachers->links() }}</div>
     </div>
 
-    <!-- Create Teacher Modal -->
-    @if ($showCreateModal)
-        <x-college.modal name="t-create" :title="__('Add Teacher Account')" :show="true" maxWidth="lg" livewireSynced>
+    <!-- Create Teacher Modal: always rendered, opens instantly via Alpine;
+         Livewire resets the form in the background (no server wait to see it). -->
+    <x-college.modal name="t-create" :title="__('Add Teacher Account')" :show="$showCreateModal" maxWidth="lg">
             <form id="t-create-form" wire:submit.prevent="saveCreate" class="grid gap-4 sm:grid-cols-2">
                 <div>
                     <x-input-label for="lastname" :value="__('Last Name')" />
@@ -209,15 +215,15 @@
                 </div>
             </form>
             <x-slot:footer>
-                <button type="button" x-on:click="$dispatch('close-modal', 't-create')" wire:click="closeCreateModal" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-250">{{ __('Cancel') }}</button>
-                <button type="submit" form="t-create-form" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">{{ __('Create') }}</button>
+                <x-college.button variant="secondary" x-on:click="$dispatch('close-modal', 't-create')" wire:click="closeCreateModal">{{ __('Cancel') }}</x-college.button>
+                <x-college.button variant="primary" type="submit" form="t-create-form">{{ __('Create') }}</x-college.button>
             </x-slot:footer>
         </x-college.modal>
-    @endif
 
-    <!-- Import Modal -->
-    @if ($showImportModal)
-        <x-college.modal name="t-import" :title="__('Upload Teachers (Spreadsheet)')" :show="true" maxWidth="lg" livewireSynced>
+    <!-- Import Modal: always rendered for instant open. FilePond root is
+         wire:ignore + re-bound on morph (see filepond-college.js), and the pond
+         is cleared programmatically on close/success so uploads never go stale. -->
+    <x-college.modal name="t-import" :title="__('Upload Teachers (Spreadsheet)')" :show="$showImportModal" maxWidth="lg">
             <p class="text-sm text-gray-600 dark:text-gray-400">
                 {{ __('Upload a CSV or Excel spreadsheet containing your teaching staff. The system supports upserting: duplicate Staff IDs will update existing profiles.') }}
             </p>
@@ -250,18 +256,25 @@
                 <p class="mt-3 text-sm font-medium text-green-700 dark:text-green-400">{{ __('Processed :n accounts.', ['n' => $importCreatedCount]) }}</p>
             @endif
             <x-slot:footer>
-                <button type="button" x-on:click="$dispatch('close-modal', 't-import')" wire:click="closeImportModal" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-250">{{ __('Close') }}</button>
-                <button type="button" wire:click="runImport" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500" wire:loading.attr="disabled">
-                    <span wire:loading.remove><i class="fa-solid fa-cloud-arrow-up mr-1"></i> {{ __('Import') }}</span>
-                    <span wire:loading><i class="fa-solid fa-spinner fa-spin mr-1"></i> {{ __('Processing…') }}</span>
-                </button>
+                <x-college.button variant="secondary" x-on:click="$dispatch('close-modal', 't-import')" wire:click="closeImportModal">{{ __('Close') }}</x-college.button>
+                <x-college.button variant="primary" wire:click="runImport" wire:loading.attr="disabled">
+                    <span wire:loading.remove wire:target="runImport"><i class="fa-solid fa-cloud-arrow-up mr-1"></i> {{ __('Import') }}</span>
+                    <span wire:loading wire:target="runImport"><i class="fa-solid fa-spinner fa-spin mr-1"></i> {{ __('Processing…') }}</span>
+                </x-college.button>
             </x-slot:footer>
         </x-college.modal>
-    @endif
 
-    <!-- Edit Teacher Modal -->
-    @if ($showEditModal)
-        <x-college.modal name="t-edit" :title="__('Edit Teacher Account')" :show="true" maxWidth="lg" livewireSynced>
+    <!-- Edit Teacher Modal: shell opens instantly; the form area shows a skeleton
+         while Livewire loads the teacher (no stale-record flash). -->
+    <x-college.modal name="t-edit" :title="__('Edit Teacher Account')" :show="$showEditModal" maxWidth="lg">
+        <div wire:loading.delay wire:target="openEditModal" class="grid animate-pulse gap-4 sm:grid-cols-2" aria-hidden="true">
+            <div class="h-10 rounded-lg bg-gray-100 dark:bg-gray-700"></div>
+            <div class="h-10 rounded-lg bg-gray-100 dark:bg-gray-700"></div>
+            <div class="h-10 rounded-lg bg-gray-100 dark:bg-gray-700 sm:col-span-2"></div>
+            <div class="h-10 rounded-lg bg-gray-100 dark:bg-gray-700"></div>
+            <div class="h-10 rounded-lg bg-gray-100 dark:bg-gray-700"></div>
+        </div>
+        <div wire:loading.remove wire:target="openEditModal">
             <form id="t-edit-form" wire:submit.prevent="saveEdit" class="grid gap-4 sm:grid-cols-2">
                 <div>
                     <x-input-label for="edit_lastname" :value="__('Last Name')" />
@@ -317,28 +330,26 @@
                     <x-input-error :messages="$errors->get('active')" class="mt-1" />
                 </div>
             </form>
+        </div>
             <x-slot:footer>
-                <button type="button" x-on:click="$dispatch('close-modal', 't-edit')" wire:click="closeEditModal" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-250">{{ __('Cancel') }}</button>
-                <button type="submit" form="t-edit-form" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">{{ __('Save') }}</button>
+                <x-college.button variant="secondary" x-on:click="$dispatch('close-modal', 't-edit')" wire:click="closeEditModal">{{ __('Cancel') }}</x-college.button>
+                <x-college.button variant="primary" type="submit" form="t-edit-form">{{ __('Save') }}</x-college.button>
             </x-slot:footer>
         </x-college.modal>
-    @endif
 
-    <!-- Delete Confirmation Modal -->
-    @if ($showDeleteModal)
-        <x-college.modal name="t-delete" :title="__('Archive Teacher Account?')" :show="true" maxWidth="md" livewireSynced>
+    <!-- Delete Confirmation Modal: always rendered; id is set in background. -->
+    <x-college.modal name="t-delete" :title="__('Archive Teacher Account?')" :show="$showDeleteModal" maxWidth="md">
             <p class="text-sm text-gray-600 dark:text-gray-400">
                 {{ __('Are you sure you want to archive this teacher account? The database record will be preserved (soft deleted) but the associated user credentials will be deactivated immediately, preventing them from logging in.') }}
             </p>
             <x-slot:footer>
-                <button type="button" x-on:click="$dispatch('close-modal', 't-delete')" wire:click="closeDeleteModal" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-250">
+                <x-college.button variant="secondary" x-on:click="$dispatch('close-modal', 't-delete')" wire:click="closeDeleteModal">
                     {{ __('Cancel') }}
-                </button>
-                <button type="button" wire:click="confirmDelete" wire:loading.attr="disabled" wire:target="confirmDelete" class="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-50">
+                </x-college.button>
+                <x-college.button variant="danger" wire:click="confirmDelete" wire:loading.attr="disabled" wire:target="confirmDelete">
                     <span wire:loading.remove wire:target="confirmDelete">{{ __('Archive Account') }}</span>
                     <span wire:loading wire:target="confirmDelete">{{ __('Archiving...') }}</span>
-                </button>
+                </x-college.button>
             </x-slot:footer>
         </x-college.modal>
-    @endif
 </div>

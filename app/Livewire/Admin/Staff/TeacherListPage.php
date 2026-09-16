@@ -257,6 +257,9 @@ class TeacherListPage extends Component
         $this->showImportModal = false;
         $this->importPath = '';
         $this->importErrors = [];
+        // Pond lives in an always-rendered modal now (no @if destroy), so clear
+        // its UI explicitly — otherwise the previous file reappears on reopen.
+        $this->dispatch('clear-filepond');
     }
 
     public function saveCreate(CreateTeacherUser $createTeacherUser): void
@@ -312,6 +315,10 @@ class TeacherListPage extends Component
         $this->importErrors = $result['errors'];
 
         if ($result['created'] > 0) {
+            // Clear the pond + path so the same file can't be re-imported by
+            // accident; results stay visible in the modal.
+            $this->importPath = '';
+            $this->dispatch('clear-filepond');
             $this->resetPage();
             $this->collegeToast(__('Processed :n teacher account(s) (created or updated).', ['n' => $result['created']]));
         }

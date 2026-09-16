@@ -26,7 +26,7 @@
         <!-- Tab 1: Requests & History -->
         <div class="space-y-6">
             <!-- Search & Filter Card -->
-            <div class="rounded-lg border border-gray-250 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                 <div class="grid gap-4 md:grid-cols-4">
                     <div class="relative md:col-span-2">
                         <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{{ __('Search Student') }}</label>
@@ -70,7 +70,7 @@
             </div>
 
             <!-- Requests List -->
-            <div class="overflow-hidden rounded-lg border border-gray-250 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                         <thead class="bg-gray-50 dark:bg-gray-900/50">
@@ -86,18 +86,18 @@
                         </thead>
                         <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                             @forelse ($requestRows as $row)
-                                <tr wire:key="request-row-{{ $row['id'] }}" class="hover:bg-gray-50 dark:hover:bg-gray-850">
+                                <tr wire:key="request-row-{{ $row['id'] }}" class="hover:bg-gray-50 dark:hover:bg-gray-700">
                                     <td class="px-6 py-4 font-semibold text-gray-900 dark:text-white whitespace-nowrap">
                                         {{ $row['index_number'] }}
                                     </td>
                                     <td class="px-6 py-4 text-gray-700 dark:text-gray-300 font-medium">
                                         {{ $row['name'] }}
-                                        <div class="text-3xs text-gray-450 mt-0.5">{{ $row['program_name'] }}</div>
+                                        <div class="text-3xs text-gray-500 mt-0.5">{{ $row['program_name'] }}</div>
                                     </td>
                                     <td class="px-6 py-4 text-gray-600 dark:text-gray-400 max-w-xs truncate">
                                         {{ $row['purpose'] }}
                                     </td>
-                                    <td class="px-6 py-4 text-center text-gray-650 dark:text-gray-450 font-mono whitespace-nowrap">
+                                    <td class="px-6 py-4 text-center text-gray-600 dark:text-gray-500 font-mono whitespace-nowrap">
                                         {{ $row['created_at']->format('Y-m-d H:i') }}
                                     </td>
                                     <td class="px-6 py-4 text-center font-bold text-purple-700 dark:text-purple-300 bg-purple-50/30 dark:bg-purple-950/10">
@@ -175,7 +175,7 @@
         <!-- Tab 2: Generate Transcript Form -->
         <div class="grid gap-6 lg:grid-cols-3">
             <div class="lg:col-span-1">
-                <div class="rounded-lg border border-gray-250 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                     <h2 class="text-sm font-semibold text-gray-950 dark:text-white mb-4 uppercase tracking-wider text-purple-650">
                         {{ __('Generate Single Student Transcript') }}
                     </h2>
@@ -241,7 +241,7 @@
                                     <h3 class="text-sm font-bold text-purple-700 dark:text-purple-450 border-b border-purple-100 dark:border-purple-900/50 pb-2 mb-3">
                                         {{ $semKey }}
                                     </h3>
-                                    <table class="min-w-full divide-y divide-gray-250 dark:divide-gray-700 text-xs">
+                                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-xs">
                                         <thead>
                                             <tr>
                                                 <th scope="col" class="py-2 text-left font-semibold text-gray-500">{{ __('Course Code') }}</th>
@@ -258,13 +258,13 @@
                                                     <td class="py-2 text-gray-700 dark:text-gray-300">{{ $res['name'] }}</td>
                                                     <td class="py-2 text-center text-gray-600 dark:text-gray-400">{{ $res['score'] }}</td>
                                                     <td class="py-2 text-center font-bold text-gray-900 dark:text-white">{{ $res['grade'] }}</td>
-                                                    <td class="py-2 text-center text-gray-650 dark:text-gray-450">{{ $res['points'] }}</td>
+                                                    <td class="py-2 text-center text-gray-600 dark:text-gray-500">{{ $res['points'] }}</td>
                                                 </tr>
                                             @endforeach
                                         </tbody>
                                     </table>
 
-                                    <div class="mt-3 flex justify-between items-center bg-gray-50 dark:bg-gray-900/30 p-2.5 rounded text-2xs font-bold text-gray-650 dark:text-gray-350">
+                                    <div class="mt-3 flex justify-between items-center bg-gray-50 dark:bg-gray-900/30 p-2.5 rounded text-2xs font-bold text-gray-600 dark:text-gray-300">
                                         <div>{{ __('Semester GPA:') }} <span class="text-purple-700 ml-1">{{ $semData['gpa'] }}</span></div>
                                         <div>{{ __('Cumulative CGPA:') }} <span class="text-purple-700 ml-1">{{ $semData['cgpa'] }}</span></div>
                                     </div>
@@ -337,7 +337,7 @@
                             <h3 class="text-sm font-bold text-purple-700 dark:text-purple-450 border-b border-purple-100 dark:border-purple-900/50 pb-2 mb-3">
                                 {{ $semKey }}
                             </h3>
-                            <table class="min-w-full divide-y divide-gray-250 dark:divide-gray-700 text-xs">
+                            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-xs">
                                 <thead>
                                     <tr>
                                         <th scope="col" class="py-2 text-left font-semibold text-gray-500">{{ __('Course Code') }}</th>
@@ -354,13 +354,13 @@
                                             <td class="py-2 text-gray-700 dark:text-gray-300">{{ $res['name'] }}</td>
                                             <td class="py-2 text-center text-gray-600 dark:text-gray-400">{{ $res['score'] }}</td>
                                             <td class="py-2 text-center font-bold text-gray-900 dark:text-white">{{ $res['grade'] }}</td>
-                                            <td class="py-2 text-center text-gray-650 dark:text-gray-450">{{ $res['points'] }}</td>
+                                            <td class="py-2 text-center text-gray-600 dark:text-gray-500">{{ $res['points'] }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>
                             </table>
 
-                            <div class="mt-3 flex justify-between items-center bg-gray-50 dark:bg-gray-900/30 p-2.5 rounded text-2xs font-bold text-gray-650 dark:text-gray-350">
+                            <div class="mt-3 flex justify-between items-center bg-gray-50 dark:bg-gray-900/30 p-2.5 rounded text-2xs font-bold text-gray-600 dark:text-gray-300">
                                 <div>{{ __('Semester GPA:') }} <span class="text-purple-700 ml-1">{{ $semData['gpa'] }}</span></div>
                                 <div>{{ __('Cumulative CGPA:') }} <span class="text-purple-700 ml-1">{{ $semData['cgpa'] }}</span></div>
                             </div>

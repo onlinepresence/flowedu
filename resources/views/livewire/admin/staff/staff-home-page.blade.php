@@ -67,7 +67,7 @@
     </div>
 
     <!-- Filters Section -->
-    <div class="grid gap-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:grid-cols-2 md:grid-cols-4">
+    <x-college.filter-card cols="4">
         <div>
             <x-input-label for="search" :value="__('Search')" />
             <x-text-input id="search" type="text" class="mt-1 block w-full text-sm" placeholder="{{ __('Name, email, staff number...') }}" wire:model.live.debounce.300ms="search" />
@@ -97,7 +97,7 @@
                 <option value="inactive">{{ __('Inactive') }}</option>
             </select>
         </div>
-    </div>
+    </x-college.filter-card>
 
     <!-- Directory Table Section -->
     <div class="relative overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
@@ -132,7 +132,7 @@
                         <tr wire:key="staff-{{ $member->id }}">
                             <td class="px-6 py-4">
                                 <div class="flex items-center gap-3">
-                                    <x-college.avatar :src="$profileUrl" :name="$member->name" size="h-9 w-9" />
+                                    <x-college.avatar :src="$profileUrl" :name="$member->name" size="sm" />
                                     <div>
                                         <div class="text-sm font-semibold text-gray-900 dark:text-white">
                                             {{ $member->name }}

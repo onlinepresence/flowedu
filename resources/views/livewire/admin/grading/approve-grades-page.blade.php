@@ -30,7 +30,7 @@
     </x-slot>
 
     <!-- Filters Section -->
-    <div x-data="{ openFilters: false }" class="rounded-lg border border-gray-250 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+    <div x-data="{ openFilters: false }" class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
         <div class="flex items-center justify-between mb-4">
             <h2 class="text-sm font-semibold text-gray-950 dark:text-white uppercase tracking-wider text-purple-650">{{ __('Cascade Approval Filters') }}</h2>
             <button 
@@ -151,7 +151,7 @@
                 </thead>
                 <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                     @forelse ($cohorts as $cohort)
-                        <tr wire:key="cohort-{{ $cohort->teacher_id }}-{{ $cohort->course_id }}" class="hover:bg-gray-50 dark:hover:bg-gray-850">
+                        <tr wire:key="cohort-{{ $cohort->teacher_id }}-{{ $cohort->course_id }}" class="hover:bg-gray-50 dark:hover:bg-gray-700">
                             <td class="px-6 py-4">
                                 <div class="font-medium text-gray-900 dark:text-white">{{ $cohort->program_name }}</div>
                                 <div class="text-xs text-gray-500 dark:text-gray-400">{{ __('Year Level:') }} {{ $cohort->level }}</div>

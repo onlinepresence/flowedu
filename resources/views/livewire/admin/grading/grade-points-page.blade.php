@@ -3,7 +3,7 @@
         <button 
             type="button" 
             x-data
-            x-on:click="$dispatch('open-auto-generate')"
+            x-on:click="$dispatch('open-modal', 'auto-generate-modal'); $dispatch('open-auto-generate')"
             class="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
         >
             <i class="fa-solid fa-magic-wand-sparkles"></i>
@@ -21,24 +21,24 @@
                 <form wire:submit="saveRow" class="mt-4 space-y-4">
                     <div>
                         <label class="block text-xs font-medium text-gray-700 dark:text-gray-300">{{ __('Grade Letter') }}</label>
-                        <input wire:model="grade" type="text" class="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-650 dark:bg-gray-900 dark:text-white" placeholder="e.g. A" required />
+                        <input wire:model="grade" type="text" class="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-6000 dark:bg-gray-900 dark:text-white" placeholder="e.g. A" required />
                         @error('grade') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-medium text-gray-700 dark:text-gray-300">{{ __('Min Score') }}</label>
-                            <input wire:model="min_score" type="number" step="0.01" min="0" max="100" class="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-655 dark:bg-gray-900 dark:text-white" placeholder="0" required />
+                            <input wire:model="min_score" type="number" step="0.01" min="0" max="100" class="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white" placeholder="0" required />
                             @error('min_score') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 dark:text-gray-300">{{ __('Max Score') }}</label>
-                            <input wire:model="max_score" type="number" step="0.01" min="0" max="100" class="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-655 dark:bg-gray-900 dark:text-white" placeholder="100" required />
+                            <input wire:model="max_score" type="number" step="0.01" min="0" max="100" class="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white" placeholder="100" required />
                             @error('max_score') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                         </div>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-700 dark:text-gray-300">{{ __('GPA Points') }}</label>
-                        <input wire:model="points" type="number" step="0.01" min="0" max="10" class="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-655 dark:bg-gray-900 dark:text-white" placeholder="4.0" required />
+                        <input wire:model="points" type="number" step="0.01" min="0" max="10" class="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white" placeholder="4.0" required />
                         @error('points') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                     </div>
                     <div class="flex gap-2 pt-2">
@@ -74,7 +74,7 @@
                         </thead>
                         <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                             @forelse ($rows as $row)
-                                <tr wire:key="gp-{{ $row->id }}" class="hover:bg-gray-50 dark:hover:bg-gray-850">
+                                <tr wire:key="gp-{{ $row->id }}" class="hover:bg-gray-50 dark:hover:bg-gray-700">
                                     <td class="px-6 py-4">
                                         <span class="inline-flex items-center rounded-md bg-purple-50 px-2.5 py-0.5 text-sm font-semibold text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
                                             {{ $row->grade }}
@@ -124,12 +124,13 @@
         </div>
     </div>
 
-    <!-- Auto Generate Modal -->
-    @if ($showAutoGenerateModal)
-        <x-college.modal
+    <!-- Auto Generate Modal: always rendered. Alpine opens it instantly while
+         Livewire prepares the defaults in the background, so backdrop/Escape
+         closes can never desync a Livewire boolean and break reopening. -->
+    <x-college.modal
             name="auto-generate-modal"
             :title="__('Auto Generate Grade Bands')"
-            :show="true"
+            :show="$showAutoGenerateModal"
             maxWidth="3xl"
         >
             <form wire:submit="saveAutoGenerated" class="space-y-4">
@@ -155,16 +156,16 @@
                                         <input wire:model="defaultGradePoints.{{ $i }}.selected" type="checkbox" class="rounded border-gray-300 text-purple-600 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900" />
                                     </td>
                                     <td class="px-4 py-2 font-medium text-gray-900 dark:text-white">
-                                        <input wire:model="defaultGradePoints.{{ $i }}.grade" type="text" class="w-16 rounded border-gray-300 px-2 py-1 text-sm dark:border-gray-655 dark:bg-gray-900 dark:text-white" />
+                                        <input wire:model="defaultGradePoints.{{ $i }}.grade" type="text" class="w-16 rounded border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white" />
                                     </td>
                                     <td class="px-4 py-2">
-                                        <input wire:model="defaultGradePoints.{{ $i }}.min_score" type="number" step="0.01" class="w-24 rounded border-gray-300 px-2 py-1 text-sm dark:border-gray-655 dark:bg-gray-900 dark:text-white" />
+                                        <input wire:model="defaultGradePoints.{{ $i }}.min_score" type="number" step="0.01" class="w-24 rounded border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white" />
                                     </td>
                                     <td class="px-4 py-2">
-                                        <input wire:model="defaultGradePoints.{{ $i }}.max_score" type="number" step="0.01" class="w-24 rounded border-gray-300 px-2 py-1 text-sm dark:border-gray-655 dark:bg-gray-900 dark:text-white" />
+                                        <input wire:model="defaultGradePoints.{{ $i }}.max_score" type="number" step="0.01" class="w-24 rounded border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white" />
                                     </td>
                                     <td class="px-4 py-2">
-                                        <input wire:model="defaultGradePoints.{{ $i }}.points" type="number" step="0.01" class="w-20 rounded border-gray-300 px-2 py-1 text-sm dark:border-gray-655 dark:bg-gray-900 dark:text-white" />
+                                        <input wire:model="defaultGradePoints.{{ $i }}.points" type="number" step="0.01" class="w-20 rounded border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white" />
                                     </td>
                                 </tr>
                             @endforeach
@@ -175,6 +176,7 @@
                 <div class="flex justify-end gap-2 border-t border-gray-200 pt-4 dark:border-gray-700">
                     <button
                         type="button"
+                        x-on:click="$dispatch('close-modal', 'auto-generate-modal')"
                         wire:click="$set('showAutoGenerateModal', false)"
                         class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                     >
@@ -186,7 +188,6 @@
                 </div>
             </form>
         </x-college.modal>
-    @endif
 
     <!-- Delete Confirmation Modal -->
     <x-college.confirm-modal

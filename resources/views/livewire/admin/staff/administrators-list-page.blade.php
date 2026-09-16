@@ -15,7 +15,7 @@
     </x-slot>
 
     <!-- Filters Section -->
-    <div class="grid gap-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:grid-cols-2 md:grid-cols-5">
+    <x-college.filter-card cols="5">
         <div>
             <x-input-label for="search" :value="__('Search')" />
             <x-text-input id="search" type="text" class="mt-1 block w-full text-sm" placeholder="{{ __('Name, email, phone...') }}" wire:model.live.debounce.300ms="search" />
@@ -55,7 +55,7 @@
                 <option value="inactive">{{ __('Inactive') }}</option>
             </select>
         </div>
-    </div>
+    </x-college.filter-card>
 
     <!-- Table Section -->
     <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
@@ -75,7 +75,8 @@
                     @forelse ($admins as $admin)
                         <tr wire:key="admin-{{ $admin->id }}">
                             <td class="px-6 py-4">
-                                <div class="flex items-center">
+                                <div class="flex items-center gap-3">
+                                    <x-college.avatar :src="$admin->profile_pic ? asset('storage/' . $admin->profile_pic) : null" :name="$admin->othernames . ' ' . $admin->lastname" size="sm" />
                                     <div>
                                         <div class="text-sm font-medium text-gray-900 dark:text-white">
                                             {{ $admin->othernames }} {{ $admin->lastname }}
