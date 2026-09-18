@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Middleware\ConfigureDemoDatabase;
 use App\Http\Middleware\EnsureAdminProfileComplete;
 use App\Http\Middleware\EnsureAdminRole;
 use App\Http\Middleware\EnsureAdmissionOpen;
@@ -14,8 +13,8 @@ use App\Http\Middleware\EnsureTeacherOnboarded;
 use App\Http\Middleware\EnsureTeacherSetupGate;
 use App\Http\Middleware\EnsureUserActive;
 use App\Http\Middleware\EnsureUserType;
+use App\Http\Middleware\EnsureDemoKeyGate;
 use App\Http\Middleware\ExtendUserFlash;
-use App\Http\Middleware\SyncDemoModeSession;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -27,10 +26,6 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->encryptCookies(except: [
-            'demo_mode',
-        ]);
-
         $middleware->redirectUsersTo(fn () => route('post.login.redirect'));
         $middleware->alias([
             'college.bootstrap' => EnsureSchoolBootstrap::class,
@@ -50,11 +45,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(prepend: [
             EnsureServerNotDown::class,
-            ConfigureDemoDatabase::class,
         ]);
 
         $middleware->web(append: [
-            SyncDemoModeSession::class,
+            EnsureDemoKeyGate::class,
             EnsureUserActive::class,
             ExtendUserFlash::class,
         ]);

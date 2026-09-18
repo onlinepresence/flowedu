@@ -70,9 +70,11 @@ class AdminDashboardPage extends Component
         $teachersCount = $this->applyScope(Teacher::query(), $admin)->count();
         $pendingGradesCount = $this->applyScope(Result::query(), $admin, 'course.program')->whereNull('result_slip_id')->count();
 
-        // Finance Stats
-        $totalInvoiced = Invoice::sum('total_amount');
-        $totalCollected = Payment::sum('amount');
+        // Finance Stats (column names must match the schema: invoices.amount,
+        // payments.amount_paid — SQLite silently sums a missing column as 0,
+        // MySQL strict throws 1054, so only value-asserting tests catch this).
+        $totalInvoiced = Invoice::sum('amount');
+        $totalCollected = Payment::sum('amount_paid');
         $totalOutstanding = $totalInvoiced - $totalCollected;
         $totalExpenditure = Expenditure::sum('amount');
 

@@ -27,6 +27,17 @@ Schedule::call(fn () => app(AutoPromotionService::class)->run())
     ->monthlyOn(15, '3:00')
     ->name('college-maintenance-auto-promotion');
 
+/*
+| Single-connection demo refresh: registered monthly ONLY when APP_DEMO is true
+| at schedule-registration time (never unconditional). The command itself
+| re-checks the same env flag before touching the database.
+*/
+if ((bool) config('college.demo_mode', false)) {
+    Schedule::command('demo:refresh')
+        ->monthlyOn(1, '03:00')
+        ->name('demo-refresh-monthly');
+}
+
 Artisan::command('app:process-evaluations', function (EvaluationFormStatusService $service) {
     $this->info('Starting evaluations status updates processing...');
     if ($service->run()) {

@@ -191,38 +191,4 @@
         </div>
     </form>
 
-    @if(config('college.demo_mode') || session('demo_mode'))
-        {{-- Sandbox Reset Option --}}
-        <div class="overflow-hidden rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/20">
-            <h3 class="text-base font-semibold text-amber-905 dark:text-amber-300">
-                {{ __('Reset Demo Database') }}
-            </h3>
-            <p class="mt-2 text-sm text-amber-700 dark:text-amber-400">
-                {{ __('Resetting the demo database deletes all current sandbox data (including any information you added during this session) and regenerates a fresh set of mock records on the next page load.') }}
-            </p>
-            <div class="mt-4">
-                <x-college.demo-reset-button />
-            </div>
-        </div>
-    @else
-        {{-- Global Toggle Option for Superadmin/Owners --}}
-        @if(auth()->user()?->isAdminOwner())
-            <div class="overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                <h3 class="text-base font-semibold text-gray-900 dark:text-white">
-                    {{ __('Global Forced Demo Mode') }}
-                </h3>
-                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                    {{ __('Enabling this locks the entire application globally into demo mode. Visitors will be forced into the demo SQLite connection and won\'t be able to switch to live mode.') }}
-                </p>
-                <form action="{{ route('demo.toggle-global') }}" method="POST" class="mt-4">
-                    @csrf
-                    <input type="hidden" name="enabled" value="{{ config('college.demo_mode') ? 'false' : 'true' }}" />
-                    <button type="submit" class="inline-flex items-center rounded-md px-4 py-2 text-sm font-semibold shadow-sm transition {{ config('college.demo_mode') ? 'bg-red-600 text-white hover:bg-red-500' : 'bg-purple-600 text-white hover:bg-purple-500' }}">
-                        <i class="fa-solid {{ config('college.demo_mode') ? 'fa-toggle-on' : 'fa-toggle-off' }} mr-2 text-base"></i>
-                        {{ config('college.demo_mode') ? __('Disable Global Demo Mode') : __('Enable Global Demo Mode') }}
-                    </button>
-                </form>
-            </div>
-        @endif
-    @endif
 </div>

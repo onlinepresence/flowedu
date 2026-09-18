@@ -46,6 +46,50 @@ Defined in [`routes/console.php`](../routes/console.php). Production crontab sho
 
 Tasks: evaluation maintenance (hourly), semester status (hourly), auto-promotion (monthly on the 15th at 03:00). Manual run: `php artisan college:maintenance`.
 
+## Demo (single-connection)
+
+`APP_DEMO=true` with `DB_*` pointed at the demo MySQL database IS the whole mechanism.
+No second DB, no runtime connection swapping. Demo vs production is one flag
+(`config('college.demo_mode')` wired to `APP_DEMO`) over identical code.
+
+When `APP_DEMO=true`: demo banner on all pages, demo credentials hint on login,
+mail forced to `log` driver, public registration closed (seeded users only).
+Licence enforcement STAYS ON — the seeded `school_licences` row governs features.
+
+Key gate: `DEMO_KEY` env bypasses the key-entry screen entirely (the hosted instance
+lives here). Without it, visitors see `GET /demo/key` (403-style, FlowEdu landing look,
+Alpine form, no Livewire) and must enter a key once per session
+(`session('demo_key_accepted')`). Validation lives in
+[`DemoKeyVerifier`](../app/Services/DemoKeyVerifier.php) — currently any 8–64 char
+`[A-Za-z0-9-_]` code is accepted and logged; the seam is marked with a TODO for the
+future ControlDesk verify call.
+
+### Provisioning the demo DB + user (DDL scoped to it)
+
+```sql
+-- Final database/user names to be confirmed by owner.
+CREATE DATABASE IF NOT EXISTS `flowedu_demo`
+  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE USER IF NOT EXISTS 'flowedu_demo'@'127.0.0.1' IDENTIFIED BY 'change-me';
+GRANT ALL PRIVILEGES ON `flowedu_demo`.* TO 'flowedu_demo'@'127.0.0.1';
+FLUSH PRIVILEGES;
+```
+
+Point the demo host `.env` at it (`DB_DATABASE=flowedu_demo`, `DB_USERNAME=flowedu_demo`),
+set `APP_DEMO=true` and `DEMO_KEY=<hosted-key>`, then `php artisan migrate --force`
+plus `php artisan db:seed --class="Database\Seeders\DemoDataSeeder" --force`.
+
+### Monthly refresh
+
+`php artisan demo:refresh` runs `migrate:fresh` on the DEFAULT connection plus
+`DemoDataSeeder`. Its only restriction is `APP_DEMO=true` in env (no database-name
+check). [`routes/console.php`](../routes/console.php) registers it
+(`demo-refresh-monthly`, monthly on the 1st at 03:00) ONLY when `APP_DEMO` is true —
+never unconditionally. There is no public HTTP reset.
+
+Key rotation = change `DEMO_KEY`.
+
 ## Queue workers
 
 Default queue connection is `database` (see `.env` `QUEUE_CONNECTION`). After migrations include `jobs` / `failed_jobs`, run at least one worker:

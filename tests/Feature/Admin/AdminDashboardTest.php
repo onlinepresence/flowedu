@@ -153,6 +153,83 @@ class AdminDashboardTest extends TestCase
             ->assertViewHas('programsCount', 1);
     }
 
+    public function test_finance_stats_sum_correct_schema_columns(): void
+    {
+        // Regression: AdminDashboardPage summed invoices.total_amount (InvoiceItem's
+        // column) and payments.amount (no such column). SQLite silently sums a missing
+        // column as 0 while MySQL strict throws 1054 — so assert VALUES, not just 200.
+        $user = $this->actingUserWithRole('owner');
+
+        \App\Models\Invoice::query()->create([
+            'invoice_number' => 'INV-REG-001',
+            'vendor_name' => 'Regression Vendor',
+            'amount' => 500.00,
+            'invoice_date' => now()->toDateString(),
+            'due_date' => now()->addMonth()->toDateString(),
+        ]);
+
+        $faculty = \App\Models\Faculty::query()->create(['name' => 'Finance Faculty']);
+        $dept = \App\Models\Department::query()->forceCreate([
+            'name' => 'Finance Dept',
+            'faculty_id' => $faculty->id,
+        ]);
+        $program = \App\Models\Program::query()->forceCreate([
+            'name' => 'Finance Prog',
+            'department_id' => $dept->id,
+            'certificate' => 'BSc',
+            'cost' => 1000,
+            'program_length' => 4,
+        ]);
+        $session = \App\Models\AcademicSession::query()->create([
+            'name' => '2025/2026',
+            'start_date' => '2025-09-01',
+            'end_date' => '2026-06-30',
+            'is_current' => true,
+        ]);
+        $structure = \App\Models\FeeStructure::query()->create([
+            'program_id' => $program->id,
+            'level' => 100,
+            'session_id' => $session->id,
+            'tuition_fee' => 1000.00,
+            'total_amount' => 1000.00,
+            'created_by' => $user->id,
+        ]);
+        $studentUser = User::factory()->create(['type' => 'student']);
+        $hall = \App\Models\Hall::query()->create([
+            'name' => 'Finance Hall',
+            'cost' => 0,
+            'period' => 'per_year',
+        ]);
+        $student = \App\Models\Student::query()->forceCreate([
+            'user_id' => $studentUser->id,
+            'index_number' => 'FIN1',
+            'admission_index' => 'FIN1',
+            'lastname' => 'Pay',
+            'firstname' => 'Pat',
+            'date_of_birth' => '2001-01-01',
+            'gender' => 'female',
+            'nationality' => 'GH',
+            'contact_address' => 'Addr',
+            'phone_number' => '0240000009',
+            'profile_pic' => 'p.png',
+            'approved' => true,
+            'department_id' => $dept->id,
+            'hall_id' => $hall->id,
+        ]);
+        \App\Models\Payment::query()->create([
+            'student_id' => $student->id,
+            'fee_structure_id' => $structure->id,
+            'amount_paid' => 200.00,
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(AdminDashboardPage::class)
+            ->assertViewHas('totalInvoiced', 500)
+            ->assertViewHas('totalCollected', 200)
+            ->assertViewHas('totalOutstanding', 300)
+            ->assertStatus(200);
+    }
+
     public function test_dean_scopes_students_to_their_faculty(): void
     {
         // Create 2 faculties

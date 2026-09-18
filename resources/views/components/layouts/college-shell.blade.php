@@ -22,16 +22,6 @@
     $initials = $nameParts !== []
         ? mb_strtoupper(mb_substr($nameParts[0], 0, 1).(isset($nameParts[1]) ? mb_substr($nameParts[1], 0, 1) : ''))
         : mb_strtoupper(mb_substr((string) $user->email, 0, 1));
-
-    $showDemoToggle = false;
-    if ($user !== null) {
-        if ($user->type === 'admin' && ($user->isAdminOwner() || $user->adminRoleSlug() === 'system_admin')) {
-            $schoolRecord = \App\Models\School::current();
-            if ($schoolRecord !== null && $schoolRecord->ready) {
-                $showDemoToggle = true;
-            }
-        }
-    }
 @endphp
 
 <!DOCTYPE html>
@@ -187,23 +177,13 @@
                         {{ $sidebar }}
                     </div>
 
-                    <!-- Mobile/Tablet specific components at the bottom of the sidebar -->
-                    @if($showDemoToggle)
+                    <!-- Demo banner (single-connection mode): config flag only, no toggle -->
+                    @if(config('college.demo_mode'))
                         <div class="md:hidden px-6 py-2.5 border-t border-gray-100 dark:border-gray-700">
-                            @if(config('college.demo_mode'))
-                                <span class="inline-flex w-full justify-center items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                                    <span class="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                                    Demo Mode
-                                </span>
-                            @else
-                                <form action="{{ route('demo.toggle') }}" method="POST" class="w-full">
-                                    @csrf
-                                    <button type="submit" class="w-full inline-flex justify-center items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-semibold shadow-sm transition-all focus-visible:outline focus-visible:outline-2 {{ session('demo_mode') ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-955/40 dark:text-amber-300 dark:hover:bg-amber-900/50' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-305 dark:hover:bg-gray-600' }}">
-                                        <span class="h-1.5 w-1.5 rounded-full {{ session('demo_mode') ? 'bg-amber-500 animate-pulse' : 'bg-green-500' }}"></span>
-                                        {{ session('demo_mode') ? 'Demo Mode' : 'Live Mode' }}
-                                    </button>
-                                </form>
-                            @endif
+                            <span class="inline-flex w-full justify-center items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                                <span class="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                Demo Mode
+                            </span>
                         </div>
                     @endif
 
@@ -284,22 +264,12 @@
                         <livewire:navigation.global-search />
 
                         <ul class="flex shrink-0 items-center space-x-4 sm:space-x-6">
-                            @if($showDemoToggle)
+                            @if(config('college.demo_mode'))
                                 <li class="hidden md:flex items-center">
-                                    @if(config('college.demo_mode'))
-                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                                            <span class="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                                            Demo Mode
-                                        </span>
-                                    @else
-                                        <form action="{{ route('demo.toggle') }}" method="POST" class="inline">
-                                            @csrf
-                                            <button type="submit" class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold shadow-sm transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 {{ session('demo_mode') ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/50' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600' }}">
-                                                <span class="h-1.5 w-1.5 rounded-full {{ session('demo_mode') ? 'bg-amber-500 animate-pulse' : 'bg-green-500' }}"></span>
-                                                {{ session('demo_mode') ? 'Demo Mode' : 'Live Mode' }}
-                                            </button>
-                                        </form>
-                                    @endif
+                                    <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                        Demo Mode
+                                    </span>
                                 </li>
                             @endif
                             <li class="hidden sm:flex">

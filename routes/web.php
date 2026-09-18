@@ -88,5 +88,32 @@ if (app()->environment('testing', 'local')) {
 
 require __DIR__.'/auth.php';
 
-// Software Demo Mode routes
-require __DIR__.'/demo-routes.php';
+// Single-connection demo key gate (session only; DEMO_KEY env bypasses entirely).
+Route::get('/demo/key', function () {
+    if (! (bool) config('college.demo_mode', false)) {
+        abort(404);
+    }
+
+    if (trim((string) (config('college.demo_key') ?? '')) !== '') {
+        return redirect()->route('login');
+    }
+
+    return response()->view('demo.key', ['error' => session('demo_key_error')], 200);
+})->name('demo.key.show');
+
+Route::post('/demo/key', function (\Illuminate\Http\Request $request, \App\Services\DemoKeyVerifier $verifier) {
+    if (! (bool) config('college.demo_mode', false)) {
+        abort(404);
+    }
+
+    $code = (string) $request->input('code', '');
+
+    if ($verifier->verify($code, $request->getHost())) {
+        $request->session()->put('demo_key_accepted', true);
+        $request->session()->forget('demo_key_error');
+
+        return redirect()->intended(route('login'));
+    }
+
+    return redirect()->route('demo.key.show')->with('demo_key_error', __('That key did not look right. Check it and try again.'));
+})->name('demo.key.store');

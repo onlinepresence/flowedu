@@ -37,6 +37,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Single-connection demo: identical code, mail forced to log driver.
+        if ((bool) config('college.demo_mode', false)) {
+            config(['mail.default' => 'log']);
+        }
+
         Schema::defaultStringLength(191);
         Gate::policy(User::class, UserPolicy::class);
 

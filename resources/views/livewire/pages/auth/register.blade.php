@@ -20,6 +20,11 @@ new #[Layout('layouts.guest')] class extends Component
 
     public function mount(): void
     {
+        // Single-connection demo: public registration closed (seeded users only).
+        if ((bool) config('college.demo_mode', false)) {
+            abort(403, __('Public registration is closed in demo mode.'));
+        }
+
         $adminBootstrap = (bool) session('admin_register', false);
         if (!$adminBootstrap) {
             $allowReg = \App\Models\Setting::query()
@@ -36,6 +41,10 @@ new #[Layout('layouts.guest')] class extends Component
      */
     public function register(): void
     {
+        if ((bool) config('college.demo_mode', false)) {
+            abort(403, __('Public registration is closed in demo mode.'));
+        }
+
         $adminBootstrap = (bool) session('admin_register', false);
 
         $rules = [

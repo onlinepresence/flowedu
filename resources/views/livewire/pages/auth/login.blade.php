@@ -102,7 +102,7 @@ new #[Layout('layouts.guest')] class extends Component
             </p>
         @endif
 
-        @if (Route::has('register') && $allowSelfRegistration)
+        @if (Route::has('register') && $allowSelfRegistration && ! config('college.demo_mode'))
             <p class="mt-1">
                 <a class="text-sm font-medium text-purple-600 hover:underline dark:text-purple-400" href="{{ route('register') }}" wire:navigate>
                     {{ __('Create account') }}
@@ -111,7 +111,7 @@ new #[Layout('layouts.guest')] class extends Component
         @endif
     </form>
 
-    @if(config('college.demo_mode') || session('demo_mode'))
+    @if(config('college.demo_mode'))
         <div class="mt-6 border-t border-gray-200 pt-6 dark:border-gray-700" x-data>
             <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                 Quick Demo Login
@@ -135,8 +135,7 @@ new #[Layout('layouts.guest')] class extends Component
             </div>
 
             <div class="mt-4 flex items-center justify-between">
-                <p class="text-xs text-gray-500 dark:text-gray-500">{{ __('All data resets automatically.') }}</p>
-                <x-college.demo-reset-button />
+                <p class="text-xs text-gray-500 dark:text-gray-500">{{ __('Demo credentials: use any seeded demo account. All data resets automatically.') }}</p>
             </div>
 
             <!-- Admin & Staff Roles Popup Modal -->

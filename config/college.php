@@ -15,10 +15,27 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Forced Demo Mode
+    | Single-connection Demo Mode
     |--------------------------------------------------------------------------
+    |
+    | When true, the app runs against the DEFAULT connection which must point
+    | at the demo MySQL database. There is no second connection and no runtime
+    | connection swapping. All demo/production differences are Blade/config
+    | checks off this flag only.
+    |
     */
     'demo_mode' => filter_var(env('APP_DEMO', false), FILTER_VALIDATE_BOOLEAN),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Demo key (hosted instance bypass)
+    |--------------------------------------------------------------------------
+    |
+    | When non-empty, requests bypass the demo key-entry screen entirely.
+    | Otherwise visitors must enter a key once per session (see DemoKeyVerifier).
+    |
+    */
+    'demo_key' => env('DEMO_KEY'),
 
 
     /*

@@ -28,7 +28,7 @@
     </head>
     <body class="font-[Inter,ui-sans-serif,system-ui,sans-serif] h-full text-gray-900 antialiased dark:text-gray-100">
         <div class="relative flex min-h-full items-center bg-gray-50 p-6 dark:bg-gray-900">
-            @if(config('college.demo_mode') || session('demo_mode'))
+            @if(config('college.demo_mode'))
                 <div class="absolute right-16 top-4 z-10">
                     <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
                         <span class="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"></span>
