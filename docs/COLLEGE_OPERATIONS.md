@@ -21,9 +21,15 @@ The setup wizard licence step (after school, before programs) is a mandatory
 three-exit gate — later setup steps redirect back until one is chosen:
 
 - **(a) Redeem code now** — `POST {CONTROL_PLANE_URL}/api/v1/enroll`
-  `{code, app_version}`. On success the app seeds `school_licences` FROM the
-  snapshot (`external_ref` = deployment UUID, `starts_at`/`expires_at` →
-  `licence_start`/`support_until` + `licence_end`) and writes
+  `{code, app_version}`. ControlDesk answers the authoritative FLAT shape:
+  `{deployment_uuid, heartbeat_token, licence{tier, modules[], caps{},
+  valid_until}}` on 200; `{message, error}` on 422 with `unknown_code |
+  code_voided | code_expired | attempts_exceeded | deployment_mismatch |
+  deployment_revoked | unbound_code` (a 200 with no token but a licence
+  means consumed-replay). The client normalizes this to the internal
+  snapshot at the boundary, then seeds `school_licences` FROM it
+  (`external_ref` = deployment UUID, `valid_until` → `licence_end` +
+  `support_until`, `starts_at` defaulting to today) and writes
   `DEPLOYMENT_UUID` + `CONTROL_PLANE_TOKEN` to `.env` (verified by re-read;
   if the write fails the exact lines are shown for manual paste).
 - **(b) Continue offline** — provisional core-only row (`provisional = true`),
@@ -44,8 +50,10 @@ reinstalling requires a fresh one from ops.
 Linked installs (`DEPLOYMENT_UUID` set and matching the row) render the
 licence step **read-only** ("Managed by ControlDesk"); provisional installs
 keep local editing badged **PROVISIONAL**; installs with neither behave
-exactly as before. Test without the wizard:
-`php artisan controlplane:ping --redeem CODE`.
+exactly as before. Heartbeats go to `POST {CONTROL_PLANE_URL}/api/v1/heartbeats`
+(Bearer token) with `{deployment_uuid, product: "flowedu", app_version,
+counts{students, teachers, users}, modules_in_use[]}`. Test without the
+wizard: `php artisan controlplane:ping --redeem CODE`.
 
 ## Admin impersonation (replaces legacy SYSTEM_PASSWORD)
 

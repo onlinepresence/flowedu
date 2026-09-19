@@ -68,18 +68,20 @@ class LicenceEnrollmentTest extends TestCase
         return $user;
     }
 
+    /**
+     * Flat ControlDesk enroll shape (authoritative contract): no snapshot
+     * envelope. starts_at is absent, so licence_start defaults to today.
+     */
     private function snapshot(array $overrides = []): array
     {
         return array_merge([
             'deployment_uuid' => 'dep-uuid-1234',
-            'control_plane_token' => 'tok-secret-5678',
+            'heartbeat_token' => 'tok-secret-5678',
             'licence' => [
-                'package_tier' => 'complete',
-                'max_active_students' => 350,
-                'starts_at' => '2026-09-19',
-                'expires_at' => '2027-09-18',
-                'core' => ['timetable' => true, 'attendance' => true, 'memos' => true, 'impersonation' => true],
-                'modules' => ['finance' => true, 'reports' => false],
+                'tier' => 'complete',
+                'modules' => ['finance'],
+                'caps' => ['max_active_students' => 350],
+                'valid_until' => '2027-09-18',
             ],
         ], $overrides);
     }
@@ -90,7 +92,7 @@ class LicenceEnrollmentTest extends TestCase
         $user = $this->owner();
 
         Http::fake([
-            '*/api/v1/enroll' => Http::response(['snapshot' => $this->snapshot()], 200),
+            '*/api/v1/enroll' => Http::response($this->snapshot(), 200),
         ]);
 
         Livewire::actingAs($user)
@@ -103,7 +105,7 @@ class LicenceEnrollmentTest extends TestCase
         $row = SchoolLicence::query()->where('school_id', $school->id)->firstOrFail();
         $this->assertSame('dep-uuid-1234', $row->external_ref);
         $this->assertFalse((bool) $row->provisional);
-        $this->assertSame('2026-09-19', $row->licence_start->format('Y-m-d'));
+        $this->assertSame(now()->toDateString(), $row->licence_start->format('Y-m-d'));
         $this->assertSame('2027-09-18', $row->support_until->format('Y-m-d'));
         $this->assertSame('2027-09-18', $row->licence_end->format('Y-m-d'));
         $this->assertSame(350, $row->max_active_students);
@@ -120,8 +122,8 @@ class LicenceEnrollmentTest extends TestCase
         $school = $this->setupSchool();
         $user = $this->owner();
 
-        foreach (['expired', 'consumed', 'invalid'] as $error) {
-            Http::fake(['*/api/v1/enroll' => Http::response(['error' => $error], 422)]);
+        foreach (['unknown_code', 'code_voided', 'code_expired', 'attempts_exceeded', 'deployment_mismatch', 'deployment_revoked', 'unbound_code'] as $error) {
+            Http::fake(['*/api/v1/enroll' => Http::response(['message' => 'nope', 'error' => $error], 422)]);
 
             $component = Livewire::actingAs($user)
                 ->test(SetupLicenceForm::class)
@@ -131,6 +133,19 @@ class LicenceEnrollmentTest extends TestCase
             $component->assertHasNoErrors();
             $this->assertStringContainsString('ask ops for a fresh code', $component->get('enrollError'));
         }
+
+        // Consumed-replay: 200 with a licence but no one-time token.
+        $replay = $this->snapshot();
+        $replay['heartbeat_token'] = null;
+        Http::fake(['*/api/v1/enroll' => Http::response($replay, 200)]);
+
+        $replayed = Livewire::actingAs($user)
+            ->test(SetupLicenceForm::class)
+            ->set('enrollCode', 'USED-CODE')
+            ->call('redeemCode');
+
+        $replayed->assertHasNoErrors();
+        $this->assertStringContainsString('already used', $replayed->get('enrollError'));
 
         Http::fake(['*/api/v1/enroll' => Http::response([], 500)]);
         Livewire::actingAs($user)
@@ -167,7 +182,7 @@ class LicenceEnrollmentTest extends TestCase
         );
 
         // Daily retry redeems silently when the network appears.
-        Http::fake(['*/api/v1/enroll' => Http::response(['snapshot' => $this->snapshot()], 200)]);
+        Http::fake(['*/api/v1/enroll' => Http::response($this->snapshot(), 200)]);
         $this->assertTrue(app(LicenceEnrollmentService::class)->retryPending());
 
         $row->refresh();
@@ -285,7 +300,7 @@ class LicenceEnrollmentTest extends TestCase
         $user = $this->owner();
         config(['controlplane.env_path' => sys_get_temp_dir().'/no-such-dir-'.uniqid().'/missing.env']);
 
-        Http::fake(['*/api/v1/enroll' => Http::response(['snapshot' => $this->snapshot()], 200)]);
+        Http::fake(['*/api/v1/enroll' => Http::response($this->snapshot(), 200)]);
 
         $component = Livewire::actingAs($user)
             ->test(SetupLicenceForm::class)
@@ -344,7 +359,7 @@ class LicenceEnrollmentTest extends TestCase
     {
         $this->setupSchool();
 
-        Http::fake(['*/api/v1/enroll' => Http::response(['snapshot' => $this->snapshot()], 200)]);
+        Http::fake(['*/api/v1/enroll' => Http::response($this->snapshot(), 200)]);
 
         $this->artisan('controlplane:ping', ['--redeem' => 'APEX-2026-ABCD'])
             ->assertSuccessful();
