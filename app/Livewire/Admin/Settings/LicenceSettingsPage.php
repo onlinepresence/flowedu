@@ -25,7 +25,11 @@ class LicenceSettingsPage extends Component
 
     public string $external_ref = '';
 
-    public function mount(SchoolLicenceService $licenceService): void
+    public bool $isLinked = false;
+
+    public bool $isProvisional = false;
+
+    public function mount(SchoolLicenceService $licenceService, \App\Services\ControlPlane\LicenceEnrollmentService $enrollment): void
     {
         $school = School::current();
         if ($school === null) {
@@ -33,6 +37,9 @@ class LicenceSettingsPage extends Component
 
             return;
         }
+
+        $this->isLinked = $enrollment->isLinked($school);
+        $this->isProvisional = ! $this->isLinked && (bool) $school->licence()->value('provisional');
 
         $licenceService->refresh();
         $row = $licenceService->getLicenceRow();
@@ -126,11 +133,18 @@ class LicenceSettingsPage extends Component
         ];
     }
 
-    public function save(SchoolLicenceService $licenceService): void
+    public function save(SchoolLicenceService $licenceService, \App\Services\ControlPlane\LicenceEnrollmentService $enrollment): void
     {
         $school = School::current();
         if ($school === null) {
             $this->redirect(route('admin.setup.school'), navigate: true);
+
+            return;
+        }
+
+        // Linked installs are read-only: terms come from ControlDesk.
+        if ($enrollment->isLinked($school)) {
+            $this->addError('form', __('This install is managed by ControlDesk. Licence terms cannot be changed here.'));
 
             return;
         }
@@ -161,6 +175,15 @@ class LicenceSettingsPage extends Component
             $fields[$feat['db_column']] = (bool) ($this->moduleStates[$key] ?? $feat['default']);
         }
 
+        $existing = $school->licence()->first();
+        if ($existing !== null) {
+            // Local edits never drop enrollment state.
+            $fields['provisional'] = (bool) $existing->provisional;
+            if ((bool) $existing->provisional) {
+                $fields['external_ref'] = null;
+            }
+        }
+
         SchoolLicence::query()->updateOrCreate(
             ['school_id' => $school->id],
             $fields
@@ -180,6 +203,8 @@ class LicenceSettingsPage extends Component
             'pricingPreview' => $preview,
             'coreCatalog' => config('licence.core_features', []),
             'modulesCatalog' => config('licence.modules', []),
+            'isLinked' => $this->isLinked,
+            'isProvisional' => $this->isProvisional,
         ])->layout('components.layouts.admin', [
             'title' => __('Licence settings'),
             'headerTitle' => __('Licence Settings'),

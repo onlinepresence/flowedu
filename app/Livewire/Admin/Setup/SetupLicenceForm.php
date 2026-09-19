@@ -6,6 +6,8 @@ namespace App\Livewire\Admin\Setup;
 
 use App\Models\School;
 use App\Models\SchoolLicence;
+use App\Services\ControlPlane\LicenceEnrollmentService;
+use App\Services\QuoteCalculationService;
 use App\Services\SchoolLicenceService;
 use App\Support\CollegeFlash;
 use Illuminate\Contracts\View\View;
@@ -25,7 +27,23 @@ class SetupLicenceForm extends Component
 
     public string $external_ref = '';
 
-    public function mount(SchoolLicenceService $licenceService): void
+    public string $enrollCode = '';
+
+    public string $offlineCode = '';
+
+    public string $importBlob = '';
+
+    public string $enrollError = '';
+
+    /** @var list<string> */
+    public array $manualLines = [];
+
+    public string $manualPath = '';
+
+    /** linked|provisional|pending|legacy */
+    public string $choice = 'pending';
+
+    public function mount(SchoolLicenceService $licenceService, LicenceEnrollmentService $enrollment): void
     {
         if (! session('admin_register')) {
             $this->redirect(route('admin.dashboard'), navigate: true);
@@ -39,6 +57,8 @@ class SetupLicenceForm extends Component
 
             return;
         }
+
+        $this->choice = $enrollment->choiceState($school);
 
         $row = $licenceService->getLicenceRow();
         $max = $row['max_active_students'] ?? null;
@@ -63,74 +83,96 @@ class SetupLicenceForm extends Component
         }
     }
 
-    public function getPricingPreview(SchoolLicenceService $licenceService): array
+    /**
+     * Exit (a): redeem an enrollment code against ControlDesk.
+     */
+    public function redeemCode(LicenceEnrollmentService $enrollment): void
     {
-        $maxStudents = $this->max_active_students === '' ? 0 : (int) $this->max_active_students;
+        $this->resetSubmissionState();
+        $this->validate(['enrollCode' => ['required', 'string', 'max:255']]);
 
-        // Find band
-        $bandKey = 'tier_1';
-        foreach (config('licence.student_pricing_bands', []) as $key => $band) {
-            $min = $band['min'];
-            $max = $band['max'];
-            if ($maxStudents >= $min && ($max === null || $maxStudents <= $max)) {
-                $bandKey = $key;
-                break;
-            }
+        $result = $enrollment->redeem($this->enrollCode);
+
+        if (! ($result['ok'] ?? false)) {
+            $this->enrollError = (string) ($result['message'] ?? __('Enrollment failed.'));
+
+            return;
         }
 
-        $multiplier = config("licence.student_pricing_bands.{$bandKey}.multiplier", 1.0);
-        $bandLabel = config("licence.student_pricing_bands.{$bandKey}.label", 'Standard');
+        if (! empty($result['manual_lines'])) {
+            // Row is seeded; only the .env write failed — show exact lines.
+            $this->manualLines = array_values($result['manual_lines']);
+            $this->manualPath = (string) ($result['path'] ?? \base_path('.env'));
+            $this->choice = $enrollment->choiceState();
 
-        // Core pricing
-        $coreBase = (float) config('licence.pricing.core.base_annual', 12000.00);
-        $coreSetup = (float) config('licence.pricing.core.implementation_fee', 3500.00);
-        $coreAnnual = $coreBase * $multiplier;
-
-        // Modules pricing
-        $modulesAnnual = 0.0;
-        $modulesSetup = 0.0;
-        $activeModulesCount = 0;
-        $totalModulesCount = count($this->moduleStates);
-
-        foreach ($this->moduleStates as $moduleKey => $enabled) {
-            if ($enabled) {
-                $activeModulesCount++;
-                $pricing = $licenceService->modulePrice($moduleKey, $bandKey);
-                $modulesAnnual += $pricing['annual_fee'];
-                $modulesSetup += $pricing['setup_fee'];
-            }
+            return;
         }
 
-        // Discount
-        $discount = 0.0;
-        if ($activeModulesCount === $totalModulesCount && $totalModulesCount > 0) {
-            $rate = (float) config('licence.pricing.discounts.all_modules_rate', 0.20);
-            $discount = $modulesAnnual * $rate;
-        }
-
-        $hosting = (float) config('licence.pricing.hosting.annual_fee', 1500.00);
-
-        $totalAnnual = $coreAnnual + $modulesAnnual - $discount + $hosting;
-        $totalSetup = $coreSetup + $modulesSetup;
-
-        return [
-            'band_label' => $bandLabel,
-            'multiplier' => $multiplier,
-            'core_annual' => $coreAnnual,
-            'core_setup' => $coreSetup,
-            'modules_annual' => $modulesAnnual,
-            'modules_setup' => $modulesSetup,
-            'discount' => $discount,
-            'hosting' => $hosting,
-            'total_annual' => $totalAnnual,
-            'total_setup' => $totalSetup,
-            'grand_total' => $totalAnnual + $totalSetup,
-            'active_modules_count' => $activeModulesCount,
-            'total_modules_count' => $totalModulesCount,
-        ];
+        CollegeFlash::forNextRequestToo('status', __('Licence enrolled. Continue with your setup.'));
+        $this->redirect(route('admin.setup.faculties'), navigate: true);
     }
 
-    public function save(SchoolLicenceService $licenceService): void
+    /**
+     * Exit (b): continue offline with a provisional core-only licence.
+     */
+    public function continueOffline(LicenceEnrollmentService $enrollment): void
+    {
+        $this->resetSubmissionState();
+
+        $result = $enrollment->continueOffline(null, $this->offlineCode);
+
+        if (! ($result['ok'] ?? false)) {
+            $this->enrollError = (string) ($result['message'] ?? __('Could not continue offline.'));
+
+            return;
+        }
+
+        $message = ! empty($result['pending'])
+            ? __('Provisional licence issued. Your code will be redeemed automatically when online.')
+            : __('Provisional licence issued. Continue with your setup.');
+
+        CollegeFlash::forNextRequestToo('status', $message);
+        $this->redirect(route('admin.setup.faculties'), navigate: true);
+    }
+
+    /**
+     * Exit (c): import a signed licence file blob.
+     */
+    public function importLicence(LicenceEnrollmentService $enrollment): void
+    {
+        $this->resetSubmissionState();
+        $this->validate(['importBlob' => ['required', 'string', 'max:20000']]);
+
+        $result = $enrollment->importFile($this->importBlob);
+
+        if (! ($result['ok'] ?? false)) {
+            $this->enrollError = (string) ($result['message'] ?? __('Import failed.'));
+
+            return;
+        }
+
+        if (! empty($result['manual_lines'])) {
+            $this->manualLines = array_values($result['manual_lines']);
+            $this->manualPath = (string) ($result['path'] ?? \base_path('.env'));
+            $this->choice = $enrollment->choiceState();
+
+            return;
+        }
+
+        CollegeFlash::forNextRequestToo('status', __('Licence file accepted. Continue with your setup.'));
+        $this->redirect(route('admin.setup.faculties'), navigate: true);
+    }
+
+    public function continueSetup(): void
+    {
+        $this->redirect(route('admin.setup.faculties'), navigate: true);
+    }
+
+    /**
+     * Free-form save stays for provisional (badged) and legacy installs.
+     * Linked installs are read-only; pending installs must pick an exit.
+     */
+    public function save(SchoolLicenceService $licenceService, LicenceEnrollmentService $enrollment): void
     {
         if (! session('admin_register')) {
             $this->redirect(route('admin.dashboard'), navigate: true);
@@ -141,6 +183,13 @@ class SetupLicenceForm extends Component
         $school = School::current();
         if ($school === null) {
             $this->redirect(route('admin.setup.school'), navigate: true);
+
+            return;
+        }
+
+        $choice = $enrollment->choiceState($school);
+        if ($choice === 'linked' || $choice === 'pending') {
+            $this->redirect(route('admin.setup.licence'), navigate: true);
 
             return;
         }
@@ -171,6 +220,17 @@ class SetupLicenceForm extends Component
             $fields[$feat['db_column']] = (bool) ($this->moduleStates[$key] ?? $feat['default']);
         }
 
+        // Never drop enrollment state through the local form. Provisional
+        // rows keep their flag (and stay UUID-less until ControlDesk
+        // confirms them); legacy rows behave exactly as before.
+        $existing = $school->licence()->first();
+        if ($existing !== null) {
+            $fields['provisional'] = (bool) $existing->provisional;
+        }
+        if ($choice === 'provisional') {
+            $fields['external_ref'] = null;
+        }
+
         SchoolLicence::query()->updateOrCreate(
             ['school_id' => $school->id],
             $fields
@@ -178,11 +238,87 @@ class SetupLicenceForm extends Component
 
         $licenceService->refresh();
 
+        $this->choice = $enrollment->choiceState($school);
+
         CollegeFlash::forNextRequestToo('status', __('Package saved. Continue with your setup.'));
         $this->redirect(route('admin.setup.faculties'), navigate: true);
     }
 
-    public function render(SchoolLicenceService $licenceService): View
+    /**
+     * Pricing preview driven by the LIVE core_pricing math (the same
+     * QuoteCalculationService the landing quotes use), so installers never
+     * see numbers disagreeing with ops. Replaces the old tier-band math.
+     */
+    public function getPricingPreview(SchoolLicenceService $licenceService): array
+    {
+        $maxStudents = $this->max_active_students === '' ? 0 : (int) $this->max_active_students;
+
+        $bandKey = match (true) {
+            $maxStudents <= 500 => '1-500',
+            $maxStudents <= 1000 => '501-1000',
+            $maxStudents <= 2000 => '1001-2000',
+            $maxStudents <= 3500 => '2001-3500',
+            default => '3500+',
+        };
+
+        $modules = [];
+        foreach ($this->moduleStates as $moduleKey => $enabled) {
+            if ($enabled && isset(config('licence.modules', [])[$moduleKey])) {
+                $modules[] = $moduleKey;
+            }
+        }
+
+        $quote = QuoteCalculationService::calculate([
+            'student_band' => $bandKey,
+            'modules' => $modules,
+            'hosting_setup' => 'none',
+            'config_setup' => '0',
+            'migration' => '0',
+            'admin_training' => 0,
+            'teacher_training' => 0,
+            'onsite_training' => 0,
+            'founding_client' => '0',
+            'send_client_receipt' => '0',
+        ]);
+
+        if (! empty($quote['is_custom'])) {
+            return [
+                'band_label' => $quote['band_label'] ?? '3,500+ Students',
+                'multiplier' => 0.0,
+                'core_annual' => 0.0,
+                'core_setup' => 0.0,
+                'modules_annual' => 0.0,
+                'modules_setup' => 0.0,
+                'discount' => 0.0,
+                'hosting' => 0.0,
+                'total_annual' => 0.0,
+                'total_setup' => 0.0,
+                'grand_total' => 0.0,
+                'active_modules_count' => count($modules),
+                'total_modules_count' => count(config('licence.modules', [])),
+                'is_custom' => true,
+            ];
+        }
+
+        return [
+            'band_label' => $quote['band_label'] ?? '',
+            'multiplier' => (float) ($quote['multiplier'] ?? 1.0),
+            'core_annual' => (float) ($quote['core_renewal_final'] ?? 0.0),
+            'core_setup' => (float) ($quote['core_upfront_final'] ?? 0.0),
+            'modules_annual' => (float) ($quote['modules_renew_final'] ?? 0.0),
+            'modules_setup' => (float) ($quote['modules_onetime_final'] ?? 0.0),
+            'discount' => (float) ($quote['bundle_discount_renew'] ?? 0.0),
+            'hosting' => (float) ($quote['hosting_setup_fee'] ?? 0.0),
+            'total_annual' => (float) ($quote['renew_total'] ?? 0.0),
+            'total_setup' => (float) ($quote['upfront_total'] ?? 0.0),
+            'grand_total' => (float) ($quote['renew_total'] ?? 0.0) + (float) ($quote['upfront_total'] ?? 0.0),
+            'active_modules_count' => count($modules),
+            'total_modules_count' => count(config('licence.modules', [])),
+            'is_custom' => false,
+        ];
+    }
+
+    public function render(SchoolLicenceService $licenceService, LicenceEnrollmentService $enrollment): View
     {
         $preview = $this->getPricingPreview($licenceService);
 
@@ -190,6 +326,16 @@ class SetupLicenceForm extends Component
             'pricingPreview' => $preview,
             'coreCatalog' => config('licence.core_features', []),
             'modulesCatalog' => config('licence.modules', []),
+            'enrollmentChoice' => $enrollment->choiceState(),
+            'bundleRate' => (float) config('licence.bundle_discount', 0.12),
         ])->layout('components.layouts.admin', ['title' => __('Package & licence')]);
+    }
+
+    private function resetSubmissionState(): void
+    {
+        $this->enrollError = '';
+        $this->manualLines = [];
+        $this->manualPath = '';
+        $this->resetErrorBag();
     }
 }

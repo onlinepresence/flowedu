@@ -15,6 +15,38 @@
 
 With `LICENCE_ENFORCE=false` (see `config/licence.php` `enforce`), all `can()` checks pass and nothing is hidden by tier.
 
+## Enrollment (ControlDesk codes, offline, file import)
+
+The setup wizard licence step (after school, before programs) is a mandatory
+three-exit gate — later setup steps redirect back until one is chosen:
+
+- **(a) Redeem code now** — `POST {CONTROL_PLANE_URL}/api/v1/enroll`
+  `{code, app_version}`. On success the app seeds `school_licences` FROM the
+  snapshot (`external_ref` = deployment UUID, `starts_at`/`expires_at` →
+  `licence_start`/`support_until` + `licence_end`) and writes
+  `DEPLOYMENT_UUID` + `CONTROL_PLANE_TOKEN` to `.env` (verified by re-read;
+  if the write fails the exact lines are shown for manual paste).
+- **(b) Continue offline** — provisional core-only row (`provisional = true`),
+  setup completes. An optional code is parked (`controlplane.pending_code`
+  setting); the daily `licence-retry-pending` job redeems it silently the
+  next time the network answers, and the first success overwrites the
+  provisional row with central truth.
+- **(c) Import licence file** — paste (or pick) a signed JSON blob
+  `{"payload": {...}, "signature": "<base64 ed25519>"}`. Verified against the
+  baked-in public key (`CONTROL_PLANE_PUBLIC_KEY`) plus date validity
+  (`expires_at` must be today or later); seeds the row exactly like (a).
+
+Expired/consumed/unrecognized codes get human messages ("ask ops for a fresh
+code") — the offline exit is always present, so there are no dead ends.
+**Reinstall = new code**: each install consumes its own code; wiping and
+reinstalling requires a fresh one from ops.
+
+Linked installs (`DEPLOYMENT_UUID` set and matching the row) render the
+licence step **read-only** ("Managed by ControlDesk"); provisional installs
+keep local editing badged **PROVISIONAL**; installs with neither behave
+exactly as before. Test without the wizard:
+`php artisan controlplane:ping --redeem CODE`.
+
 ## Admin impersonation (replaces legacy SYSTEM_PASSWORD)
 
 **Who may impersonate:** admin users whose role is `owner` or `system_admin` (see [`AdminSystemSeeder`](../database/seeders/AdminSystemSeeder.php)).
@@ -44,7 +76,7 @@ Defined in [`routes/console.php`](../routes/console.php). Production crontab sho
 * * * * * cd /path/to/new-college && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-Tasks: evaluation maintenance (hourly), semester status (hourly), auto-promotion (monthly on the 15th at 03:00). Manual run: `php artisan college:maintenance`.
+Tasks: evaluation maintenance (hourly), semester status (hourly), auto-promotion (monthly on the 15th at 03:00), licence redemption retry (daily at 04:00; silent no-op without a parked code). Manual run: `php artisan college:maintenance`. Manual heartbeat: `php artisan controlplane:ping [--redeem CODE]`.
 
 ## Demo (single-connection)
 

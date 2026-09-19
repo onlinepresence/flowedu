@@ -79,12 +79,12 @@ Route::middleware($adminSetup)->prefix('admin-setup')->group(function () {
     Route::get('school', SchoolProfileForm::class)->name('admin.setup.school');
     Route::get('licence', SetupLicenceForm::class)->name('admin.setup.licence');
     Route::get('programs', SetupProgramPage::class)
-        ->middleware('college.departments-exist')
+        ->middleware(['college.licence-enrolled', 'college.departments-exist'])
         ->name('admin.setup.programs');
-    Route::get('halls', SetupHallPage::class)->name('admin.setup.halls');
-    Route::get('departments', SetupDepartmentPage::class)->name('admin.setup.departments');
-    Route::get('faculties', FacultyIndex::class)->name('admin.setup.faculties');
-    Route::get('activate', SetupActivatePage::class)->name('admin.setup.activate');
+    Route::get('halls', SetupHallPage::class)->middleware('college.licence-enrolled')->name('admin.setup.halls');
+    Route::get('departments', SetupDepartmentPage::class)->middleware('college.licence-enrolled')->name('admin.setup.departments');
+    Route::get('faculties', FacultyIndex::class)->middleware('college.licence-enrolled')->name('admin.setup.faculties');
+    Route::get('activate', SetupActivatePage::class)->middleware('college.licence-enrolled')->name('admin.setup.activate');
 });
 
 Route::middleware($adminApp)->prefix('admin')->group(function () {

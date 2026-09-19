@@ -4,6 +4,7 @@ use App\Http\Middleware\EnsureAdminProfileComplete;
 use App\Http\Middleware\EnsureAdminRole;
 use App\Http\Middleware\EnsureAdmissionOpen;
 use App\Http\Middleware\EnsureDepartmentsExist;
+use App\Http\Middleware\EnsureLicenceEnrolled;
 use App\Http\Middleware\EnsureSchoolBootstrap;
 use App\Http\Middleware\EnsureSchoolLicence;
 use App\Http\Middleware\EnsureSchoolReady;
@@ -29,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectUsersTo(fn () => route('post.login.redirect'));
         $middleware->alias([
             'college.bootstrap' => EnsureSchoolBootstrap::class,
+            'college.licence-enrolled' => EnsureLicenceEnrolled::class,
             'college.admission' => EnsureAdmissionOpen::class,
             'college.user-type' => EnsureUserType::class,
             'college.licence' => EnsureSchoolLicence::class,

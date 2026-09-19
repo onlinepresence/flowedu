@@ -7,6 +7,42 @@
         </div>
     </div>
 
+    @if($isLinked)
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-6 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+            <h2 class="flex items-center gap-2 text-base font-bold text-emerald-900 dark:text-emerald-200">
+                <i class="fa-solid fa-circle-check"></i>
+                {{ __('Managed by ControlDesk') }}
+            </h2>
+            <p class="mt-2 text-sm text-emerald-800 dark:text-emerald-300">
+                {{ __('This install is enrolled (ref: :ref). Licence terms come from the control plane and cannot be changed here.', ['ref' => $external_ref]) }}
+            </p>
+            <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+                <div>
+                    <dt class="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">{{ __('Max students') }}</dt>
+                    <dd class="font-bold text-emerald-950 dark:text-emerald-100">{{ $max_active_students !== '' ? $max_active_students : __('No limit') }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">{{ __('Licence start') }}</dt>
+                    <dd class="font-bold text-emerald-950 dark:text-emerald-100">{{ $licence_start ?? '—' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">{{ __('Support until') }}</dt>
+                    <dd class="font-bold text-emerald-950 dark:text-emerald-100">{{ $support_until ?? '—' }}</dd>
+                </div>
+            </dl>
+        </div>
+    @else
+    @if($isProvisional)
+        <p>
+            <span class="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">{{ __('PROVISIONAL LICENCE') }}</span>
+            <span class="ml-2 text-xs text-gray-500 dark:text-gray-400">{{ __('Core-only until ControlDesk redemption succeeds.') }}</span>
+        </p>
+    @endif
+    @if($errors->has('form'))
+        <p class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300" role="alert">
+            {{ $errors->first('form') }}
+        </p>
+    @endif
     <form wire:submit="save" class="grid gap-6 lg:grid-cols-3">
         <!-- Left 2 Cols: Features and Modules -->
         <div class="space-y-6 lg:col-span-2">
@@ -190,5 +226,6 @@
             </div>
         </div>
     </form>
+    @endif
 
 </div>

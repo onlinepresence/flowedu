@@ -67,7 +67,7 @@ class AdminSetupWizardEndToEndTest extends TestCase
 
         Livewire::actingAs($user)
             ->test(SetupLicenceForm::class)
-            ->call('save')
+            ->call('continueOffline')
             ->assertHasNoErrors()
             ->assertRedirect(route('admin.setup.faculties', absolute: false));
 

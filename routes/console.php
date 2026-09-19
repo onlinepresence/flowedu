@@ -28,6 +28,15 @@ Schedule::call(fn () => app(AutoPromotionService::class)->run())
     ->name('college-maintenance-auto-promotion');
 
 /*
+| Licence redemption retry: silent daily attempt for installs parked with a
+| pending enrollment code (offline setup exit). No pending code (or no
+| school) = quiet no-op without touching the network.
+*/
+Schedule::call(fn () => app(\App\Services\ControlPlane\LicenceEnrollmentService::class)->retryPending())
+    ->dailyAt('04:00')
+    ->name('licence-retry-pending');
+
+/*
 | Single-connection demo refresh: registered monthly ONLY when APP_DEMO is true
 | at schedule-registration time (never unconditional). The command itself
 | re-checks the same env flag before touching the database.

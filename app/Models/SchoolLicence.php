@@ -15,6 +15,7 @@ class SchoolLicence extends Model
         'support_until',
         'notes',
         'external_ref',
+        'provisional',
         'licence_key',
         'core_timetable',
         'core_attendance',
@@ -32,6 +33,7 @@ class SchoolLicence extends Model
     ];
 
     protected $casts = [
+        'provisional' => 'boolean',
         'licence_start' => 'date',
         'licence_end' => 'date',
         'support_until' => 'date',
