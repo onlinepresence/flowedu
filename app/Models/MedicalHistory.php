@@ -17,11 +17,17 @@ class MedicalHistory extends Model
         'immunization_records',
         'emergency_contacts',
         'academic_session_id',
+        'recorded_by',
     ];
 
     public function student(): BelongsTo
     {
         return $this->belongsTo(Student::class);
+    }
+
+    public function recorder(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'recorded_by');
     }
 
     public function academicSession(): BelongsTo

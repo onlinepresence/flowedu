@@ -23,6 +23,12 @@ class FeePayment extends Model
             if (empty($payment->semester_id)) {
                 $payment->semester_id = Semester::activeSemesterId();
             }
+            if (empty($payment->academic_year)) {
+                $payment->academic_year = AcademicSession::query()
+                    ->where('is_current', true)
+                    ->value('name')
+                    ?? now()->format('Y').'/'.((int) now()->format('Y') + 1);
+            }
         });
     }
 

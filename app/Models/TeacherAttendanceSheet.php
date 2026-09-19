@@ -17,6 +17,7 @@ class TeacherAttendanceSheet extends Model
         'class_date',
         'file_path',
         'original_name',
+        'recorded_by',
     ];
 
     protected function casts(): array
@@ -56,5 +57,10 @@ class TeacherAttendanceSheet extends Model
     public function semester(): BelongsTo
     {
         return $this->belongsTo(Semester::class, 'semester_id');
+    }
+
+    public function recorder(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'recorded_by');
     }
 }

@@ -45,13 +45,6 @@ namespace Database\Seeders;
 |   students              evaluations, transcripts, fees, discipline/medical
 |
 | Known gaps (flagged, never faked):
-| - ProcessGraduationService hardcodes level '400', so 2-year diploma
-|   finalists (level 200) cannot graduate through the real path and are left
-|   ungraduated with clearance rows pending.
-| - disciplinary_records / medical_histories carry no actor column, so
-|   Dean/VP ownership of those rows is by convention, not FK.
-| - teacher_attendance_sheets is a file-upload row (no recorded_by column);
-|   HOD ownership is by convention (files live under the HOD's upload batch).
 | - announcements.teacher_id is required, so course announcements are
 |   authored by lecturers (approved by QA); the PRO owns college-wide
 |   announcements, which live as chainless memos.
@@ -876,6 +869,7 @@ class DemoDataSeeder extends Seeder
             $medicalRows[] = [
                 'student_id' => $s->id,
                 'academic_session_id' => $prevSession->id,
+                'recorded_by' => $vp->id,
                 'medical_conditions' => $i % 5 === 0 ? 'Mild asthma' : 'None',
                 'allergies' => $i % 6 === 0 ? 'Peanuts' : 'None',
                 'medications' => $i % 5 === 0 ? 'Inhaler' : 'None',
@@ -1307,6 +1301,7 @@ class DemoDataSeeder extends Seeder
             MedicalHistory::create([
                 'student_id' => $ns->id,
                 'academic_session_id' => $curSession->id,
+                'recorded_by' => $vp->id,
                 'medical_conditions' => 'None',
                 'allergies' => 'None',
                 'medications' => 'None',
@@ -1325,6 +1320,7 @@ class DemoDataSeeder extends Seeder
                 MedicalHistory::create([
                     'student_id' => $s->id,
                     'academic_session_id' => $curSession->id,
+                    'recorded_by' => $vp->id,
                     'medical_conditions' => 'None',
                     'allergies' => 'None',
                     'medications' => 'None',
@@ -1848,6 +1844,7 @@ class DemoDataSeeder extends Seeder
                 'fullname' => trim($s->firstname.' '.$s->lastname),
                 'program_id' => $s->program_id,
                 'academic_session_id' => $sess->id,
+                'recorded_by' => $dean->id,
                 'offense' => $offences[$d][0],
                 'action_taken' => $offences[$d][1],
                 'comments' => 'Student appeared before the disciplinary committee with a guardian.',
@@ -1891,14 +1888,15 @@ class DemoDataSeeder extends Seeder
         }
         $this->chunkInsert('student_clearances', $clearRows);
 
-        // Graduation through the REAL service (4-year finalists of two
-        // programmes; the service hardcodes level 400, so diploma finalists
-        // cannot graduate here — flagged, left ungraduated with clearance).
+        // Graduation through the REAL service at each track's terminal level
+        // (service enforces program max, so only true finalists graduate).
+        // Mixed per track: CS + Accounting y4 and IT-diploma y2 graduate;
+        // EE + Communication y4 and Business-diploma y2 stay pending.
         $graduateService = app(ProcessGraduationService::class);
-        $gradProgramIds = [$programs[0]->id, $programs[3]->id]; // CS + Accounting
-        foreach ($gradProgramIds as $pid) {
+        foreach ([$programs[0]->id, $programs[3]->id] as $pid) {
             $graduateService->run($curSession->id, '400', $pid, $today->toDateString(), $registrar->id);
         }
+        $graduateService->run($curSession->id, '200', $programs[1]->id, $today->toDateString(), $registrar->id);
 
         // Leaves: pending / approved / rejected across both years.
         $teacherUserIds = array_map(fn ($t): int => $t->user_id, $teachers);
@@ -2032,6 +2030,7 @@ class DemoDataSeeder extends Seeder
                     'course_id' => $course->id,
                     'academic_session_id' => $sess->id,
                     'semester_id' => null,
+                    'recorded_by' => $hodByDept[$t->department_id]->id ?? $owner->id,
                     'class_date' => $classDate,
                     'file_path' => $dir.'/'.$fname,
                     'original_name' => 'attendance_'.$course->code.'_'.str_replace('-', '', $classDate).'.csv',

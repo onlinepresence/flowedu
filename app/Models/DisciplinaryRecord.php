@@ -18,6 +18,7 @@ class DisciplinaryRecord extends Model
         'date_of_action',
         'return_date',
         'return_status',
+        'recorded_by',
     ];
 
     protected $casts = [
@@ -43,5 +44,10 @@ class DisciplinaryRecord extends Model
     public function academicSession(): BelongsTo
     {
         return $this->belongsTo(AcademicSession::class, 'academic_session_id');
+    }
+
+    public function recorder(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'recorded_by');
     }
 }

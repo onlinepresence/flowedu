@@ -283,20 +283,45 @@
             </a>
         </x-college.quick-links>
 
-        <div class="grid gap-6 md:grid-cols-2">
-            <!-- Recent Payments -->
-            <div>
-                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">{{ __('Recent Payments') }}</h2>
+        <div x-data="{ finTab: 'income' }">
+            <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ __('Cash Flow') }}</h2>
+                <div class="flex rounded-lg bg-gray-100 p-0.5 text-xs font-semibold dark:bg-gray-700" role="tablist" aria-label="{{ __('Cash flow tabs') }}">
+                    <button
+                        type="button"
+                        role="tab"
+                        :aria-selected="finTab === 'income'"
+                        @click="finTab = 'income'"
+                        :class="finTab === 'income' ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'"
+                        class="rounded-md px-3 py-1.5 transition"
+                    >
+                        {{ __('Income') }} ({{ $recentPayments->count() }})
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        :aria-selected="finTab === 'expenditure'"
+                        @click="finTab = 'expenditure'"
+                        :class="finTab === 'expenditure' ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'"
+                        class="rounded-md px-3 py-1.5 transition"
+                    >
+                        {{ __('Expenditure') }} ({{ $recentExpenditures->count() }})
+                    </button>
+                </div>
+            </div>
+
+            <!-- Income tab -->
+            <div x-show="finTab === 'income'" role="tabpanel">
                 @if ($recentPayments->isNotEmpty())
                     <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
                         <ul class="divide-y divide-gray-200 dark:divide-gray-700">
                             @foreach ($recentPayments as $pay)
-                                <li class="flex justify-between items-center px-4 py-3" wire:key="pay-{{ $pay->id }}">
-                                    <div>
-                                        <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $pay->student?->firstname }} {{ $pay->student?->lastname }}</p>
-                                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('Ref:') }} {{ $pay->reference_number }}</p>
+                                <li class="flex justify-between items-center gap-3 px-4 py-3" wire:key="pay-{{ $pay->id }}">
+                                    <div class="min-w-0">
+                                        <p class="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $pay->student?->firstname }} {{ $pay->student?->lastname }}</p>
+                                        <p class="truncate text-xs text-gray-500 dark:text-gray-400">{{ __('Ref:') }} {{ $pay->reference_number ?? '—' }} · {{ $pay->payment_method ?? __('Cash') }} · {{ ($pay->payment_date ?? $pay->created_at)?->format('d M Y') }}</p>
                                     </div>
-                                    <span class="text-sm font-bold text-green-600 dark:text-green-400">+GH₵{{ number_format($pay->amount, 2) }}</span>
+                                    <span class="shrink-0 text-sm font-bold text-green-600 dark:text-green-400">+GH₵{{ number_format((float) $pay->amount_paid, 2) }}</span>
                                 </li>
                             @endforeach
                         </ul>
@@ -308,19 +333,18 @@
                 @endif
             </div>
 
-            <!-- Expenditures -->
-            <div>
-                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">{{ __('Recent Expenditures') }}</h2>
+            <!-- Expenditure tab -->
+            <div x-show="finTab === 'expenditure'" x-cloak role="tabpanel">
                 @if ($recentExpenditures->isNotEmpty())
                     <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
                         <ul class="divide-y divide-gray-200 dark:divide-gray-700">
                             @foreach ($recentExpenditures as $exp)
-                                <li class="flex justify-between items-center px-4 py-3" wire:key="exp-{{ $exp->id }}">
-                                    <div>
-                                        <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $exp->description }}</p>
-                                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ $exp->created_at->diffForHumans() }}</p>
+                                <li class="flex justify-between items-center gap-3 px-4 py-3" wire:key="exp-{{ $exp->id }}">
+                                    <div class="min-w-0">
+                                        <p class="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $exp->category ?? __('Expenditure') }}</p>
+                                        <p class="truncate text-xs text-gray-500 dark:text-gray-400">{{ $exp->expense_number }} · {{ $exp->payment_method }} · {{ ($exp->payment_date ?? $exp->created_at)?->format('d M Y') }}</p>
                                     </div>
-                                    <span class="text-sm font-bold text-red-600 dark:text-red-400">-GH₵{{ number_format($exp->amount, 2) }}</span>
+                                    <span class="shrink-0 text-sm font-bold text-red-600 dark:text-red-400">-GH₵{{ number_format((float) $exp->amount, 2) }}</span>
                                 </li>
                             @endforeach
                         </ul>
@@ -535,12 +559,12 @@
                     <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
                         <ul class="divide-y divide-gray-200 dark:divide-gray-700">
                             @foreach ($recentPayments as $pay)
-                                <li class="flex justify-between items-center px-4 py-3" wire:key="pay-{{ $pay->id }}">
-                                    <div>
-                                        <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $pay->student?->firstname }} {{ $pay->student?->lastname }}</p>
-                                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('Ref:') }} {{ $pay->reference_number }}</p>
+                                <li class="flex justify-between items-center gap-3 px-4 py-3" wire:key="pay-{{ $pay->id }}">
+                                    <div class="min-w-0">
+                                        <p class="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $pay->student?->firstname }} {{ $pay->student?->lastname }}</p>
+                                        <p class="truncate text-xs text-gray-500 dark:text-gray-400">{{ __('Ref:') }} {{ $pay->reference_number ?? '—' }} · {{ $pay->payment_method ?? __('Cash') }} · {{ ($pay->payment_date ?? $pay->created_at)?->format('d M Y') }}</p>
                                     </div>
-                                    <span class="text-sm font-bold text-green-600 dark:text-green-400">+GH₵{{ number_format($pay->amount, 2) }}</span>
+                                    <span class="shrink-0 text-sm font-bold text-green-600 dark:text-green-400">+GH₵{{ number_format((float) $pay->amount_paid, 2) }}</span>
                                 </li>
                             @endforeach
                         </ul>

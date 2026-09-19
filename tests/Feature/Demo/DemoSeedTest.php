@@ -115,8 +115,10 @@ class DemoSeedTest extends TestCase
             $this->assertSame($row->student->program->program_length * 100, (int) $row->student->current_year);
         }
         foreach (\App\Models\Graduation::query()->with('student.program')->get() as $g) {
-            $this->assertSame('400', (string) $g->student->current_year);
-            $this->assertSame(4, (int) $g->student->program->program_length);
+            $this->assertSame(
+                $g->student->program->program_length * 100,
+                (int) $g->student->current_year
+            );
         }
 
         // Evaluations: previous closed with archived responses; current open,
@@ -131,6 +133,21 @@ class DemoSeedTest extends TestCase
         $curSubmitted = \App\Models\EvaluationResponse::query()->where('form_id', $curForm->id)->where('status', 'submitted')->count();
         $this->assertGreaterThan(0, $curSubmitted);
         $this->assertLessThan($eligible, $curSubmitted);
+
+        // Actor columns: discipline recorded by Dean, medical by VP,
+        // teacher attendance by an HOD; ledgers carry their academic year.
+        $this->assertSame(0, \App\Models\DisciplinaryRecord::query()->whereNull('recorded_by')->count());
+        $this->assertSame(0, \App\Models\MedicalHistory::query()->whereNull('recorded_by')->count());
+        $this->assertSame(0, \App\Models\TeacherAttendanceSheet::query()->whereNull('recorded_by')->count());
+        foreach (\App\Models\DisciplinaryRecord::query()->get() as $record) {
+            $this->assertSame('dean_of_students', $roleOf($record->recorded_by));
+        }
+        foreach (\App\Models\MedicalHistory::query()->get() as $history) {
+            $this->assertSame('vice_principal', $roleOf($history->recorded_by));
+        }
+        $hodIds = \App\Models\User::query()->whereHas('admin.role', fn ($q) => $q->where('name', 'hod'))->pluck('id')->all();
+        $this->assertGreaterThan(0, \App\Models\TeacherAttendanceSheet::query()->whereIn('recorded_by', $hodIds)->count());
+        $this->assertSame(0, \App\Models\FeePayment::query()->whereNull('academic_year')->count());
 
         // Timetable: every course placed in both sessions.
         $courseCount = \App\Models\Course::query()->count();

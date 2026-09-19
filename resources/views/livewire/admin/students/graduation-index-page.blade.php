@@ -22,13 +22,18 @@
         <div class="lg:col-span-2 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <div class="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
                 <h2 class="text-base font-bold text-gray-900 dark:text-white">{{ __('Process Graduation') }}</h2>
-                <p class="text-xs text-gray-500 mt-0.5">{{ __('Graduate the eligible Level 400 student class.') }}</p>
+                <p class="text-xs text-gray-500 mt-0.5">{{ __('Graduate the eligible final-year class at the selected level.') }}</p>
             </div>
             <div class="space-y-4 p-6">
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div>
-                        <label for="grad-level" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Student level') }}</label>
-                        <x-text-input id="grad-level" type="text" value="{{ __('Level 400 only') }}" readonly class="block w-full bg-gray-50" />
+                        <label for="grad-level" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Final-year level') }}</label>
+                        <select wire:model.live="processLevel" id="grad-level" class="block w-full rounded-md border-gray-300 shadow-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white">
+                            @foreach (['100', '200', '300', '400'] as $lvl)
+                                <option value="{{ $lvl }}">{{ __('Level :lvl (finalists)', ['lvl' => $lvl]) }}</option>
+                            @endforeach
+                        </select>
+                        @error('processLevel')<p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>@enderror
                     </div>
                     <div>
                         <label for="grad-program" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Program (optional)') }}</label>
@@ -58,7 +63,7 @@
 
                 <div class="rounded-lg bg-amber-50 p-4 border border-amber-200 dark:bg-amber-950/20 dark:border-amber-900/50">
                     <p class="text-sm font-semibold text-amber-800 dark:text-amber-300">
-                        {{ __('Eligible students in Level 400: :count', ['count' => $eligiblePreview]) }}
+                        {{ __('Eligible finalists in Level :level: :count', ['level' => $processLevel, 'count' => $eligiblePreview]) }}
                     </p>
                     <p class="text-xs text-amber-700 dark:text-amber-400 mt-1">
                         {{ __('This marks matching approved students as graduated. Confirm that all required academic and financial clearances have been obtained prior.') }}
@@ -229,7 +234,7 @@
         wireConfirm="processGraduation"
     >
         <p class="text-sm text-gray-500 dark:text-gray-400">
-            {{ __('Are you sure you want to execute the bulk graduation process for eligible Level 400 students? This will process and move all cleared Level 400 students matching the program filter to Graduated status.') }}
+            {{ __('Are you sure you want to execute the bulk graduation process for eligible final-year students? This will process and move all cleared students at the selected level matching the program filter to Graduated status.') }}
         </p>
     </x-college.confirm-modal>
 

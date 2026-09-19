@@ -64,7 +64,7 @@ class GraduationIndexPage extends Component
     public function processGraduation(ProcessGraduationService $service): void
     {
         $this->validate([
-            'processLevel' => ['required', 'in:400'],
+            'processLevel' => ['required', 'in:100,200,300,400'],
             'processProgramId' => ['nullable'],
             'processSessionId' => ['nullable'],
             'graduationDate' => ['required', 'date'],
@@ -92,7 +92,7 @@ class GraduationIndexPage extends Component
 
         $count = $service->run(
             $sessionId,
-            '400',
+            $this->processLevel,
             $programId > 0 ? $programId : null,
             $this->graduationDate,
             (int) auth()->id(),
@@ -162,10 +162,12 @@ class GraduationIndexPage extends Component
             ->whereYear('graduation_date', now()->year)
             ->count();
 
+        $terminalYears = (int) ((int) $this->processLevel / 100);
         $eligiblePreview = Student::query()
             ->where('approved', true)
             ->where('graduated', false)
-            ->where('current_year', '400')
+            ->where('current_year', $this->processLevel)
+            ->whereHas('program', fn ($q) => $q->where('program_length', $terminalYears))
             ->when((int) $this->processProgramId > 0, fn ($q) => $q->where('program_id', (int) $this->processProgramId))
             ->count();
 
