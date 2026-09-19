@@ -232,7 +232,7 @@
                     <div>
                         <span class="font-bold text-gray-500 uppercase">{{ __('Course:') }}</span>
                         <span class="text-gray-900 dark:text-white ml-1 font-semibold">
-                            {{ $cohortGrades->first()->result->course->code }} - {{ $cohortGrades->first()->result->course->name }}
+                            {{ $cohortCourseLabel }}
                         </span>
                     </div>
                     <div>
@@ -280,11 +280,11 @@
                                         {{ $cg->exam_score !== null ? floatval($cg->exam_score) : '—' }}
                                     </td>
                                     <td class="px-3 py-3 text-center font-bold text-gray-950 dark:text-white bg-purple-50/30 dark:bg-purple-950/10 whitespace-nowrap">
-                                        {{ floatval($cg->result->score) }}
+                                        {{ $this->cohortTotal($cg) }}
                                     </td>
                                     <td class="px-3 py-3 text-center bg-purple-50/30 dark:bg-purple-950/10">
                                         <span class="inline-flex items-center rounded bg-purple-50 px-2 py-0.5 text-xs font-semibold text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
-                                            {{ $cg->result->grade }}
+                                            {{ $this->cohortGradeLetter($this->cohortTotal($cg)) }}
                                         </span>
                                     </td>
                                     @if ($filterStatus === 'pending')

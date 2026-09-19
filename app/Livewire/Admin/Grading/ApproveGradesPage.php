@@ -57,6 +57,10 @@ class ApproveGradesPage extends Component
 
     public Collection $cohortGrades;
 
+    public string $cohortCourseLabel = '';
+
+    private static ?Collection $gradeScaleCache = null;
+
     public function mount(): void
     {
         abort_unless(auth()->user()?->hasAdminPermission('nav_grading_approve'), 403);
@@ -128,10 +132,37 @@ class ApproveGradesPage extends Component
         $this->dispatch('open-modal', 'cohort-details-modal');
     }
 
+    /**
+     * Total for a grade row, computed from persisted fields so the modal
+     * renders identically after Livewire dehydration roundtrips.
+     */
+    public function cohortTotal(Grade $grade): float
+    {
+        return floatval($grade->class_score) + floatval($grade->exam_score);
+    }
+
+    /**
+     * Grade letter for a total. Grade scale is cached per request; never
+     * stored on the models (synthetic props do not survive dehydration).
+     */
+    public function cohortGradeLetter(float $total): string
+    {
+        self::$gradeScaleCache ??= GradePoint::query()->orderByDesc('min_score')->get();
+
+        foreach (self::$gradeScaleCache as $gp) {
+            if ($total >= $gp->min_score && $total <= $gp->max_score) {
+                return $gp->grade;
+            }
+        }
+
+        return 'F';
+    }
+
     private function refreshCohortGrades(): void
     {
         if ($this->selectedTeacherId === null) {
             $this->cohortGrades = new Collection();
+            $this->cohortCourseLabel = '';
             return;
         }
 
@@ -146,8 +177,13 @@ class ApproveGradesPage extends Component
 
         if (! $slip) {
             $this->cohortGrades = new Collection();
+            $this->cohortCourseLabel = '';
             return;
         }
+
+        $this->cohortCourseLabel = $slip->course
+            ? $slip->course->code.' - '.$slip->course->name
+            : __('Unknown course');
 
         $this->cohortGrades = Grade::query()
             ->where('result_slip_id', $slip->id)
@@ -159,26 +195,9 @@ class ApproveGradesPage extends Component
             ->pluck('student_id')
             ->toArray();
 
-        $gradeScale = GradePoint::query()->orderByDesc('min_score')->get();
-
         foreach ($this->cohortGrades as $grade) {
             $isApproved = in_array($grade->student_id, $approvedStudentIds);
             $grade->status = $isApproved ? 'approved' : $slip->status;
-            
-            $totalScore = floatval($grade->class_score) + floatval($grade->exam_score);
-            $gradeLetter = 'F';
-            foreach ($gradeScale as $gp) {
-                if ($totalScore >= $gp->min_score && $totalScore <= $gp->max_score) {
-                    $gradeLetter = $gp->grade;
-                    break;
-                }
-            }
-
-            $grade->result = (object) [
-                'score' => $totalScore,
-                'grade' => $gradeLetter,
-                'course' => $slip->course,
-            ];
         }
 
         if ($this->cohortGrades->isEmpty()) {
