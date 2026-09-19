@@ -21,14 +21,14 @@
                 
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div class="sm:col-span-2">
-                        <x-input-label for="index_number" :value="__('Index / Application Number')" />
+                        <x-input-label for="index_number" :value="__('Index / Application Number')" :required="true" />
                         <x-text-input wire:model="index_number" id="index_number" type="text" class="mt-1 block w-full font-mono font-semibold" required />
                         <x-input-error :messages="$errors->get('index_number')" class="mt-1" />
                     </div>
 
                     @if (! $hasStudent)
                         <div class="sm:col-span-2">
-                            <x-input-label for="program_id" :value="__('Program of Study')" />
+                            <x-input-label for="program_id" :value="__('Program of Study')" :required="true" />
                             <x-select-input wire:model="program_id" id="program_id" class="mt-1 block w-full" required>
                                 <option value="">{{ __('Select program…') }}</option>
                                 @foreach ($programs as $program)
@@ -39,7 +39,7 @@
                         </div>
                         
                         <div class="sm:col-span-2">
-                            <x-input-label for="hall_id" :value="__('Hall of Residence')" />
+                            <x-input-label for="hall_id" :value="__('Hall of Residence')" :required="true" />
                             <x-select-input wire:model="hall_id" id="hall_id" class="mt-1 block w-full" required>
                                 <option value="">{{ __('Select hall…') }}</option>
                                 @foreach ($halls as $hall)
@@ -50,7 +50,7 @@
                         </div>
                         
                         <div class="sm:col-span-2">
-                            <x-input-label for="username" :value="__('Login Username')" />
+                            <x-input-label for="username" :value="__('Login Username')" :required="true" />
                             <x-text-input wire:model="username" id="username" type="text" autocomplete="username" class="mt-1 block w-full font-mono" required />
                             <x-input-error :messages="$errors->get('username')" class="mt-1" />
                         </div>
@@ -80,13 +80,13 @@
                 
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div>
-                        <x-input-label for="lastname" :value="__('Last name')" />
+                        <x-input-label for="lastname" :value="__('Last name')" :required="true" />
                         <x-text-input wire:model="lastname" id="lastname" type="text" class="mt-1 block w-full" required />
                         <x-input-error :messages="$errors->get('lastname')" class="mt-1" />
                     </div>
 
                     <div>
-                        <x-input-label for="firstname" :value="__('First name')" />
+                        <x-input-label for="firstname" :value="__('First name')" :required="true" />
                         <x-text-input wire:model="firstname" id="firstname" type="text" class="mt-1 block w-full" required />
                         <x-input-error :messages="$errors->get('firstname')" class="mt-1" />
                     </div>
@@ -98,13 +98,13 @@
                     </div>
 
                     <div>
-                        <x-input-label for="date_of_birth" :value="__('Date of birth')" />
+                        <x-input-label for="date_of_birth" :value="__('Date of birth')" :required="true" />
                         <x-text-input wire:model="date_of_birth" id="date_of_birth" type="date" class="mt-1 block w-full" required />
                         <x-input-error :messages="$errors->get('date_of_birth')" class="mt-1" />
                     </div>
 
                     <div>
-                        <x-input-label for="gender" :value="__('Gender')" />
+                        <x-input-label for="gender" :value="__('Gender')" :required="true" />
                         @if (! $hasStudent)
                             <x-select-input wire:model="gender" id="gender" class="mt-1 block w-full" required>
                                 <option value="">{{ __('Select…') }}</option>
@@ -120,7 +120,7 @@
                     </div>
 
                     <div>
-                        <x-input-label for="nationality" :value="__('Nationality')" />
+                        <x-input-label for="nationality" :value="__('Nationality')" :required="true" />
                         <x-text-input wire:model="nationality" id="nationality" type="text" class="mt-1 block w-full" required />
                         <x-input-error :messages="$errors->get('nationality')" class="mt-1" />
                     </div>
@@ -147,7 +147,7 @@
                 
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div class="sm:col-span-2">
-                        <x-input-label for="ghana_card" :value="__('Ghana Card number')" />
+                        <x-input-label for="ghana_card" :value="__('Ghana Card number')" :required="true" />
                         <x-text-input wire:model="ghana_card" id="ghana_card" type="text" placeholder="GHA-XXXXXXXXX-X" class="mt-1 block w-full font-mono" required />
                         <x-input-error :messages="$errors->get('ghana_card')" class="mt-1" />
                     </div>
@@ -199,13 +199,13 @@
                     @endif
 
                     <div class="sm:col-span-2">
-                        <x-input-label for="phone_number" :value="__('Mobile phone')" />
+                        <x-input-label for="phone_number" :value="__('Mobile phone')" :required="true" />
                         <x-text-input wire:model="phone_number" id="phone_number" type="tel" class="mt-1 block w-full font-mono" required />
                         <x-input-error :messages="$errors->get('phone_number')" class="mt-1" />
                     </div>
 
                     <div class="sm:col-span-2">
-                        <x-input-label for="contact_address" :value="__('Contact address')" />
+                        <x-input-label for="contact_address" :value="__('Contact address')" :required="true" />
                         <x-textarea-input wire:model="contact_address" id="contact_address" rows="3" class="mt-1 block w-full" required />
                         <x-input-error :messages="$errors->get('contact_address')" class="mt-1" />
                     </div>

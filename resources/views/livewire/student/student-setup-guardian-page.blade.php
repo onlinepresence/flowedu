@@ -54,13 +54,13 @@
                     <input type="hidden" wire:model="guardian_id" />
 
                     <div>
-                        <x-input-label for="g-name" :value="__('Full name')" />
+                        <x-input-label for="g-name" :value="__('Full name')" :required="true" />
                         <x-text-input wire:model="name" id="g-name" type="text" class="mt-1 block w-full" required />
                         <x-input-error :messages="$errors->get('name')" class="mt-1" />
                     </div>
 
                     <div>
-                        <x-input-label for="g-rel" :value="__('Relationship')" />
+                        <x-input-label for="g-rel" :value="__('Relationship')" :required="true" />
                         <x-select-input wire:model="relationship" id="g-rel" class="mt-1 block w-full" required>
                             <option value="">{{ __('Select relationship…') }}</option>
                             <option value="father">{{ __('Father') }}</option>
@@ -77,7 +77,7 @@
                     </div>
 
                     <div>
-                        <x-input-label for="g-phone" :value="__('Phone number')" />
+                        <x-input-label for="g-phone" :value="__('Phone number')" :required="true" />
                         <x-text-input wire:model="phone_number" id="g-phone" type="tel" class="mt-1 block w-full font-mono" required />
                         <x-input-error :messages="$errors->get('phone_number')" class="mt-1" />
                     </div>

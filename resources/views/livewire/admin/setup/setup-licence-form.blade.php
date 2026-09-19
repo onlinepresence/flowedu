@@ -6,7 +6,7 @@
     <form wire:submit="save" class="grid gap-6 lg:grid-cols-3">
         <!-- Left 2 Cols: Features and Modules -->
         <div class="space-y-6 lg:col-span-2">
-            
+
             <!-- Section A: Core Features -->
             <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                 <div class="mb-4 flex items-center gap-2">
@@ -96,8 +96,8 @@
             </div>
         </div>
 
-        <!-- Right Col: Pricing & Caps -->
-        <div class="space-y-6 lg:col-span-1">
+        <!-- Right Col: Pricing & Caps (sticky on large screens) -->
+        <div class="space-y-6 self-start lg:col-span-1 lg:sticky lg:top-8">
             <!-- Student Capacity Cap -->
             <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                 <div class="mb-4 flex items-center gap-2">

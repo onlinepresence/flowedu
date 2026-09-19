@@ -98,14 +98,14 @@ new #[Layout('layouts.guest')] class extends Component
     <form wire:submit="register" class="space-y-4">
         <!-- Email Address -->
         <div>
-            <x-input-label for="email" :value="__('Email')" />
+            <x-input-label for="email" :value="__('Email')" :required="true" />
             <x-text-input wire:model="email" id="email" class="mt-1 block w-full" type="email" name="email" required autofocus autocomplete="username" />
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
 
         <!-- Password -->
         <div>
-            <x-input-label for="password" :value="__('Password')" />
+            <x-input-label for="password" :value="__('Password')" :required="true" />
 
             <x-text-input wire:model="password" id="password" class="mt-1 block w-full"
                             type="password"
@@ -117,7 +117,7 @@ new #[Layout('layouts.guest')] class extends Component
 
         <!-- Confirm Password -->
         <div>
-            <x-input-label for="password_confirmation" :value="__('Confirm Password')" />
+            <x-input-label for="password_confirmation" :value="__('Confirm Password')" :required="true" />
 
             <x-text-input wire:model="password_confirmation" id="password_confirmation" class="mt-1 block w-full"
                             type="password"
@@ -128,7 +128,7 @@ new #[Layout('layouts.guest')] class extends Component
 
         @if (session('admin_register'))
             <div>
-                <x-input-label for="system_secret" :value="__('System secret')" />
+                <x-input-label for="system_secret" :value="__('System secret')" :required="true" />
                 <x-text-input wire:model="system_secret" id="system_secret" class="mt-1 block w-full"
                     type="password" name="system_secret" required autocomplete="off" />
                 <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ __('The secret provided for first-time system setup.') }}</p>

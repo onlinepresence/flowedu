@@ -15,6 +15,7 @@ use App\Support\FilepondPendingFile;
 use App\Livewire\Concerns\DispatchesCollegeToasts;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 
@@ -60,6 +61,10 @@ class AdminSetupPersonalPage extends Component
         $this->schoolReady = (bool) ($school?->ready);
 
         $this->username = (string) ($user->username ?? '');
+
+        if ($this->username === '' && is_string($user->email) && str_contains($user->email, '@')) {
+            $this->username = (string) Str::before($user->email, '@');
+        }
 
         $admin = $user->admin;
         if ($admin !== null) {

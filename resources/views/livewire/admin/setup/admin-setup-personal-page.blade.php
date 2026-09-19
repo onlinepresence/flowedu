@@ -97,39 +97,39 @@
                     <!-- Section: Personal Info -->
                     <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
                         <div>
-                            <label for="adm-username" class="block text-sm font-semibold text-gray-700 dark:text-gray-305">{{ __('Username') }}</label>
+                            <label for="adm-username" class="block text-sm font-semibold text-gray-700 dark:text-gray-305">{{ __('Username') }} <span class="text-red-500" aria-hidden="true">*</span></label>
                             <input wire:model="username" id="adm-username" type="text" required class="mt-1.5 block w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-550 focus:ring-purple-550 dark:border-gray-600 dark:bg-gray-900 dark:text-white" />
                             @error('username') <p class="mt-1 text-xs text-red-650 dark:text-red-400">{{ $message }}</p> @enderror
                         </div>
 
                         <div>
-                            <label for="adm-lastname" class="block text-sm font-semibold text-gray-700 dark:text-gray-305">{{ __('Last Name') }}</label>
+                            <label for="adm-lastname" class="block text-sm font-semibold text-gray-700 dark:text-gray-305">{{ __('Last Name') }} <span class="text-red-500" aria-hidden="true">*</span></label>
                             <input wire:model="lastname" id="adm-lastname" type="text" required class="mt-1.5 block w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-550 focus:ring-purple-550 dark:border-gray-600 dark:bg-gray-900 dark:text-white" />
                             @error('lastname') <p class="mt-1 text-xs text-red-650 dark:text-red-400">{{ $message }}</p> @enderror
                         </div>
 
                         <div>
-                            <label for="adm-othernames" class="block text-sm font-semibold text-gray-700 dark:text-gray-305">{{ __('Other Names') }}</label>
+                            <label for="adm-othernames" class="block text-sm font-semibold text-gray-700 dark:text-gray-305">{{ __('Other Names') }} <span class="text-red-500" aria-hidden="true">*</span></label>
                             <input wire:model="othernames" id="adm-othernames" type="text" required class="mt-1.5 block w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-550 focus:ring-purple-550 dark:border-gray-600 dark:bg-gray-900 dark:text-white" />
                             @error('othernames') <p class="mt-1 text-xs text-red-650 dark:text-red-400">{{ $message }}</p> @enderror
                         </div>
 
                         <div>
-                            <label for="adm-phone" class="block text-sm font-semibold text-gray-700 dark:text-gray-305">{{ __('Phone Number') }}</label>
+                            <label for="adm-phone" class="block text-sm font-semibold text-gray-700 dark:text-gray-305">{{ __('Phone Number') }}@if($schoolReady) <span class="text-red-500" aria-hidden="true">*</span>@endif</label>
                             <input wire:model="phone_number" id="adm-phone" type="tel" required class="mt-1.5 block w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-550 focus:ring-purple-550 dark:border-gray-600 dark:bg-gray-900 dark:text-white" />
                             @error('phone_number') <p class="mt-1 text-xs text-red-650 dark:text-red-400">{{ $message }}</p> @enderror
                         </div>
 
                         @if ($userType === 'admin')
                             <div>
-                                <label for="adm-ghana" class="block text-sm font-semibold text-gray-700 dark:text-gray-305">{{ __('Ghana Card number') }}</label>
+                                <label for="adm-ghana" class="block text-sm font-semibold text-gray-700 dark:text-gray-305">{{ __('Ghana Card number') }} <span class="text-red-500" aria-hidden="true">*</span></label>
                                 <input wire:model="ghana_card" id="adm-ghana" type="text" required minlength="6" class="mt-1.5 block w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-550 focus:ring-purple-550 dark:border-gray-600 dark:bg-gray-900 dark:text-white" placeholder="GHA-XXXXXXXXX-X" />
                                 @error('ghana_card') <p class="mt-1 text-xs text-red-650 dark:text-red-400">{{ $message }}</p> @enderror
                             </div>
 
                             @if ($schoolReady)
                                 <div>
-                                    <label for="adm-gender" class="block text-sm font-semibold text-gray-700 dark:text-gray-305">{{ __('Gender') }}</label>
+                                    <label for="adm-gender" class="block text-sm font-semibold text-gray-700 dark:text-gray-305">{{ __('Gender') }} <span class="text-red-500" aria-hidden="true">*</span></label>
                                     <select wire:model="gender" id="adm-gender" required class="mt-1.5 block w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-550 focus:ring-purple-550 dark:border-gray-600 dark:bg-gray-900 dark:text-white">
                                         <option value="">{{ __('Select…') }}</option>
                                         <option value="male">{{ __('Male') }}</option>
@@ -157,7 +157,7 @@
                                 @if ($userType === 'admin')
                                     @if ($roleSlug === 'hod')
                                         <div class="sm:col-span-2">
-                                            <label for="adm-dept2" class="block text-sm font-semibold text-gray-700 dark:text-gray-305">{{ __('Department') }}</label>
+                                            <label for="adm-dept2" class="block text-sm font-semibold text-gray-700 dark:text-gray-305">{{ __('Department') }} <span class="text-red-500" aria-hidden="true">*</span></label>
                                             <select wire:model="department_id" id="adm-dept2" class="mt-1.5 block w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-550 focus:ring-purple-550 dark:border-gray-600 dark:bg-gray-900 dark:text-white">
                                                 <option value="">{{ __('Select…') }}</option>
                                                 @foreach ($departments as $d)
@@ -170,7 +170,7 @@
                                     
                                     @if ($roleSlug === 'dean')
                                         <div class="sm:col-span-2">
-                                            <label for="adm-fac" class="block text-sm font-semibold text-gray-700 dark:text-gray-305">{{ __('Faculty') }}</label>
+                                            <label for="adm-fac" class="block text-sm font-semibold text-gray-700 dark:text-gray-305">{{ __('Faculty') }} <span class="text-red-500" aria-hidden="true">*</span></label>
                                             <select wire:model="faculty_id" id="adm-fac" class="mt-1.5 block w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-550 focus:ring-purple-550 dark:border-gray-600 dark:bg-gray-900 dark:text-white">
                                                 <option value="">{{ __('Select…') }}</option>
                                                 @foreach ($faculties as $f)
