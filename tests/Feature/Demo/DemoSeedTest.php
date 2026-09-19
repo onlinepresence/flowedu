@@ -149,6 +149,19 @@ class DemoSeedTest extends TestCase
         $this->assertGreaterThan(0, \App\Models\TeacherAttendanceSheet::query()->whereIn('recorded_by', $hodIds)->count());
         $this->assertSame(0, \App\Models\FeePayment::query()->whereNull('academic_year')->count());
 
+        // Teacher portal map: lecturers resolve full menu (regression: an
+        // empty teacher_portal_roles table collapsed the sidebar to
+        // Dashboard + Profile only).
+        $this->assertDatabaseHas('teacher_portal_roles', ['name' => 'lecturer']);
+        $teacher = \App\Models\User::query()->where('email', 'teacher@demo.com')->firstOrFail();
+        $this->assertSame(['courses', 'students', 'assessments', 'communication'], $teacher->teacherPermissions());
+        \Livewire\Livewire::actingAs($teacher)
+            ->test(\App\Livewire\Navigation\TeacherSidebar::class)
+            ->assertSee('My Courses')
+            ->assertSee('Students')
+            ->assertSee('Assessments')
+            ->assertSee('Communication');
+
         // Timetable: every course placed in both sessions.
         $courseCount = \App\Models\Course::query()->count();
         foreach ([$previous, $current] as $session) {

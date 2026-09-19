@@ -478,6 +478,31 @@ class DemoDataSeeder extends Seeder
         $this->chunkInsert('staff_leave_types', $this->stamp($leaveTypeRows));
         $leaveTypes = DB::table('staff_leave_types')->orderBy('id')->get();
 
+        // Teacher portal permission map (mirrors the migration defaults; the
+        // truncate above wipes them). Without the 'lecturer' row, every
+        // teacher resolves zero permissions and the sidebar collapses to
+        // Dashboard + Profile only.
+        $this->chunkInsert('teacher_portal_roles', $this->stamp([
+            [
+                'name' => 'lecturer',
+                'display_name' => 'Lecturer',
+                'permissions' => json_encode(['courses', 'students', 'assessments', 'communication']),
+                'description' => 'Standard teaching faculty with full access to portal features.',
+            ],
+            [
+                'name' => 'coordinator',
+                'display_name' => 'Programme Coordinator',
+                'permissions' => json_encode(['courses', 'students', 'assessments']),
+                'description' => 'Academic coordinator managing courses, student attendance, and grades.',
+            ],
+            [
+                'name' => 'tutor',
+                'display_name' => 'Tutor / Teaching Assistant',
+                'permissions' => json_encode(['courses', 'students']),
+                'description' => 'Tutor with access to courses and student records but no grade entry.',
+            ],
+        ]));
+
         $componentDefs = [
             ['Tuition Fee', true], ['Library Fee', true], ['Laboratory Fee', true],
             ['Medical Fee', true], ['Sports Fee', true], ['Examination Fee', true],
