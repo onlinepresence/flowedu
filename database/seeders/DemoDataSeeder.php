@@ -2,26 +2,94 @@
 
 namespace Database\Seeders;
 
+/*
+|--------------------------------------------------------------------------
+| FlowEdu Demo Data Seeder (single-connection, MySQL-strict clean)
+|--------------------------------------------------------------------------
+|
+| Two dynamic GES academic years anchored on today (never hardcoded):
+|   previous = [today - 1yr, today - 1day], current = [today, today + 1yr - 1day]
+|
+| Non-negotiable principles:
+| - Deterministic: ONE mt_srand() seed drives every pick; money figures are
+|   fixed constants (current-year uplift is a seeded 0-5% draw per structure,
+|   reproducible run to run). The only non-determinism is UUID/token secrets.
+| - Fast: ONE precomputed password hash reused for every demo user, a single
+|   DB transaction around all inserts, chunked bulk inserts (no per-row
+|   Eloquent creates on hot paths).
+| - Real code paths: AutoPromotionService bumps years (never hand-set
+|   current_year), ActivateStudentDashboardAction assigns official index
+|   numbers, AssertStudentApprovalAllowedByLicence gates approvals,
+|   EvaluationFormStatusService + SemesterActiveStatusService open/close
+|   windows, ProcessGraduationService graduates 4-year finalists,
+|   FeeCalculationService::syncFeePaymentLedger builds owing ledgers.
+|
+| Role -> movement map (mirrors UserRole::ensureSystemRoles; a person never
+| crosses roles; NO principal user is seeded — VP/Dean top out all chains):
+|   owner                 system setup only (skeleton, users/roles, licence,
+|                         impersonation/audit/backups)
+|   admissions_officer    ALL student approvals
+|   registrar             student records, clearance processing
+|   accountant            posts invoices + payments + scholarships
+|   finance_officer       financial oversight/reporting (reads)
+|   internal_auditor      views only, touches nothing
+|   exams_officer         grade uploads, grade approvals, transcripts
+|   lecturers (teachers)  enter their own course marks
+|   quality_assurance     CREATES all evaluation forms; approves materials
+|   secretary             DRAFTS every memo, signs none
+|   hod                   signs department memos, dept leaves, attendance files
+|   dean_of_students /    top administration signatures, discipline + medical
+|     vice_principal
+|   human_resource_mgr    leave decisions for non-teaching staff
+|   pro                   announcements (college memo announcements)
+|   students              evaluations, transcripts, fees, discipline/medical
+|
+| Known gaps (flagged, never faked):
+| - ProcessGraduationService hardcodes level '400', so 2-year diploma
+|   finalists (level 200) cannot graduate through the real path and are left
+|   ungraduated with clearance rows pending.
+| - disciplinary_records / medical_histories carry no actor column, so
+|   Dean/VP ownership of those rows is by convention, not FK.
+| - teacher_attendance_sheets is a file-upload row (no recorded_by column);
+|   HOD ownership is by convention (files live under the HOD's upload batch).
+| - announcements.teacher_id is required, so course announcements are
+|   authored by lecturers (approved by QA); the PRO owns college-wide
+|   announcements, which live as chainless memos.
+*/
+
+use App\Actions\Students\ActivateStudentDashboardAction;
+use App\Actions\Students\AssertStudentApprovalAllowedByLicence;
+use App\Actions\Students\SaveStudentAdmissionProfileAction;
 use App\Models\AcademicSession;
 use App\Models\Admin;
 use App\Models\AdminType;
-use App\Models\Announcement;
 use App\Models\Course;
 use App\Models\Department;
 use App\Models\DisciplinaryRecord;
 use App\Models\EvaluationForm;
 use App\Models\EvaluationQuestion;
 use App\Models\EvaluationResponse;
+use App\Models\Expenditure;
 use App\Models\Faculty;
+use App\Models\FeeComponent;
 use App\Models\FeeStructure;
+use App\Models\FeeStructureItem;
 use App\Models\Grade;
 use App\Models\GradePoint;
 use App\Models\Hall;
+use App\Models\Invoice;
+use App\Models\InvoiceItem;
+use App\Models\JobAlert;
+use App\Models\LeaveRequest;
 use App\Models\MedicalHistory;
 use App\Models\Memo;
+use App\Models\MemoAttachment;
+use App\Models\MemoReadReceipt;
+use App\Models\MemoSignatory;
 use App\Models\MemoTracking;
 use App\Models\ParentGuardian;
 use App\Models\Payment;
+use App\Models\Product;
 use App\Models\Program;
 use App\Models\ResponseDetail;
 use App\Models\Result;
@@ -32,37 +100,124 @@ use App\Models\School;
 use App\Models\SchoolLicence;
 use App\Models\Semester;
 use App\Models\Setting;
+use App\Models\StaffLeaveType;
 use App\Models\Student;
 use App\Models\Teacher;
-use App\Models\TeacherRole;
 use App\Models\TeacherAssignment;
 use App\Models\TeacherCourse;
-use App\Models\TeacherAttendanceSheet;
-use App\Models\CourseMaterial;
+use App\Models\TeacherRole;
+use App\Models\Timetable;
+use App\Models\TimetableClass;
+use App\Models\TranscriptRequest;
 use App\Models\User;
 use App\Models\UserRole;
-use App\Models\StaffLeaveType;
-use App\Models\LeaveRequest;
-use App\Models\Product;
-use App\Models\Invoice;
-use App\Models\InvoiceItem;
-use App\Models\Expenditure;
-use App\Models\FeeComponent;
-use App\Models\FeeStructureItem;
-use App\Models\SystemAudit;
+use App\Services\Finance\FeeCalculationService;
+use App\Services\Maintenance\AutoPromotionService;
+use App\Services\Maintenance\EvaluationFormStatusService;
+use App\Services\Maintenance\SemesterActiveStatusService;
+use App\Services\Students\ProcessGraduationService;
+use Carbon\Carbon;
 use Illuminate\Database\Seeder;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class DemoDataSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
+    // ------------------------------------------------------------------
+    // Deterministic helpers (seeded RNG only — no rand()/fake() anywhere)
+    // ------------------------------------------------------------------
+
+    private int $seq = 0;
+
+    private function nextSeq(): int
+    {
+        return ++$this->seq;
+    }
+
+    /** Deterministic pick from a list. */
+    private function pick(array $list): mixed
+    {
+        return $list[mt_rand(0, count($list) - 1)];
+    }
+
+    /** Deterministic token (hex) — avoids random_bytes so runs reproduce. */
+    private function token(int $bytes = 8): string
+    {
+        $out = '';
+        for ($i = 0; $i < $bytes; $i++) {
+            $out .= str_pad(dechex(mt_rand(0, 255)), 2, '0', STR_PAD_LEFT);
+        }
+
+        return $out;
+    }
+
+    private function ghanaCard(): string
+    {
+        return 'GHA-'.str_pad((string) (310000000 + $this->nextSeq()), 9, '0', STR_PAD_LEFT).'-'.mt_rand(0, 9);
+    }
+
+    private function ghanaPhone(): string
+    {
+        $prefixes = ['024', '025', '053', '054', '055', '059', '020', '050', '027', '057', '026', '056'];
+        $prefix = $prefixes[$this->seq % count($prefixes)];
+
+        return '+233 '.substr($prefix, 1).' '.str_pad((string) (1000000 + (($this->seq * 7919) % 8999999)), 7, '0', STR_PAD_LEFT);
+    }
+
+    /** A date inside [$start, $end] derived deterministically from a salt. */
+    private function dateIn(Carbon $start, Carbon $end, int $salt, int $step = 7): Carbon
+    {
+        $spanDays = $start->diffInDays($end);
+        if ($spanDays <= 0) {
+            return $start->copy();
+        }
+        $date = $start->copy()->addDays(($salt * $step) % ($spanDays + 1));
+        if ($date->gt($end)) {
+            return $end->copy();
+        }
+        if ($date->lt($start)) {
+            return $start->copy();
+        }
+
+        return $date;
+    }
+
+    private function stamp(array $rows): array
+    {
+        $now = now()->toDateTimeString();
+        foreach ($rows as &$row) {
+            $row['created_at'] ??= $now;
+            $row['updated_at'] ??= $now;
+        }
+
+        return $rows;
+    }
+
+    private function chunkInsert(string $table, array $rows, int $chunk = 400): void
+    {
+        foreach (array_chunk($rows, $chunk) as $piece) {
+            DB::table($table)->insert($piece);
+        }
+    }
+
     public function run(): void
     {
-        // 1. Reset tables (handling sqlite & mysql cases)
+        mt_srand(20260719);
+
+        // Keep phpunit runs hermetic: file writes (profile photos, memo
+        // attachments, attendance CSVs) go to fake disks under testing.
+        if (app()->runningUnitTests()) {
+            Storage::fake('local');
+            Storage::fake('college_uploads');
+        }
+
+        // --------------------------------------------------------------
+        // 0. Reset (TRUNCATE implicit-commits on MySQL: keep OUTSIDE txn)
+        // --------------------------------------------------------------
         $driver = DB::connection()->getDriverName();
         if ($driver === 'sqlite') {
             DB::statement('PRAGMA foreign_keys = OFF;');
@@ -70,22 +225,43 @@ class DemoDataSeeder extends Seeder
             DB::statement('SET FOREIGN_KEY_CHECKS = 0;');
         }
 
-        // Truncate all tables we will populate
         $tables = [
-            'users', 'admins', 'teachers', 'students', 'schools', 'school_licences',
+            'users', 'admins', 'admin_types', 'teachers', 'students', 'schools', 'school_licences',
             'academic_sessions', 'semesters', 'halls', 'faculties', 'departments',
-            'programs', 'courses', 'teacher_assignments', 'parent_guardians',
-            'fee_structures', 'payments', 'grades', 'results', 'grade_points',
-            'disciplinary_records', 'medical_histories', 'evaluation_forms',
-            'evaluation_questions', 'evaluation_responses', 'response_details',
-            'announcements', 'memos', 'memo_tracking', 'memo_attachments', 'notifications',
+            'programs', 'courses', 'teacher_assignments', 'teacher_courses', 'teacher_roles',
+            'teacher_portal_roles', 'parent_guardians',
+            'fee_structures', 'fee_structure_items', 'fee_components', 'payments', 'fee_payments',
+            'fee_breakdown_requests',
+            'grades', 'results', 'result_slips', 'grade_points', 'academic_information',
+            'transcript_requests',
+            'disciplinary_records', 'medical_histories',
+            'evaluation_forms', 'evaluation_questions', 'evaluation_responses', 'response_details',
+            'announcements', 'course_materials',
+            'memos', 'memo_tracking', 'memo_attachments', 'memo_signatories', 'memo_read_receipts',
+            'notifications',
             'scholarships', 'scholarship_recipients',
-            'result_slips', 'transcript_requests', 'timetables', 'timetable_classes', 'teacher_courses', 'settings',
-            'memo_signatories', 'memo_read_receipts', 'fee_breakdown_requests', 'job_alerts',
-            'products', 'invoices', 'invoice_items', 'expenditures', 'staff_leave_types', 'leave_requests', 'fee_components', 'fee_structure_items', 'system_audits'
+            'timetables', 'timetable_classes',
+            'teacher_attendance_sheets',
+            'products', 'invoices', 'invoice_items', 'expenditures',
+            'staff_leave_types', 'leave_requests',
+            'office_assignment_histories',
+            'student_clearances', 'graduations', 'promotions',
+            'job_alerts', 'settings', 'system_audits', 'admin_impersonation_logs', 'backups',
+            'documents', 'activities',
+            'user_file_categories', 'user_uploaded_files',
+            'conversations', 'conversation_participants', 'messages',
+            'teaching_practice_supervisions', 'shared_lesson_plans',
+            'password_reset_tokens',
         ];
         foreach ($tables as $table) {
-            DB::table($table)->truncate();
+            try {
+                DB::table($table)->truncate();
+            } catch (\Throwable $e) {
+                // Table may not exist on older checkouts; strict-clean means
+                // migrate:fresh first, so a missing table here is unexpected —
+                // fail loudly rather than seeding half a schema.
+                throw new \RuntimeException("DemoDataSeeder cannot truncate [{$table}]: ".$e->getMessage(), 0, $e);
+            }
         }
 
         if ($driver === 'sqlite') {
@@ -94,35 +270,34 @@ class DemoDataSeeder extends Seeder
             DB::statement('SET FOREIGN_KEY_CHECKS = 1;');
         }
 
-        // 2. Ensure baseline roles and types are seeded
+        // ONE precomputed hash reused for every demo user (fast by design).
+        $passwordHash = Hash::make('password');
+        $now = now();
+
+        DB::transaction(function () use ($passwordHash, $now): void {
+            $this->seedAll($passwordHash, $now);
+        });
+
+        Auth::logout();
+    }
+
+    private function seedAll(string $passwordHash, Carbon $now): void
+    {
+        // ==============================================================
+        // 1. SKELETON — sessions (dynamic GES years), school, licence
+        // ==============================================================
         AdminType::ensureDefaults();
         UserRole::ensureSystemRoles();
+        $roleId = fn (string $name): ?int => UserRole::query()->where('name', $name)->value('id');
 
-        // Create staff leave types
-        $seniorStaffLeave = StaffLeaveType::create(['name' => 'Senior Staff', 'max_leave_days' => 30]);
-        $juniorStaffLeave = StaffLeaveType::create(['name' => 'Junior Staff', 'max_leave_days' => 21]);
-        $principalLeave = StaffLeaveType::create(['name' => 'Principal Officers', 'max_leave_days' => 42]);
+        $today = Carbon::today();
+        $prevStart = $today->copy()->subYear();
+        $prevEnd = $today->copy()->subDay();
+        $curStart = $today->copy();
+        $curEnd = $today->copy()->addYear()->subDay();
+        $prevName = $prevStart->format('Y').'/'.($prevStart->format('Y') + 1);
+        $curName = $curStart->format('Y').'/'.($curStart->format('Y') + 1);
 
-        // Seed default fee components
-        $componentsData = [
-            ['name' => 'Tuition Fee', 'is_system' => true],
-            ['name' => 'Library Fee', 'is_system' => true],
-            ['name' => 'Lab Fee', 'is_system' => true],
-            ['name' => 'Medical Fee', 'is_system' => true],
-            ['name' => 'Sports Fee', 'is_system' => true],
-            ['name' => 'Examination Fee', 'is_system' => true],
-        ];
-        $components = [];
-        foreach ($componentsData as $cd) {
-            $components[$cd['name']] = FeeComponent::create([
-                'name' => $cd['name'],
-                'default_percentage' => 0.00,
-                'is_active' => true,
-                'is_system' => $cd['is_system'],
-            ]);
-        }
-
-        // 3. Seed School & License
         $school = School::create([
             'name' => 'Apex Polytechnic (Demo Sandbox)',
             'address' => '10 University Road, East Legon, Accra, Ghana',
@@ -134,22 +309,25 @@ class DemoDataSeeder extends Seeder
             'is_admit' => true,
             'motto' => 'Knowledge, Integrity, Excellence',
             'established_year' => 2012,
-            'principal_name' => 'Prof. Ernest K. Adei',
+            'principal_name' => null, // No principal user is seeded; VP/Dean top out chains.
             'facebook_url' => 'https://facebook.com/apexpoly',
             'twitter_url' => 'https://twitter.com/apexpoly',
             'linkedin_url' => 'https://linkedin.com/school/apexpoly',
             'instagram_url' => 'https://instagram.com/apexpoly',
         ]);
 
+        // Licence: ~144 active approvals land in the 101-500 band (x1.25);
+        // notes echo config/licence.php core figures (upfront GHS 4,500.00,
+        // renewal GHS 1,200.00). Cap 500 keeps the approval demo unblocked.
         SchoolLicence::create([
             'school_id' => $school->id,
             'max_active_students' => 500,
-            'licence_start' => now()->subMonths(3),
-            'licence_end' => now()->addYear(),
-            'support_until' => now()->addYear(),
-            'notes' => 'Complete enterprise demo sandbox license.',
-            'external_ref' => 'REF-SANDBOX-2026',
-            'licence_key' => 'APEX-COMPLETE-DEMO-LICENSE-KEY',
+            'licence_start' => $prevStart->toDateString(),
+            'licence_end' => $curEnd->toDateString(),
+            'support_until' => $curEnd->toDateString(),
+            'notes' => 'Demo licence - enrolment band 101-500 (x1.25) - core upfront GHS 4,500.00, renewal GHS 1,200.00, all modules on.',
+            'external_ref' => 'REF-DEMO-'.$curStart->format('Y'),
+            'licence_key' => 'APEX-DEMO-'.$curStart->format('Y').'-ENTERPRISE',
             'core_timetable' => true,
             'core_attendance' => true,
             'core_memos' => true,
@@ -162,1898 +340,2021 @@ class DemoDataSeeder extends Seeder
             'module_progression' => true,
             'module_system_admin' => true,
             'module_teacher_tools' => true,
+            'module_messaging' => true,
+            'module_practicum' => true,
         ]);
 
-        // 4. Seed Academic Sessions & Semesters
-        $previousSession = AcademicSession::create([
-            'name' => '2024/2025',
-            'start_date' => '2024-09-01',
-            'end_date' => '2025-06-30',
+        $prevSession = AcademicSession::create([
+            'name' => $prevName,
+            'start_date' => $prevStart->toDateString(),
+            'end_date' => $prevEnd->toDateString(),
             'is_current' => false,
         ]);
-
-        Semester::create([
-            'academic_session_id' => $previousSession->id,
-            'name' => 'First Semester',
-            'start_date' => '2024-09-01',
-            'end_date' => '2025-01-31',
-            'is_active' => false,
-        ]);
-
-        Semester::create([
-            'academic_session_id' => $previousSession->id,
-            'name' => 'Second Semester',
-            'start_date' => '2025-02-01',
-            'end_date' => '2025-06-30',
-            'is_active' => false,
-        ]);
-
-        $session = AcademicSession::create([
-            'name' => '2025/2026',
-            'start_date' => '2025-09-01',
-            'end_date' => '2026-06-30',
+        $curSession = AcademicSession::create([
+            'name' => $curName,
+            'start_date' => $curStart->toDateString(),
+            'end_date' => $curEnd->toDateString(),
             'is_current' => true,
         ]);
 
-        Semester::create([
-            'academic_session_id' => $session->id,
-            'name' => 'First Semester',
-            'start_date' => '2025-09-01',
-            'end_date' => '2026-01-31',
-            'is_active' => false,
-        ]);
-
-        Semester::create([
-            'academic_session_id' => $session->id,
-            'name' => 'Second Semester',
-            'start_date' => '2026-02-01',
-            'end_date' => '2026-06-30',
-            'is_active' => true,
-        ]);
-
-        // 5. Seed Halls
-        $hallsData = [
-            ['name' => 'Republic Hall', 'cost' => rand(400, 600), 'period' => 'per_semester'],
-            ['name' => 'Queens Hall', 'cost' => rand(450, 650), 'period' => 'per_semester'],
-            ['name' => 'Unity Hall', 'cost' => rand(700, 900), 'period' => 'per_year'],
-            ['name' => 'Independence Hall', 'cost' => rand(700, 850), 'period' => 'per_year'],
-        ];
-        $hallIds = [];
-        foreach ($hallsData as $h) {
-            $createdHall = Hall::create([
-                'name' => $h['name'],
-                'master' => 'Prof. '.fake()->firstName('male').' '.fake()->lastName(),
-                'cost' => $h['cost'],
-                'period' => $h['period'],
+        // Semesters: split each year in half; the status service activates
+        // whichever contains today (real path, asserted below).
+        $semesters = [];
+        foreach ([$prevSession, $curSession] as $sess) {
+            $s = Carbon::parse($sess->start_date);
+            $e = Carbon::parse($sess->end_date);
+            $mid = $s->copy()->addMonths(6);
+            $semesters[] = Semester::create([
+                'academic_session_id' => $sess->id,
+                'name' => 'First Semester',
+                'start_date' => $s->toDateString(),
+                'end_date' => $mid->copy()->subDay()->toDateString(),
+                'is_active' => false,
             ]);
-            $hallIds[] = $createdHall->id;
+            $semesters[] = Semester::create([
+                'academic_session_id' => $sess->id,
+                'name' => 'Second Semester',
+                'start_date' => $mid->toDateString(),
+                'end_date' => $e->toDateString(),
+                'is_active' => false,
+            ]);
+        }
+        if (! app(SemesterActiveStatusService::class)->run()) {
+            throw new \RuntimeException('SemesterActiveStatusService failed during seeding.');
+        }
+        if (Semester::query()->where('is_active', true)->count() === 0) {
+            throw new \RuntimeException('No active semester resolved; check session dates.');
         }
 
-        // 6. Seed Faculty & Departments & Programs
-        $facultyData = [
-            'Faculty of Engineering & Computing' => [
-                'Department of Computer Science' => [
-                    ['name' => 'BSc Computer Science', 'certificate' => 'BSc', 'cost' => 1800, 'program_length' => 4],
-                    ['name' => 'Diploma in IT', 'certificate' => 'Diploma', 'cost' => 1200, 'program_length' => 2],
-                ],
-                'Department of Computer Engineering' => [
-                    ['name' => 'BEng Computer Engineering', 'certificate' => 'BEng', 'cost' => 2200, 'program_length' => 4],
-                ],
-            ],
-            'Faculty of Business & Humanities' => [
-                'Department of Finance & Economics' => [
-                    ['name' => 'BSc Business Administration', 'certificate' => 'BSc', 'cost' => 1500, 'program_length' => 4],
-                ],
-            ],
+        // Halls (deterministic costs).
+        $hallRows = [
+            ['name' => 'Republic Hall', 'master' => 'Prof. Kofi Asante', 'cost' => 450.00, 'period' => 'per_semester'],
+            ['name' => 'Queens Hall', 'master' => 'Dr. Ama Serwaa', 'cost' => 550.00, 'period' => 'per_semester'],
+            ['name' => 'Unity Hall', 'master' => 'Mr. Yaw Darko', 'cost' => 800.00, 'period' => 'per_year'],
+            ['name' => 'Independence Hall', 'master' => 'Mrs. Abena Owusu', 'cost' => 750.00, 'period' => 'per_year'],
         ];
+        $this->chunkInsert('halls', $this->stamp($hallRows));
+        $hallIds = DB::table('halls')->orderBy('id')->pluck('id')->all();
 
-        $programsList = [];
-        $departmentIds = [];
-        foreach ($facultyData as $facName => $deps) {
-            $faculty = Faculty::create(['name' => $facName]);
-            foreach ($deps as $depName => $progs) {
-                $dep = Department::create([
-                    'name' => $depName,
-                    'faculty_id' => $faculty->id,
-                ]);
-                $departmentIds[] = $dep->id;
-                foreach ($progs as $p) {
-                    $prog = Program::create([
-                        'name' => $p['name'],
-                        'department_id' => $dep->id,
-                        'certificate' => $p['certificate'],
-                        'cost' => $p['cost'],
-                        'program_length' => $p['program_length'],
-                    ]);
-                    $programsList[] = $prog;
+        // Faculties -> departments -> programs (length mix: 4yr + 2yr diplomas).
+        $facultyRows = [
+            ['name' => 'Faculty of Applied Sciences & Technology'],
+            ['name' => 'Faculty of Business & Humanities'],
+        ];
+        $this->chunkInsert('faculties', $this->stamp($facultyRows));
+        $faculties = DB::table('faculties')->orderBy('id')->get();
+
+        $deptRows = [
+            ['name' => 'Department of Computer Science', 'faculty_id' => $faculties[0]->id],
+            ['name' => 'Department of Electrical Engineering', 'faculty_id' => $faculties[0]->id],
+            ['name' => 'Department of Accounting & Finance', 'faculty_id' => $faculties[1]->id],
+            ['name' => 'Department of Communication Studies', 'faculty_id' => $faculties[1]->id],
+        ];
+        $this->chunkInsert('departments', $this->stamp($deptRows));
+        $departments = DB::table('departments')->orderBy('id')->get();
+
+        // [program name, dept idx, certificate, cost(tuition), length years, code prefix]
+        $programDefs = [
+            ['BSc Computer Science', 0, 'BSc', 1800.00, 4, 'CSC'],
+            ['Diploma in Information Technology', 0, 'Diploma', 1200.00, 2, 'DIT'],
+            ['BEng Electrical Engineering', 1, 'BEng', 2200.00, 4, 'EEE'],
+            ['BSc Accounting', 2, 'BSc', 1500.00, 4, 'ACC'],
+            ['Diploma in Business Studies', 2, 'Diploma', 1000.00, 2, 'DBS'],
+            ['BA Communication Studies', 3, 'BA', 1400.00, 4, 'CMS'],
+        ];
+        $programRows = [];
+        foreach ($programDefs as $def) {
+            $programRows[] = [
+                'name' => $def[0],
+                'department_id' => $departments[$def[1]]->id,
+                'certificate' => $def[2],
+                'cost' => $def[3],
+                'program_length' => $def[4],
+            ];
+        }
+        $this->chunkInsert('programs', $this->stamp($programRows));
+        $programs = Program::query()->orderBy('id')->get()->all();
+
+        // Courses: 4yr -> 3+2+2+1 per year; 2yr -> 2+2. Deterministic codes.
+        $courseNames = [
+            'CSC' => ['Introduction to Computing', 'Introduction to Programming', 'Data Structures & Algorithms', 'Database Management Systems', 'Operating Systems', 'Computer Networks', 'Software Engineering Principles', 'Artificial Intelligence'],
+            'DIT' => ['PC Hardware Basics', 'Office Productivity Tools', 'Web Design Fundamentals', 'IT Support Practice'],
+            'EEE' => ['Applied Engineering Mathematics', 'Circuit Theory I', 'Digital Logic Design', 'Signals & Systems', 'Power Systems I', 'Control Engineering', 'Microprocessor Systems', 'Final Year Project'],
+            'ACC' => ['Introduction to Management', 'Financial Accounting I', 'Principles of Microeconomics', 'Cost Accounting', 'Corporate Finance', 'Auditing & Assurance', 'Taxation of Ghana', 'Strategic Management'],
+            'DBS' => ['Business Communication', 'Principles of Marketing', 'Small Business Management', 'Records & Office Practice'],
+            'CMS' => ['Introduction to Communication', 'Media Writing Skills', 'Broadcast Production I', 'Public Relations Principles', 'Development Communication', 'Media Law & Ethics', 'Research Methods', 'Documentary Project'],
+        ];
+        $courseRows = [];
+        foreach ($programs as $pi => $program) {
+            $prefix = $programDefs[$pi][5];
+            $names = $courseNames[$prefix];
+            $length = (int) $program->program_length;
+            $perYear = $length === 4 ? [3, 2, 2, 1] : [2, 2];
+            $cursor = 0;
+            foreach ($perYear as $yi => $count) {
+                for ($k = 0; $k < $count; $k++) {
+                    $cursor++;
+                    $courseRows[] = [
+                        'code' => $prefix.(($yi + 1) * 100 + $k + 1),
+                        'name' => $names[$cursor - 1],
+                        'program_id' => $program->id,
+                        'course_semester' => (string) (($cursor % 2) + 1),
+                        'year_level' => (string) ($yi + 1),
+                    ];
                 }
             }
         }
+        $this->chunkInsert('courses', $this->stamp($courseRows));
 
-        // 7. Seed Courses (CS101, CS202, etc.)
-        $coursesList = [];
-        $courseData = [
-            // CS (Department 1 / Program 1)
-            ['code' => 'CS101', 'name' => 'Introduction to Computing', 'program_id' => 1, 'course_semester' => '1', 'year_level' => '1'],
-            ['code' => 'CS102', 'name' => 'Introduction to Programming', 'program_id' => 1, 'course_semester' => '2', 'year_level' => '1'],
-            ['code' => 'CS201', 'name' => 'Data Structures & Algorithms', 'program_id' => 1, 'course_semester' => '1', 'year_level' => '2'],
-            ['code' => 'CS202', 'name' => 'Database Management Systems', 'program_id' => 1, 'course_semester' => '2', 'year_level' => '2'],
-            ['code' => 'CS301', 'name' => 'Software Engineering Principles', 'program_id' => 1, 'course_semester' => '1', 'year_level' => '3'],
-            ['code' => 'CS401', 'name' => 'Artificial Intelligence', 'program_id' => 1, 'course_semester' => '1', 'year_level' => '4'],
-            // BEng (Program 3)
-            ['code' => 'CE101', 'name' => 'Applied Engineering Math', 'program_id' => 3, 'course_semester' => '1', 'year_level' => '1'],
-            ['code' => 'CE201', 'name' => 'Digital Logic Design', 'program_id' => 3, 'course_semester' => '1', 'year_level' => '2'],
-            // Business Admin (Program 4)
-            ['code' => 'BA101', 'name' => 'Introduction to Management', 'program_id' => 4, 'course_semester' => '1', 'year_level' => '1'],
-            ['code' => 'BA201', 'name' => 'Principles of Microeconomics', 'program_id' => 4, 'course_semester' => '1', 'year_level' => '2'],
-        ];
-        foreach ($courseData as $c) {
-            $coursesList[] = Course::create($c);
-        }
-
-        // 8. Seed Grade Points
-        $gpData = [
+        // Grade points (fixed scale).
+        $this->chunkInsert('grade_points', $this->stamp([
             ['min_score' => 80.0, 'max_score' => 100.0, 'points' => 4.0, 'grade' => 'A'],
             ['min_score' => 70.0, 'max_score' => 79.99, 'points' => 3.5, 'grade' => 'B+'],
             ['min_score' => 60.0, 'max_score' => 69.99, 'points' => 3.0, 'grade' => 'B'],
             ['min_score' => 50.0, 'max_score' => 59.99, 'points' => 2.5, 'grade' => 'C'],
-            ['min_score' => 0.0,  'max_score' => 49.99, 'points' => 0.0, 'grade' => 'F'],
+            ['min_score' => 0.0, 'max_score' => 49.99, 'points' => 0.0, 'grade' => 'F'],
+        ]));
+        $gradeBands = GradePoint::query()->orderByDesc('min_score')->get()->all();
+
+        // Leave types + fee components.
+        $leaveTypeRows = [
+            ['name' => 'Senior Staff', 'max_leave_days' => 30],
+            ['name' => 'Junior Staff', 'max_leave_days' => 21],
+            ['name' => 'Principal Officers', 'max_leave_days' => 42],
         ];
-        foreach ($gpData as $gp) {
-            GradePoint::create($gp);
+        $this->chunkInsert('staff_leave_types', $this->stamp($leaveTypeRows));
+        $leaveTypes = DB::table('staff_leave_types')->orderBy('id')->get();
+
+        $componentDefs = [
+            ['Tuition Fee', true], ['Library Fee', true], ['Laboratory Fee', true],
+            ['Medical Fee', true], ['Sports Fee', true], ['Examination Fee', true],
+        ];
+        $componentRows = [];
+        foreach ($componentDefs as $cd) {
+            $componentRows[] = ['name' => $cd[0], 'default_percentage' => 0.00, 'is_active' => true, 'is_system' => $cd[1]];
         }
+        $this->chunkInsert('fee_components', $this->stamp($componentRows));
+        $components = DB::table('fee_components')->orderBy('id')->get();
 
-        // 9. Seed Demo Superadmin/Owner & Administrative Staff (Type: admin)
-        // 9.1 Owner
-        $adminUser = User::create([
-            'name' => 'Demo Admin',
-            'username' => 'admin_demo',
-            'email' => 'admin@demo.com',
-            'email_verified_at' => now(),
-            'type' => 'admin',
-            'staff_leave_type_id' => $principalLeave->id,
-            'password' => Hash::make('password'),
-            'user_secret' => Str::random(16),
-            'active' => true,
-        ]);
+        // ==============================================================
+        // 2. CAST — Ghanaian name pools only; one shared password hash
+        // ==============================================================
+        $maleFirst = ['Kofi', 'Kwame', 'Yaw', 'Kwabena', 'Kwadwo', 'Fiifi', 'Ekow', 'Ato', 'Ebo', 'Kweku', 'Selasi', 'Edem', 'Mawuli', 'Komla', 'Elikem', 'Nana', 'Papa', 'Sena'];
+        $femaleFirst = ['Ama', 'Abena', 'Akosua', 'Adwoa', 'Efya', 'Esi', 'Araba', 'Ewurama', 'Maame', 'Selasie', 'Dzifa', 'Kafui', 'Abla', 'Dede', 'Naa', 'Mamle'];
+        $last = ['Mensah', 'Owusu', 'Asante', 'Osei', 'Boateng', 'Darko', 'Appiah', 'Frimpong', 'Agyemang', 'Ofori', 'Amankwah', 'Sarpong', 'Adjei', 'Ankrah', 'Lamptey', 'Tetteh', 'Quaye', 'Ayittey', 'Dadzie', 'Essien', 'Baiden', 'Hagan', 'Koomson', 'Sackey', 'Tawiah', 'Woode', 'Yankey', 'Nunoo', 'Arthur', 'Cudjoe'];
 
-        $ownerRole = UserRole::where('name', 'owner')->first();
-        Admin::create([
-            'user_id' => $adminUser->id,
-            'lastname' => 'Owner',
-            'othernames' => 'Demo Admin',
-            'phone_number' => '+233 24 999 0001',
-            'gender' => 'male',
-            'position_title' => 'Chief Executive & Principal',
-            'department_id' => 1,
-            'faculty_id' => 1,
-            'status' => 'active',
-            'date_of_appointment' => '2020-01-15',
-            'created_by' => $adminUser->id,
-            'ghana_card' => 'GHA-789012345-6',
-            'type' => $ownerRole?->id,
-        ]);
-
-        // 9.2 System Administrator
-        $sysadminUser = User::create([
-            'name' => 'System Admin',
-            'username' => 'sysadmin_demo',
-            'email' => 'sysadmin@demo.com',
-            'email_verified_at' => now(),
-            'type' => 'admin',
-            'staff_leave_type_id' => $seniorStaffLeave->id,
-            'password' => Hash::make('password'),
-            'user_secret' => Str::random(16),
-            'active' => true,
-        ]);
-
-        $sysadminRole = UserRole::where('name', 'system_admin')->first();
-        Admin::create([
-            'user_id' => $sysadminUser->id,
-            'lastname' => 'Admin',
-            'othernames' => 'System',
-            'phone_number' => '+233 24 999 0004',
-            'gender' => 'male',
-            'position_title' => 'System Administrator',
-            'department_id' => 1,
-            'faculty_id' => 1,
-            'status' => 'active',
-            'date_of_appointment' => '2020-01-15',
-            'created_by' => $adminUser->id,
-            'ghana_card' => 'GHA-789012345-7',
-            'type' => $sysadminRole?->id,
-        ]);
-
-        // 9.3 College Principal
-        $principalUser = User::create([
-            'name' => 'Principal Demo',
-            'username' => 'principal_demo',
-            'email' => 'principal@demo.com',
-            'email_verified_at' => now(),
-            'type' => 'admin',
-            'staff_leave_type_id' => $principalLeave->id,
-            'password' => Hash::make('password'),
-            'user_secret' => Str::random(16),
-            'active' => true,
-        ]);
-
-        $principalRole = UserRole::where('name', 'principal')->first();
-        Admin::create([
-            'user_id' => $principalUser->id,
-            'lastname' => 'Principal',
-            'othernames' => 'Demo',
-            'phone_number' => '+233 24 999 0005',
-            'gender' => 'male',
-            'position_title' => 'College Principal',
-            'department_id' => 1,
-            'faculty_id' => 1,
-            'status' => 'active',
-            'date_of_appointment' => '2019-09-01',
-            'created_by' => $adminUser->id,
-            'ghana_card' => 'GHA-789012345-8',
-            'type' => $principalRole?->id,
-        ]);
-
-        // 9.4 Vice Principal
-        $vicePrincipalUser = User::create([
-            'name' => 'Vice Principal Demo',
-            'username' => 'viceprincipal_demo',
-            'email' => 'viceprincipal@demo.com',
-            'email_verified_at' => now(),
-            'type' => 'admin',
-            'staff_leave_type_id' => $principalLeave->id,
-            'password' => Hash::make('password'),
-            'user_secret' => Str::random(16),
-            'active' => true,
-        ]);
-
-        $vicePrincipalRole = UserRole::where('name', 'vice_principal')->first();
-        Admin::create([
-            'user_id' => $vicePrincipalUser->id,
-            'lastname' => 'Vice Principal',
-            'othernames' => 'Demo',
-            'phone_number' => '+233 24 999 0006',
-            'gender' => 'female',
-            'position_title' => 'Vice Principal',
-            'department_id' => 1,
-            'faculty_id' => 1,
-            'status' => 'active',
-            'date_of_appointment' => '2020-08-15',
-            'created_by' => $adminUser->id,
-            'ghana_card' => 'GHA-789012345-9',
-            'type' => $vicePrincipalRole?->id,
-        ]);
-
-        // 9.5 HOD
-        $hodUser = User::create([
-            'name' => 'Dr. Robert HOD',
-            'username' => 'hod_demo',
-            'email' => 'hod@demo.com',
-            'email_verified_at' => now(),
-            'type' => 'admin',
-            'staff_leave_type_id' => $seniorStaffLeave->id,
-            'password' => Hash::make('password'),
-            'user_secret' => Str::random(16),
-            'active' => true,
-        ]);
-
-        $hodRole = UserRole::where('name', 'hod')->first();
-        Admin::create([
-            'user_id' => $hodUser->id,
-            'lastname' => 'HOD',
-            'othernames' => 'Dr. Robert',
-            'phone_number' => '+233 24 999 0003',
-            'gender' => 'male',
-            'position_title' => 'Head of Computer Science',
-            'department_id' => 1,
-            'faculty_id' => 1,
-            'status' => 'active',
-            'date_of_appointment' => '2021-03-10',
-            'created_by' => $adminUser->id,
-            'ghana_card' => 'GHA-234567890-1',
-            'type' => $hodRole?->id,
-        ]);
-
-        // 9.6 Dean of Students
-        $deanUser = User::create([
-            'name' => 'Dean Demo',
-            'username' => 'dean_demo',
-            'email' => 'dean@demo.com',
-            'email_verified_at' => now(),
-            'type' => 'admin',
-            'staff_leave_type_id' => $seniorStaffLeave->id,
-            'password' => Hash::make('password'),
-            'user_secret' => Str::random(16),
-            'active' => true,
-        ]);
-
-        $deanRole = UserRole::where('name', 'dean_of_students')->first();
-        Admin::create([
-            'user_id' => $deanUser->id,
-            'lastname' => 'Dean',
-            'othernames' => 'Demo',
-            'phone_number' => '+233 24 999 0007',
-            'gender' => 'male',
-            'position_title' => 'Dean of Student Affairs',
-            'department_id' => 1,
-            'faculty_id' => 1,
-            'status' => 'active',
-            'date_of_appointment' => '2022-01-10',
-            'created_by' => $adminUser->id,
-            'ghana_card' => 'GHA-789012345-0',
-            'type' => $deanRole?->id,
-        ]);
-
-        // 10. Seed Teachers (8 to 15 total, including teacher@demo.com)
-        $teacherCount = rand(8, 15);
-        $teachersList = [];
-
-        for ($i = 0; $i < $teacherCount; $i++) {
-            $isStatic = ($i === 0);
-
-            $email = $isStatic ? 'teacher@demo.com' : fake()->unique()->safeEmail();
-            $first = $isStatic ? 'Sarah' : fake()->firstName();
-            $last = $isStatic ? 'Appiah' : fake()->lastName();
-            $gender = $isStatic ? 'female' : fake()->randomElement(['male', 'female']);
-            $deptId = $isStatic ? 1 : fake()->randomElement($departmentIds);
-
-            $rank = $isStatic ? 'Senior Lecturer' : fake()->randomElement(['Professor', 'Associate Professor', 'Senior Lecturer', 'Lecturer', 'Assistant Lecturer']);
-            $qual = $isStatic ? 'PhD in Computer Science' : fake()->randomElement(['PhD in Computer Science', 'PhD in Engineering', 'PhD in Finance', 'MSc in IT', 'MBA']);
-
-            $tUser = User::create([
-                'name' => "{$first} {$last}",
-                'username' => $isStatic ? 'tch_sarah_appiah' : ('tch_'.Str::slug("{$first}_{$last}", '_').'_'.rand(10, 99)),
+        $userRows = [];
+        $addUser = function (string $name, string $username, string $email, string $type, ?int $leaveTypeId) use (&$userRows, $passwordHash, $now): void {
+            $userRows[] = [
+                'name' => $name,
+                'username' => $username,
                 'email' => $email,
-                'email_verified_at' => now(),
-                'type' => 'teacher',
-                'staff_leave_type_id' => $seniorStaffLeave->id,
-                'password' => Hash::make('password'),
-                'user_secret' => Str::random(16),
+                'email_verified_at' => $now->toDateTimeString(),
+                'type' => $type,
+                'staff_leave_type_id' => $leaveTypeId,
+                'password' => $passwordHash,
+                'user_secret' => $this->token(8),
                 'active' => true,
-            ]);
+                'created_at' => $now->toDateTimeString(),
+                'updated_at' => $now->toDateTimeString(),
+            ];
+        };
 
-            $teacherObj = Teacher::create([
-                'user_id' => $tUser->id,
-                'lastname' => $last,
-                'othernames' => $first,
-                'title' => $isStatic ? 'Dr.' : fake()->randomElement(['Dr.', 'Prof.', 'Mr.', 'Mrs.', 'Ms.']),
-                'ghana_card' => 'GHA-'.rand(100000000, 999999999).'-'.rand(0, 9),
-                'profile_pic' => 'images/auth/login-office.jpeg',
-                'gender' => $gender,
-                'date_of_birth' => now()->subYears(rand(30, 50))->format('Y-m-d'),
-                'nationality' => 'Ghanaian',
-                'contact_address' => 'Plot '.rand(10, 100).' Ring Road, Accra',
-                'phone_number' => '+233 20 '.rand(1000000, 9999999),
-                'staff_id' => 'TCH-'.str_pad((string) ($i + 1), 3, '0', STR_PAD_LEFT),
+        $seniorId = $leaveTypes[0]->id;
+        $juniorId = $leaveTypes[1]->id;
+        $principalLeaveId = $leaveTypes[2]->id;
+
+        // [display name, username, email, role name|null(teacher/student), leave type, position title]
+        $castDefs = [
+            ['Nana Akwasi Bonsu', 'owner_demo', 'admin@demo.com', 'owner', $principalLeaveId, 'Main System Administrator'],
+            ['Efya Hammond', 'sysadmin_demo', 'sysadmin@demo.com', 'system_admin', $seniorId, 'System Administrator'],
+            ['Kwadwo Frimpong', 'hod_cs_demo', 'hod.cs@demo.com', 'hod', $seniorId, 'Head, Computer Science'],
+            ['Abena Sarpong', 'hod_ee_demo', 'hod.ee@demo.com', 'hod', $seniorId, 'Head, Electrical Engineering'],
+            ['Yaw Amankwah', 'hod_acc_demo', 'hod.acc@demo.com', 'hod', $seniorId, 'Head, Accounting & Finance'],
+            ['Maame Dede Quaye', 'hod_cms_demo', 'hod.cms@demo.com', 'hod', $seniorId, 'Head, Communication Studies'],
+            ['Fiifi Cudjoe', 'vp_demo', 'vp@demo.com', 'vice_principal', $principalLeaveId, 'Vice Principal'],
+            ['Araba Essien', 'dean_demo', 'dean@demo.com', 'dean_of_students', $seniorId, 'Dean of Student Affairs'],
+            ['Selasi Tetteh', 'registrar_demo', 'registrar@demo.com', 'registrar', $seniorId, 'Academic Registrar'],
+            ['Deladem Ayittey', 'admissions_demo', 'admissions@demo.com', 'admissions_officer', $juniorId, 'Admissions Officer'],
+            ['Ebo Dadzie', 'exams_demo', 'exams@demo.com', 'exams_officer', $seniorId, 'Examinations Officer'],
+            ['Kafui Nunoo', 'qa_demo', 'qa@demo.com', 'quality_assurance_officer', $seniorId, 'Quality Assurance Officer'],
+            ['Akosua Woode', 'accountant_demo', 'accountant@demo.com', 'accountant', $juniorId, 'Accountant'],
+            ['Kwabena Yankey', 'finance_demo', 'finance@demo.com', 'finance_officer', $seniorId, 'Finance Officer'],
+            ['Ato Arthur', 'auditor_demo', 'auditor@demo.com', 'internal_auditor', $seniorId, 'Internal Auditor'],
+            ['Adwoa Lamptey', 'secretary_demo', 'secretary@demo.com', 'secretary', $juniorId, 'Department Secretary'],
+            ['Naa Sackey', 'hr_demo', 'hr@demo.com', 'human_resource_manager', $seniorId, 'Human Resource Manager'],
+            ['Elikem Tawiah', 'pro_demo', 'pro@demo.com', 'public_relations_officer', $juniorId, 'Public Relations Officer'],
+            ['Esi Baiden', 'librarian_demo', 'librarian@demo.com', 'librarian', $juniorId, 'College Librarian'],
+            ['Komla Hagan', 'procurement_demo', 'procurement@demo.com', 'procurement_officer', $juniorId, 'Procurement Officer'],
+        ];
+        foreach ($castDefs as $c) {
+            $addUser($c[0], $c[1], $c[2], 'admin', $c[4]);
+        }
+        $this->chunkInsert('users', $userRows);
+        $userByEmail = User::query()->whereIn('email', array_column($castDefs, 2))->get()->keyBy('email');
+
+        $owner = $userByEmail['admin@demo.com'];
+        $sysadmin = $userByEmail['sysadmin@demo.com'];
+        $hodByDept = [
+            $departments[0]->id => $userByEmail['hod.cs@demo.com'],
+            $departments[1]->id => $userByEmail['hod.ee@demo.com'],
+            $departments[2]->id => $userByEmail['hod.acc@demo.com'],
+            $departments[3]->id => $userByEmail['hod.cms@demo.com'],
+        ];
+        $vp = $userByEmail['vp@demo.com'];
+        $dean = $userByEmail['dean@demo.com'];
+        $registrar = $userByEmail['registrar@demo.com'];
+        $admissions = $userByEmail['admissions@demo.com'];
+        $exams = $userByEmail['exams@demo.com'];
+        $qa = $userByEmail['qa@demo.com'];
+        $accountant = $userByEmail['accountant@demo.com'];
+        $secretary = $userByEmail['secretary@demo.com'];
+        $hr = $userByEmail['hr@demo.com'];
+        $pro = $userByEmail['pro@demo.com'];
+
+        // Admins rows (secretary carries no dept/faculty -> sender entity 'user').
+        $adminRows = [];
+        foreach ($castDefs as $c) {
+            $u = $userByEmail[$c[2]];
+            [$other, $lastName] = $this->splitName($c[0]);
+            $deptId = null;
+            $facId = null;
+            if (in_array($c[3], ['hod'], true)) {
+                $deptId = array_search($u->id, array_map(fn ($x): int => $x->id, $hodByDept), true) !== false
+                    ? array_search($u->id, array_map(fn ($x): int => $x->id, $hodByDept), true)
+                    : null;
+            } elseif (in_array($c[3], ['registrar', 'admissions_officer', 'exams_officer', 'accountant', 'secretary'], true)) {
+                $deptId = $departments[0]->id;
+                $facId = $faculties[0]->id;
+            } else {
+                $facId = $faculties[0]->id;
+            }
+            $adminRows[] = [
+                'user_id' => $u->id,
+                'lastname' => $lastName,
+                'othernames' => $other,
+                'phone_number' => $this->ghanaPhone(),
+                'gender' => $this->pickGender($c[0]),
+                'position_title' => $c[5],
                 'department_id' => $deptId,
-                'office_location' => 'Block '.fake()->randomElement(['A', 'B', 'C', 'D']).', Room '.rand(101, 305),
-                'office_hours' => fake()->randomElement(['Mon/Wed 2:00 PM - 4:00 PM', 'Tue/Thu 10:00 AM - 12:00 PM', 'Fridays 1:00 PM - 3:00 PM']),
-                'rank' => $rank,
-                'qualification' => $qual,
-                'specialization' => 'Academic instruction & Research',
-                'orcid_id' => '0000-0002-'.rand(1000, 9999).'-'.rand(1000, 9999),
-                'google_scholar_url' => 'https://scholar.google.com/citations?user='.Str::random(12),
-                'employment_type' => 'Full-time',
-                'years_experience' => rand(3, 25),
-                'emergency_name' => fake()->name(),
-                'emergency_phone' => '+233 24 '.rand(1000000, 9999999),
-                'date_of_appointment' => now()->subYears(rand(1, 5))->format('Y-m-d'),
-                'is_onboarded' => 1,
-            ]);
-            $teachersList[] = $teacherObj;
-
-            // Seed a default role assignment for the teacher
-            $roleSlug = $isStatic ? 'lecturer' : fake()->randomElement(['lecturer', 'coordinator', 'tutor']);
-            TeacherRole::create([
-                'teacher_id' => $teacherObj->id,
-                'role' => $roleSlug,
-                'program_id' => $isStatic ? 1 : collect($programsList)->random()->id,
-                'description' => 'Assigned during sandbox initialization.',
-                'assigned_by' => $adminUser->id,
-                'assigned_date' => now()->subMonths(3),
+                'faculty_id' => $facId,
                 'status' => 'active',
-            ]);
+                'date_of_appointment' => $prevStart->copy()->subYears(2)->toDateString(),
+                'created_by' => $owner->id,
+                'ghana_card' => $this->ghanaCard(),
+                'type' => $roleId($c[3]),
+                'created_at' => $now->toDateTimeString(),
+                'updated_at' => $now->toDateTimeString(),
+            ];
+        }
+        $this->chunkInsert('admins', $adminRows);
+
+        // departments.hod drives dept-leave review routing.
+        foreach ($hodByDept as $deptId => $hodUser) {
+            DB::table('departments')->where('id', $deptId)->update(['hod' => $hodUser->id]);
         }
 
-        // 11. Seed Teacher Assignments (Assign courses to teachers)
-        foreach ($coursesList as $cIdx => $course) {
-            $teacher = $teachersList[$cIdx % count($teachersList)];
-            TeacherAssignment::create([
+        // Teachers: 12 lecturers across departments (canonical first).
+        $teacherSpecs = [
+            ['Ama Serwaa', 'teacher@demo.com', 'tch_ama_serwaa', 0, 'Senior Lecturer', 'PhD Computer Science'],
+            ['Kofi Boateng', 'kofi.boateng@demo.com', 'tch_kofi_boateng', 0, 'Lecturer', 'MPhil Computer Science'],
+            ['Efya Asante', 'efya.asante@demo.com', 'tch_efya_asante', 0, 'Assistant Lecturer', 'MSc Information Technology'],
+            ['Yaw Osei', 'yaw.osei@demo.com', 'tch_yaw_osei', 1, 'Senior Lecturer', 'PhD Electrical Engineering'],
+            ['Kwame Darko', 'kwame.darko@demo.com', 'tch_kwame_darko', 1, 'Lecturer', 'MSc Power Systems'],
+            ['Abena Frimpong', 'abena.frimpong@demo.com', 'tch_abena_frimpong', 2, 'Senior Lecturer', 'PhD Accounting'],
+            ['Kwadwo Appiah', 'kwadwo.appiah@demo.com', 'tch_kwadwo_appiah', 2, 'Lecturer', 'MBA Finance'],
+            ['Adwoa Mensah', 'adwoa.mensah@demo.com', 'tch_adwoa_mensah', 3, 'Lecturer', 'MA Communication Studies'],
+            ['Fiifi Owusu', 'fiifi.owusu@demo.com', 'tch_fiifi_owusu', 3, 'Assistant Lecturer', 'BA Media Production'],
+            ['Selasie Adjei', 'selasie.adjei@demo.com', 'tch_selasie_adjei', 0, 'Lecturer', 'MSc Software Engineering'],
+            ['Mawuli Ankrah', 'mawuli.ankrah@demo.com', 'tch_mawuli_ankrah', 2, 'Lecturer', 'MCom Taxation'],
+            ['Dzifa Quarshie', 'dzifa.quarshie@demo.com', 'tch_dzifa_quarshie', 1, 'Assistant Lecturer', 'BSc Electrical Engineering'],
+        ];
+        $teacherUserRows = [];
+        foreach ($teacherSpecs as $t) {
+            $teacherUserRows[] = [
+                'name' => $t[0],
+                'username' => $t[2],
+                'email' => $t[1],
+                'email_verified_at' => $now->toDateTimeString(),
+                'type' => 'teacher',
+                'staff_leave_type_id' => $seniorId,
+                'password' => $passwordHash,
+                'user_secret' => $this->token(8),
+                'active' => true,
+                'created_at' => $now->toDateTimeString(),
+                'updated_at' => $now->toDateTimeString(),
+            ];
+        }
+        $this->chunkInsert('users', $teacherUserRows);
+        $teacherUsers = User::query()->where('type', 'teacher')->orderBy('id')->get()->all();
+
+        $teacherRows = [];
+        foreach ($teacherUsers as $i => $tu) {
+            [$other, $lastName] = $this->splitName($teacherSpecs[$i][0]);
+            $teacherRows[] = [
+                'user_id' => $tu->id,
+                'lastname' => $lastName,
+                'othernames' => $other,
+                'title' => $i === 0 ? 'Dr.' : $this->pick(['Dr.', 'Mr.', 'Mrs.', 'Ms.', 'Prof.']),
+                'ghana_card' => $this->ghanaCard(),
+                'profile_pic' => null,
+                'gender' => in_array(explode(' ', $teacherSpecs[$i][0])[0], $femaleFirst, true) ? 'female' : 'male',
+                'date_of_birth' => $today->copy()->subYears(32 + ($i % 18))->toDateString(),
+                'nationality' => 'Ghanaian',
+                'contact_address' => 'Plot '.(10 + $i).', Ring Road East, Accra',
+                'phone_number' => $this->ghanaPhone(),
+                'staff_id' => 'TCH-'.str_pad((string) ($i + 1), 3, '0', STR_PAD_LEFT),
+                'department_id' => $departments[$teacherSpecs[$i][3]]->id,
+                'rank' => $teacherSpecs[$i][4],
+                'qualification' => $teacherSpecs[$i][5],
+                'specialization' => 'Academic instruction & research',
+                'employment_type' => 'Full-time',
+                'years_experience' => 3 + ($i % 15),
+                'emergency_name' => $this->pick($maleFirst).' '.$this->pick($last),
+                'emergency_phone' => $this->ghanaPhone(),
+                'date_of_appointment' => $prevStart->copy()->subYear()->toDateString(),
+                'created_at' => $now->toDateTimeString(),
+                'updated_at' => $now->toDateTimeString(),
+                'password_reset_required' => false,
+                'is_onboarded' => 1,
+            ];
+        }
+        $this->chunkInsert('teachers', $teacherRows);
+        $teachers = Teacher::query()->orderBy('id')->get()->all();
+        $teacherByUserId = [];
+        foreach ($teachers as $t) {
+            $teacherByUserId[$t->user_id] = $t;
+        }
+
+        // Teacher roles + course assignments (round-robin across departments).
+        $courses = Course::query()->orderBy('id')->get()->all();
+        $roleRows = [];
+        $assignRows = [];
+        $courseTeacherRows = [];
+        $byDept = [];
+        foreach ($teachers as $i => $t) {
+            $byDept[$t->department_id][] = $t;
+            $roleRows[] = [
+                'teacher_id' => $t->id,
+                'role' => 'lecturer',
+                'program_id' => $programs[$i % count($programs)]->id,
+                'description' => 'Assigned during demo setup.',
+                'assigned_by' => $owner->id,
+                'assigned_date' => $prevStart->toDateString(),
+                'status' => 'active',
+                'created_at' => $now->toDateTimeString(),
+                'updated_at' => $now->toDateTimeString(),
+            ];
+        }
+        $teacherIds = array_map(fn ($t): int => $t->id, $teachers);
+        foreach ($courses as $ci => $course) {
+            $deptTeachers = $byDept[$course->program->department_id] ?? $teachers;
+            $teacher = $deptTeachers[$ci % count($deptTeachers)];
+            $level = ((int) $course->year_level) * 100;
+            $assignRows[] = [
                 'teacher_id' => $teacher->id,
                 'program_id' => $course->program_id,
-                'level' => (int) $course->year_level * 100,
+                'level' => $level,
                 'course_id' => $course->id,
-                'session_id' => $session->id,
-                'assigned_by' => $adminUser->id,
-                'assigned_date' => now()->subMonths(2),
-            ]);
-
-            // Ensure Course itself has teacher_id set
-            $course->update(['teacher_id' => $teacher->id]);
-
-            // Create TeacherCourse mapping
-            TeacherCourse::create([
+                'session_id' => $curSession->id,
+                'assigned_by' => $owner->id,
+                'assigned_date' => $prevStart->toDateString(),
+                'created_at' => $now->toDateTimeString(),
+                'updated_at' => $now->toDateTimeString(),
+            ];
+            $courseTeacherRows[] = [
                 'teacher_id' => $teacher->id,
                 'course_id' => $course->id,
-                'program_level' => (string) ((int) $course->year_level * 100),
-            ]);
+                'program_level' => (string) $level,
+                'created_at' => $now->toDateTimeString(),
+                'updated_at' => $now->toDateTimeString(),
+            ];
+            DB::table('courses')->where('id', $course->id)->update(['teacher_id' => $teacher->id]);
+        }
+        $this->chunkInsert('teacher_roles', $roleRows);
+        $this->chunkInsert('teacher_assignments', $assignRows);
+        $this->chunkInsert('teacher_courses', $courseTeacherRows);
+        unset($teacherIds);
+        // Re-fetch: teacher_id backfill above postdates the first read.
+        $courses = Course::query()->orderBy('id')->get()->all();
+
+        // ==============================================================
+        // 3. CONTINUING STUDENTS (pre-promotion y1-y3) + previous year
+        // ==============================================================
+        // Per-program cohorts: 4yr -> y1:10 y2:8 y3:8; 2yr -> y1:10 y2:8.
+        $cohortPlan = [];
+        foreach ($programs as $program) {
+            $cohortPlan[$program->id] = ((int) $program->program_length) === 4
+                ? ['100' => 10, '200' => 8, '300' => 8]
+                : ['100' => 10, '200' => 8];
         }
 
-        // 12. Seed Students (30 to 100 total, including student@demo.com)
-        $studentCount = rand(30, 100);
-        $studentsList = [];
-
-        for ($i = 0; $i < $studentCount; $i++) {
-            $isStatic = ($i === 0);
-
-            $email = $isStatic ? 'student@demo.com' : fake()->unique()->safeEmail();
-            $first = $isStatic ? 'John' : fake()->firstName();
-            $last = $isStatic ? 'Doe' : fake()->lastName();
-            $gender = $isStatic ? 'male' : fake()->randomElement(['male', 'female']);
-            $prog = $isStatic ? $programsList[0] : fake()->randomElement($programsList);
-
-            // Program length check for level
-            if ($prog->program_length == 2) {
-                $level = $isStatic ? '100' : fake()->randomElement(['100', '200']);
-            } else {
-                $level = $isStatic ? '100' : fake()->randomElement(['100', '200', '300', '400']);
-            }
-
-            $sUser = User::create([
-                'name' => "{$first} {$last}",
-                'username' => $isStatic ? 'std_john_doe' : ('std_'.Str::slug("{$first}_{$last}", '_').'_'.rand(100, 999)),
-                'email' => $email,
-                'email_verified_at' => now(),
-                'type' => 'student',
-                'password' => Hash::make('password'),
-                'user_secret' => Str::random(16),
-                'active' => true,
-            ]);
-
-            $student = Student::create([
-                'user_id' => $sUser->id,
-                'index_number' => $isStatic ? 'STD001' : ('STD'.str_pad((string) ($i + 1), 4, '0', STR_PAD_LEFT)),
-                'admission_index' => 'ADM-'.($i + 1000),
-                'lastname' => $last,
-                'firstname' => $first,
-                'othernames' => null,
-                'department_id' => $prog->department_id,
-                'program_id' => $prog->id,
-                'date_of_birth' => now()->subYears(rand(18, 25))->format('Y-m-d'),
-                'gender' => $gender,
-                'nationality' => fake()->randomElement(['Ghanaian', 'Ghanaian', 'Ghanaian', 'Nigerian', 'Liberian']),
-                'religion' => fake()->randomElement(['Christian', 'Muslim', 'Christian', 'None']),
-                'current_year' => $level,
-                'contact_address' => 'Residential Area '.rand(1, 15).', Accra',
-                'phone_number' => '+233 54 '.rand(1000000, 9999999),
-                'admission_date' => '2025-09-01',
-                'hall_id' => $hallIds[rand(0, 3)],
-                'profile_pic' => 'images/auth/login-office.jpeg',
-                'is_new' => false,
-                'approved' => true,
-            ]);
-            $studentsList[] = $student;
-
-            // Seed Parent Guardian
-            ParentGuardian::create([
-                'student_id' => $student->id,
-                'name' => fake()->name('male').' '.$last,
-                'relationship' => fake()->randomElement(['Father', 'Mother', 'Guardian']),
-                'address' => $student->contact_address,
-                'phone_number' => '+233 27 '.rand(1000000, 9999999),
-                'email' => fake()->safeEmail(),
-            ]);
-
-            // Seed Medical History
-            $currentYearInt = (int) $level;
-
-            // If student is level 200+, they were here in 2024/2025
-            if ($currentYearInt > 100) {
-                MedicalHistory::create([
-                    'student_id' => $student->id,
-                    'academic_session_id' => $previousSession->id,
-                    'medical_conditions' => rand(0, 4) === 0 ? fake()->randomElement(['Asthma (mild)', 'Mild allergy to dust', 'Slight seasonal allergies']) : 'None',
-                    'allergies' => rand(0, 4) === 0 ? fake()->randomElement(['Peanuts', 'Lactose intolerance', 'Penicillin']) : 'None',
-                    'medications' => rand(0, 4) === 0 ? fake()->randomElement(['Albuterol inhaler', 'Claritin']) : 'None',
-                    'immunization_records' => 'COVID-19 (Fully Vaccinated), Yellow Fever',
-                    'emergency_contacts' => fake()->name().' - +233 27 '.rand(1000000, 9999999),
-                ]);
-            }
-
-            // Every student has a record for the current session (2025/2026)
-            MedicalHistory::create([
-                'student_id' => $student->id,
-                'academic_session_id' => $session->id,
-                'medical_conditions' => rand(0, 4) === 0 ? fake()->randomElement(['Asthma (mild)', 'Mild allergy to dust', 'Slight seasonal allergies']) : 'None',
-                'allergies' => rand(0, 4) === 0 ? fake()->randomElement(['Peanuts', 'Lactose intolerance', 'Penicillin']) : 'None',
-                'medications' => rand(0, 4) === 0 ? fake()->randomElement(['Albuterol inhaler', 'Claritin']) : 'None',
-                'immunization_records' => 'COVID-19 (Fully Vaccinated), Yellow Fever',
-                'emergency_contacts' => fake()->name().' - +233 27 '.rand(1000000, 9999999),
-            ]);
-        }
-
-        // 12.1 Seed Non-Teaching Staff (Other Staff) - 1 for each of the remaining 12 roles
-        $staffPositions = [
-            [
-                'pos' => 'Academic Registrar',
-                'role' => 'registrar',
-                'office' => 'Main Registry Room 102',
-                'username' => 'registrar_demo',
-                'email' => 'registrar@demo.com',
-                'firstname' => 'Charles',
-                'lastname' => 'Registrar',
-                'gender' => 'male',
-                'leave_type' => $seniorStaffLeave->id
-            ],
-            [
-                'pos' => 'Finance Officer',
-                'role' => 'finance_officer',
-                'office' => 'Finance Block Room 104',
-                'username' => 'finance_demo',
-                'email' => 'finance@demo.com',
-                'firstname' => 'Felicia',
-                'lastname' => 'Finance',
-                'gender' => 'female',
-                'leave_type' => $seniorStaffLeave->id
-            ],
-            [
-                'pos' => 'Accountant',
-                'role' => 'accountant',
-                'office' => 'Accounts Office Room 105',
-                'username' => 'accountant_demo',
-                'email' => 'accountant@demo.com',
-                'firstname' => 'Albert',
-                'lastname' => 'Accountant',
-                'gender' => 'male',
-                'leave_type' => $juniorStaffLeave->id
-            ],
-            [
-                'pos' => 'College Librarian',
-                'role' => 'librarian',
-                'office' => 'Campus Library Desk',
-                'username' => 'librarian_demo',
-                'email' => 'librarian@demo.com',
-                'firstname' => 'Linda',
-                'lastname' => 'Librarian',
-                'gender' => 'female',
-                'leave_type' => $juniorStaffLeave->id
-            ],
-            [
-                'pos' => 'Internal Auditor',
-                'role' => 'internal_auditor',
-                'office' => 'Audit Room 202',
-                'username' => 'auditor_demo',
-                'email' => 'auditor@demo.com',
-                'firstname' => 'Arthur',
-                'lastname' => 'Auditor',
-                'gender' => 'male',
-                'leave_type' => $seniorStaffLeave->id
-            ],
-            [
-                'pos' => 'Department Secretary',
-                'role' => 'secretary',
-                'office' => 'Admin Wing Secretary Desk',
-                'username' => 'secretary_demo',
-                'email' => 'secretary@demo.com',
-                'firstname' => 'Jane',
-                'lastname' => 'Secretary',
-                'gender' => 'female',
-                'leave_type' => $juniorStaffLeave->id
-            ],
-            [
-                'pos' => 'Admissions Officer',
-                'role' => 'admissions_officer',
-                'office' => 'Admissions Office Room 101',
-                'username' => 'admissions_demo',
-                'email' => 'admissions@demo.com',
-                'firstname' => 'Amy',
-                'lastname' => 'Admissions',
-                'gender' => 'female',
-                'leave_type' => $juniorStaffLeave->id
-            ],
-            [
-                'pos' => 'Examinations Officer',
-                'role' => 'exams_officer',
-                'office' => 'Exams Control Room 108',
-                'username' => 'exams_demo',
-                'email' => 'exams@demo.com',
-                'firstname' => 'Edward',
-                'lastname' => 'Exams',
-                'gender' => 'male',
-                'leave_type' => $seniorStaffLeave->id
-            ],
-            [
-                'pos' => 'Quality Assurance Officer',
-                'role' => 'quality_assurance_officer',
-                'office' => 'QA Wing Room 203',
-                'username' => 'qa_demo',
-                'email' => 'qa@demo.com',
-                'firstname' => 'Quincy',
-                'lastname' => 'Quality',
-                'gender' => 'male',
-                'leave_type' => $seniorStaffLeave->id
-            ],
-            [
-                'pos' => 'Human Resource Manager',
-                'role' => 'human_resource_manager',
-                'office' => 'HR Department Room 201',
-                'username' => 'hr_demo',
-                'email' => 'hr@demo.com',
-                'firstname' => 'Hannah',
-                'lastname' => 'HR',
-                'gender' => 'female',
-                'leave_type' => $seniorStaffLeave->id
-            ],
-            [
-                'pos' => 'Public Relations Officer',
-                'role' => 'public_relations_officer',
-                'office' => 'PR Desk Main Reception',
-                'username' => 'pro_demo',
-                'email' => 'pro@demo.com',
-                'firstname' => 'Patrick',
-                'lastname' => 'PR',
-                'gender' => 'male',
-                'leave_type' => $juniorStaffLeave->id
-            ],
-            [
-                'pos' => 'Procurement Officer',
-                'role' => 'procurement_officer',
-                'office' => 'Logistics Room 110',
-                'username' => 'procurement_demo',
-                'email' => 'procurement@demo.com',
-                'firstname' => 'Paulina',
-                'lastname' => 'Procurement',
-                'gender' => 'female',
-                'leave_type' => $juniorStaffLeave->id
-            ],
-        ];
-
-        foreach ($staffPositions as $posData) {
-            $deptId = fake()->randomElement($departmentIds);
-
-            $staffUser = User::create([
-                'name' => "{$posData['firstname']} {$posData['lastname']}",
-                'username' => $posData['username'],
-                'email' => $posData['email'],
-                'email_verified_at' => now(),
-                'type' => 'admin',
-                'staff_leave_type_id' => $posData['leave_type'],
-                'password' => Hash::make('password'),
-                'user_secret' => Str::random(16),
-                'active' => true,
-            ]);
-
-            $roleModel = UserRole::where('name', $posData['role'])->first();
-
-            Admin::create([
-                'user_id' => $staffUser->id,
-                'lastname' => $posData['lastname'],
-                'othernames' => $posData['firstname'],
-                'phone_number' => '+233 20 '.rand(1000000, 9999999),
-                'gender' => $posData['gender'],
-                'position_title' => $posData['pos'],
-                'department_id' => $deptId,
-                'faculty_id' => 1,
-                'status' => 'active',
-                'date_of_appointment' => now()->subMonths(6)->format('Y-m-d'),
-                'created_by' => $adminUser->id,
-                'ghana_card' => 'GHA-'.rand(100000000, 999999999).'-'.rand(0, 9),
-                'type' => $roleModel?->id,
-            ]);
-        }
-
-        // 12.2 Seed Scholarships
-        $scholarships = [
-            [
-                'name' => 'Presidential Academic Merit Scholarship',
-                'type' => 'scholarship',
-                'amount' => 1200.00,
-                'duration_semesters' => 8,
-                'coverage_type' => 'tuition_only',
-                'coverage_components' => null,
-                'desc' => 'Awarded for outstanding academic performance covering tuition fees.',
-            ],
-            [
-                'name' => 'STEM Innovation Grant',
-                'type' => 'grant',
-                'amount' => 1500.00,
-                'duration_semesters' => 4,
-                'coverage_type' => 'full',
-                'coverage_components' => null,
-                'desc' => 'For students pursuing computing and computer engineering studies.',
-            ],
-            [
-                'name' => 'Apex Hostel Relief Bursary',
-                'type' => 'scholarship',
-                'amount' => 600.00,
-                'duration_semesters' => 2,
-                'coverage_type' => 'hostel_only',
-                'coverage_components' => null,
-                'desc' => 'Hostel assistance aid for deserving students.',
-            ],
-            [
-                'name' => 'Monthly Student Allowance Scheme',
-                'type' => 'scholarship',
-                'amount' => 250.00,
-                'duration_semesters' => 12,
-                'coverage_type' => 'full',
-                'coverage_components' => null,
-                'desc' => 'Monthly welfare stipend disbursed to active students.',
-            ],
-        ];
-
-        $scholarshipModels = [];
-        foreach ($scholarships as $s) {
-            $scholarshipModels[] = Scholarship::create([
-                'name' => $s['name'],
-                'type' => $s['type'],
-                'amount' => $s['amount'],
-                'duration_semesters' => $s['duration_semesters'],
-                'expiry_date' => now()->addYears(2)->toDateString(),
-                'coverage_type' => $s['coverage_type'],
-                'coverage_components' => $s['coverage_components'],
-                'description' => $s['desc'],
-                'status' => 'active',
-                'created_by' => $adminUser->id,
-            ]);
-        }
-
-        $allowanceScheme = collect($scholarshipModels)->where('name', 'Monthly Student Allowance Scheme')->first();
-
-        // Award to 10-15 random students
-        $numAwards = rand(10, 15);
-        $awardedStudents = collect($studentsList)->random($numAwards);
-        foreach ($awardedStudents as $idx => $student) {
-            $isLevel100 = ((int) $student->current_year === 100);
-            $targetSession = $isLevel100 ? $session : (($idx % 2 === 0) ? $previousSession : $session);
-            $schol = collect($scholarshipModels)->where('id', '!=', $allowanceScheme->id)->random();
-            ScholarshipRecipient::create([
-                'scholarship_id' => $schol->id,
-                'student_id' => $student->id,
-                'academic_session_id' => $targetSession->id,
-                'amount_awarded' => $schol->amount,
-                'award_date' => ($targetSession->id === $previousSession->id)
-                     ? now()->subYear()->subMonths(rand(1, 4))->toDateString()
-                     : now()->subMonths(rand(1, 4))->toDateString(),
-                'status' => 'approved',
-            ]);
-        }
-
-        // Seed recurring monthly allowances specifically for student@demo.com (index STD001 / Student ID 1)
-        // and a few others to show bulk disbursement
-        $mainStudent = collect($studentsList)->first();
-        if ($mainStudent && $allowanceScheme) {
-            // Month -3: Approved
-            ScholarshipRecipient::create([
-                'scholarship_id' => $allowanceScheme->id,
-                'student_id' => $mainStudent->id,
-                'academic_session_id' => $session->id,
-                'amount_awarded' => 250.00,
-                'award_date' => now()->subMonths(3)->toDateString(),
-                'status' => 'approved',
-            ]);
-            // Month -2: Approved
-            ScholarshipRecipient::create([
-                'scholarship_id' => $allowanceScheme->id,
-                'student_id' => $mainStudent->id,
-                'academic_session_id' => $session->id,
-                'amount_awarded' => 250.00,
-                'award_date' => now()->subMonths(2)->toDateString(),
-                'status' => 'approved',
-            ]);
-            // Month -1: Applied (Pending Approval)
-            ScholarshipRecipient::create([
-                'scholarship_id' => $allowanceScheme->id,
-                'student_id' => $mainStudent->id,
-                'academic_session_id' => $session->id,
-                'amount_awarded' => 250.00,
-                'award_date' => now()->subMonth()->toDateString(),
-                'status' => 'applied',
-            ]);
-            // Current Month: Applied (Pending Approval)
-            ScholarshipRecipient::create([
-                'scholarship_id' => $allowanceScheme->id,
-                'student_id' => $mainStudent->id,
-                'academic_session_id' => $session->id,
-                'amount_awarded' => 250.00,
-                'award_date' => now()->toDateString(),
-                'status' => 'applied',
-            ]);
-        }
-
-        // 13. Seed Fee Structures & Payments
-        $feeStructuresList = [];
-        $sessionsToSeed = [$previousSession, $session];
-
-        foreach ($sessionsToSeed as $targetSession) {
-            foreach ($programsList as $prog) {
-                for ($lvl = 100; $lvl <= 400; $lvl += 100) {
-                    if ($lvl > 200 && $prog->program_length == 2) {
-                        continue; // Skip level 300, 400 for 2-year diploma
-                    }
-
-                    $tuition = $prog->cost;
-                    $lib = 50.00;
-                    $lab = $prog->id == 3 ? 150.00 : 80.00;
-                    $med = 40.00;
-                    $sports = 30.00;
-                    $exam = 60.00;
-                    $total = $tuition + $lib + $lab + $med + $sports + $exam;
-
-                    $fs = FeeStructure::create([
-                        'program_id' => $prog->id,
-                        'level' => $lvl,
-                        'session_id' => $targetSession->id,
-                        'semester_id' => null, // Yearly default
-                        'tuition_fee' => $tuition,
-                        'library_fee' => $lib,
-                        'lab_fee' => $lab,
-                        'medical_fee' => $med,
-                        'sports_fee' => $sports,
-                        'examination_fee' => $exam,
-                        'total_amount' => $total,
-                        'created_by' => $adminUser->id,
-                    ]);
-                    $feeStructuresList[] = $fs;
-
-                    // Seed dynamic items
-                    FeeStructureItem::create([
-                        'fee_structure_id' => $fs->id,
-                        'fee_component_id' => $components['Tuition Fee']->id,
-                        'amount' => $tuition,
-                    ]);
-                    FeeStructureItem::create([
-                        'fee_structure_id' => $fs->id,
-                        'fee_component_id' => $components['Library Fee']->id,
-                        'amount' => $lib,
-                    ]);
-                    FeeStructureItem::create([
-                        'fee_structure_id' => $fs->id,
-                        'fee_component_id' => $components['Lab Fee']->id,
-                        'amount' => $lab,
-                    ]);
-                    FeeStructureItem::create([
-                        'fee_structure_id' => $fs->id,
-                        'fee_component_id' => $components['Medical Fee']->id,
-                        'amount' => $med,
-                    ]);
-                    FeeStructureItem::create([
-                        'fee_structure_id' => $fs->id,
-                        'fee_component_id' => $components['Sports Fee']->id,
-                        'amount' => $sports,
-                    ]);
-                    FeeStructureItem::create([
-                        'fee_structure_id' => $fs->id,
-                        'fee_component_id' => $components['Examination Fee']->id,
-                        'amount' => $exam,
-                    ]);
-                }
-            }
-        }
-
-        // Add Payments for students
-        foreach ($studentsList as $idx => $student) {
-            $currentYear = (int) $student->current_year;
-            
-            // Seed previous session payments for students in levels > 100
-            if ($currentYear > 100) {
-                $prevLevel = $currentYear - 100;
-                $prevFeeStr = collect($feeStructuresList)
-                    ->where('program_id', $student->program_id)
-                    ->where('level', $prevLevel)
-                    ->where('session_id', $previousSession->id)
-                    ->first();
-
-                if ($prevFeeStr) {
-                    $payOption = $idx % 3;
-                    if ($payOption === 0) {
-                        // Fully paid previous year
-                        Payment::create([
-                            'student_id' => $student->id,
-                            'fee_structure_id' => $prevFeeStr->id,
-                            'amount_paid' => $prevFeeStr->total_amount,
-                            'payment_method' => 'Bank Transfer',
-                            'payment_date' => '2024-11-15',
-                            'reference_number' => 'PREV-REF-'.rand(10000000, 99999999),
-                            'status' => 'completed',
-                            'received_by' => $adminUser->id,
-                        ]);
-                    } elseif ($payOption === 1) {
-                        // Partially paid (owes 350.00 arrears)
-                        Payment::create([
-                            'student_id' => $student->id,
-                            'fee_structure_id' => $prevFeeStr->id,
-                            'amount_paid' => max(0.01, $prevFeeStr->total_amount - 350.00),
-                            'payment_method' => 'Mobile Money',
-                            'payment_date' => '2024-12-05',
-                            'reference_number' => 'PREV-REF-'.rand(10000000, 99999999),
-                            'status' => 'completed',
-                            'received_by' => $adminUser->id,
-                        ]);
-                    }
-                    // Option 2: unpaid previous year (owes full previous year)
-                }
-            }
-
-            // Seed current session payments
-            $feeStr = collect($feeStructuresList)
-                ->where('program_id', $student->program_id)
-                ->where('level', $currentYear)
-                ->where('session_id', $session->id)
-                ->first();
-
-            if ($feeStr) {
-                $paymentOption = $idx % 3;
-                if ($paymentOption === 0) {
-                    Payment::create([
-                        'student_id' => $student->id,
-                        'fee_structure_id' => $feeStr->id,
-                        'amount_paid' => $feeStr->total_amount,
-                        'payment_method' => 'Bank Transfer',
-                        'payment_date' => now()->subDays(rand(5, 30))->format('Y-m-d'),
-                        'reference_number' => 'REF-'.rand(10000000, 99999999),
-                        'status' => 'completed',
-                        'received_by' => $adminUser->id,
-                    ]);
-                } elseif ($paymentOption === 1) {
-                    Payment::create([
-                        'student_id' => $student->id,
-                        'fee_structure_id' => $feeStr->id,
-                        'amount_paid' => $feeStr->total_amount / 2,
-                        'payment_method' => 'Mobile Money',
-                        'payment_date' => now()->subDays(rand(5, 30))->format('Y-m-d'),
-                        'reference_number' => 'REF-'.rand(10000000, 99999999),
-                        'status' => 'completed',
-                        'received_by' => $adminUser->id,
-                    ]);
-                }
-            }
-        }
-
-        // Run Ledger sync using FeeCalculationService for all students
-        $feeCalculationService = new \App\Services\Finance\FeeCalculationService();
-        foreach ($studentsList as $student) {
-            $feeCalculationService->syncFeePaymentLedger($student, $session);
-        }
-
-        // 14. Seed Results & Grades (Expanded and Relational)
-        $gradePointsList = GradePoint::all();
-
-        $getGradeDetails = function ($score) use ($gradePointsList) {
-            foreach ($gradePointsList as $gp) {
-                if ($score >= $gp->min_score && $score <= $gp->max_score) {
-                    return [
-                        'grade' => $gp->grade,
-                        'grade_points' => $gp->points,
+        $studentUserRows = [];
+        $studentSpecs = []; // deterministic generation plan
+        $gIdx = 0;
+        $admitSeq = 0;
+        foreach ($programs as $program) {
+            foreach ($cohortPlan[$program->id] as $level => $count) {
+                for ($k = 0; $k < $count; $k++) {
+                    $gIdx++;
+                    $admitSeq++;
+                    $isFemale = ($gIdx % 2) === 0;
+                    $first = $isFemale ? $femaleFirst[$gIdx % count($femaleFirst)] : $maleFirst[$gIdx % count($maleFirst)];
+                    $surname = $last[($gIdx * 7) % count($last)];
+                    $email = strtolower($first).'.'.strtolower($surname).$gIdx.'@demo.com';
+                    $studentUserRows[] = [
+                        'name' => $first.' '.$surname,
+                        'username' => strtolower(substr($first, 0, 1)).'.'.strtolower($surname).$gIdx,
+                        'email' => $email,
+                        'email_verified_at' => $now->toDateTimeString(),
+                        'type' => 'student',
+                        'staff_leave_type_id' => null,
+                        'password' => $passwordHash,
+                        'user_secret' => $this->token(8),
+                        'active' => true,
+                        'created_at' => $now->toDateTimeString(),
+                        'updated_at' => $now->toDateTimeString(),
+                    ];
+                    // Fee flag stamped AT GENERATION: covered / part / full.
+                    $flag = ['covered', 'part', 'full'][$gIdx % 3];
+                    $studentSpecs[] = [
+                        'email' => $email,
+                        'first' => $first,
+                        'surname' => $surname,
+                        'female' => $isFemale,
+                        'program' => $program,
+                        'preLevel' => $level,
+                        'feeFlag' => $flag,
+                        'applicantNo' => 'ADM-'.$prevStart->format('Y').'-'.str_pad((string) $admitSeq, 4, '0', STR_PAD_LEFT),
+                        'seq' => $gIdx,
                     ];
                 }
             }
+        }
+        // Canonical tour login: y2 Computer Science, fully paid.
+        $studentSpecs[10]['email'] = 'student@demo.com';
+        $studentSpecs[10]['feeFlag'] = 'full';
+        $studentUserRows[10]['email'] = 'student@demo.com';
+        $studentUserRows[10]['username'] = 'y.mensah';
+        $studentUserRows[10]['name'] = 'Yaw Mensah';
+        $studentSpecs[10]['first'] = 'Yaw';
+        $studentSpecs[10]['surname'] = 'Mensah';
+        $this->chunkInsert('users', $studentUserRows);
+        $studentUsersByEmail = User::query()->where('type', 'student')->get()->keyBy('email');
 
-            return ['grade' => 'F', 'grade_points' => 0.0];
+        // Student rows: historical final state (activated long ago): official-style
+        // index (school+admitYY+dept+seq), admission_index = applicant number.
+        $studentRows = [];
+        $officialSeq = 0;
+        foreach ($studentSpecs as $spec) {
+            $officialSeq++;
+            $program = $spec['program'];
+            $admitYY = $prevStart->copy()->subYears(((int) $spec['preLevel'] / 100) - 1)->format('y');
+            $official = str_pad((string) $school->id, 2, '0', STR_PAD_LEFT)
+                .$admitYY
+                .str_pad((string) $program->department_id, 2, '0', STR_PAD_LEFT)
+                .str_pad((string) (1000 + $officialSeq), 4, '0', STR_PAD_LEFT);
+            $u = $studentUsersByEmail[$spec['email']];
+            $studentRows[] = [
+                'user_id' => $u->id,
+                'index_number' => $official,
+                'admission_index' => $spec['applicantNo'],
+                'lastname' => $spec['surname'],
+                'firstname' => $spec['first'],
+                'othernames' => null,
+                'department_id' => $program->department_id,
+                'program_id' => $program->id,
+                'date_of_birth' => $today->copy()->subYears(19 + ($spec['seq'] % 6))->toDateString(),
+                'gender' => $spec['female'] ? 'female' : 'male',
+                'nationality' => 'Ghanaian',
+                'religion' => $this->pick(['Christian', 'Muslim', 'Christian', 'Traditionalist']),
+                // NOTE: $spec['preLevel'] arrives as int (PHP casts numeric
+                // string array keys); the enum column needs the string form.
+                'current_year' => (string) $spec['preLevel'],
+                'contact_address' => 'House '.(1 + ($spec['seq'] % 40)).', '.($this->pick(['Accra', 'Kumasi', 'Takoradi', 'Tamale', 'Ho', 'Cape Coast'])),
+                'phone_number' => $this->ghanaPhone(),
+                'admission_date' => $prevStart->toDateString(),
+                'hall_id' => $hallIds[$spec['seq'] % count($hallIds)],
+                'profile_pic' => 'images/auth/login-office.jpeg',
+                'is_new' => false,
+                'approved' => true,
+                'graduated' => false,
+                'created_at' => $now->toDateTimeString(),
+                'updated_at' => $now->toDateTimeString(),
+            ];
+        }
+        $this->chunkInsert('students', $studentRows);
+        $students = Student::query()->orderBy('id')->get()->all();
+        $studentByUserId = [];
+        foreach ($students as $s) {
+            $studentByUserId[$s->user_id] = $s;
+        }
+
+        // Guardians (guardian-complete for every approved student).
+        $guardianRows = [];
+        foreach ($studentSpecs as $spec) {
+            $s = $studentByUserId[$studentUsersByEmail[$spec['email']]->id];
+            $guardianRows[] = [
+                'student_id' => $s->id,
+                'name' => $this->pick($maleFirst).' '.$spec['surname'],
+                'relationship' => $this->pick(['Father', 'Mother', 'Guardian', 'Mother', 'Father']),
+                'address' => $s->contact_address,
+                'phone_number' => $this->ghanaPhone(),
+                'email' => 'guardian.'.$spec['seq'].'@demo.com',
+                'created_at' => $now->toDateTimeString(),
+                'updated_at' => $now->toDateTimeString(),
+            ];
+        }
+        $this->chunkInsert('parent_guardians', $guardianRows);
+
+        // Medical history (previous year for all continuing).
+        $medicalRows = [];
+        foreach ($students as $i => $s) {
+            if ($i % 4 === 3) {
+                continue; // a quarter with no declarations on file
+            }
+            $medicalRows[] = [
+                'student_id' => $s->id,
+                'academic_session_id' => $prevSession->id,
+                'medical_conditions' => $i % 5 === 0 ? 'Mild asthma' : 'None',
+                'allergies' => $i % 6 === 0 ? 'Peanuts' : 'None',
+                'medications' => $i % 5 === 0 ? 'Inhaler' : 'None',
+                'immunization_records' => 'Yellow Fever, COVID-19 (fully vaccinated)',
+                'emergency_contacts' => $this->pick($maleFirst).' '.$s->lastname.' - '.$this->ghanaPhone(),
+                'created_at' => $now->toDateTimeString(),
+                'updated_at' => $now->toDateTimeString(),
+            ];
+        }
+        $this->chunkInsert('medical_histories', $medicalRows);
+
+        // ==============================================================
+        // 4. FEES — previous year structures, deterministic base figures
+        // ==============================================================
+        $baseExtras = [ // [library, lab(2yr/4yr EE uplift), medical, sports, exam]
+            'Library Fee' => 50.00, 'Laboratory Fee' => 80.00, 'Medical Fee' => 40.00,
+            'Sports Fee' => 30.00, 'Examination Fee' => 60.00,
+        ];
+        $compIdByName = [];
+        foreach ($components as $c) {
+            $compIdByName[$c->name] = $c->id;
+        }
+        $structRows = [];
+        $structKey = []; // "programId:level:sessionId" => FeeStructure (filled after insert)
+        foreach ([$prevSession, $curSession] as $sess) {
+            $isCurrent = $sess->id === $curSession->id;
+            foreach ($programs as $program) {
+                $maxLevel = ((int) $program->program_length) * 100;
+                for ($lvl = 100; $lvl <= $maxLevel; $lvl += 100) {
+                    $tuition = (float) $program->cost;
+                    $lab = $program->id === $programs[2]->id ? 150.00 : $baseExtras['Laboratory Fee'];
+                    // Current year = previous x (1 + u/100), u = seeded 0-5 draw.
+                    $u = $isCurrent ? mt_rand(0, 5) : 0;
+                    $scale = 1 + ($u / 100);
+                    $amounts = [
+                        'Tuition Fee' => round($tuition * $scale, 2),
+                        'Library Fee' => round($baseExtras['Library Fee'] * $scale, 2),
+                        'Laboratory Fee' => round($lab * $scale, 2),
+                        'Medical Fee' => round($baseExtras['Medical Fee'] * $scale, 2),
+                        'Sports Fee' => round($baseExtras['Sports Fee'] * $scale, 2),
+                        'Examination Fee' => round($baseExtras['Examination Fee'] * $scale, 2),
+                    ];
+                    $structRows[] = [
+                        'program_id' => $program->id,
+                        'level' => $lvl,
+                        'session_id' => $sess->id,
+                        'semester_id' => null,
+                        'tuition_fee' => $amounts['Tuition Fee'],
+                        'library_fee' => $amounts['Library Fee'],
+                        'lab_fee' => $amounts['Laboratory Fee'],
+                        'medical_fee' => $amounts['Medical Fee'],
+                        'sports_fee' => $amounts['Sports Fee'],
+                        'examination_fee' => $amounts['Examination Fee'],
+                        'total_amount' => round(array_sum($amounts), 2),
+                        'created_by' => $owner->id,
+                        'created_at' => $now->toDateTimeString(),
+                        'updated_at' => $now->toDateTimeString(),
+                    ];
+                }
+            }
+        }
+        $this->chunkInsert('fee_structures', $structRows);
+        $structures = FeeStructure::query()->get()->all();
+        $structByKey = [];
+        foreach ($structures as $fs) {
+            $structByKey[$fs->program_id.':'.$fs->level.':'.$fs->session_id] = $fs;
+        }
+        $itemRows = [];
+        foreach ($structures as $fs) {
+            $map = [
+                'Tuition Fee' => $fs->tuition_fee, 'Library Fee' => $fs->library_fee,
+                'Laboratory Fee' => $fs->lab_fee, 'Medical Fee' => $fs->medical_fee,
+                'Sports Fee' => $fs->sports_fee, 'Examination Fee' => $fs->examination_fee,
+            ];
+            foreach ($map as $name => $amt) {
+                $itemRows[] = [
+                    'fee_structure_id' => $fs->id,
+                    'fee_component_id' => $compIdByName[$name],
+                    'amount' => $amt,
+                    'created_at' => $now->toDateTimeString(),
+                    'updated_at' => $now->toDateTimeString(),
+                ];
+            }
+        }
+        $this->chunkInsert('fee_structure_items', $itemRows);
+
+        // Scholarships (posted by the accountant).
+        $scholarshipRows = [
+            ['Presidential Merit Award', 'scholarship', 1200.00, 8, 'tuition_only', null, 'Tuition award for top of class.', 'active'],
+            ['Needy Student Bursary', 'scholarship', 1500.00, 4, 'full', null, 'Full-cost bursary for needy,Ghanaian students.', 'active'],
+            ['Hostel Relief Grant', 'grant', 600.00, 2, 'hostel_only', null, 'Accommodation support grant.', 'active'],
+        ];
+        $schRows = [];
+        foreach ($scholarshipRows as $sr) {
+            $schRows[] = [
+                'name' => $sr[0], 'type' => $sr[1], 'amount' => $sr[2], 'duration_semesters' => $sr[3],
+                'expiry_date' => $curEnd->toDateString(), 'coverage_type' => $sr[4], 'coverage_components' => $sr[5],
+                'description' => $sr[6], 'status' => $sr[7], 'created_by' => $accountant->id,
+                'created_at' => $now->toDateTimeString(), 'updated_at' => $now->toDateTimeString(),
+            ];
+        }
+        $this->chunkInsert('scholarships', $schRows);
+        $scholarships = Scholarship::query()->orderBy('id')->get()->all();
+
+        // Scholarship coverage for continuing students flagged 'covered'
+        // (previous-year award; current-year award for a subset).
+        $recipientRows = [];
+        foreach ($studentSpecs as $spec) {
+            if ($spec['feeFlag'] !== 'covered') {
+                continue;
+            }
+            $s = $studentByUserId[$studentUsersByEmail[$spec['email']]->id];
+            $sch = $scholarships[$spec['seq'] % count($scholarships)];
+            $recipientRows[] = [
+                'scholarship_id' => $sch->id,
+                'student_id' => $s->id,
+                'academic_session_id' => $prevSession->id,
+                'amount_awarded' => $sch->amount,
+                'award_date' => $this->dateIn($prevStart, $prevEnd, $spec['seq'])->toDateString(),
+                'status' => 'approved',
+                'created_at' => $now->toDateTimeString(),
+                'updated_at' => $now->toDateTimeString(),
+            ];
+            if ($spec['seq'] % 2 === 0) {
+                $recipientRows[] = [
+                    'scholarship_id' => $sch->id,
+                    'student_id' => $s->id,
+                    'academic_session_id' => $curSession->id,
+                    'amount_awarded' => $sch->amount,
+                    'award_date' => $this->dateIn($curStart, $today, $spec['seq'] + 3)->toDateString(),
+                    'status' => 'approved',
+                    'created_at' => $now->toDateTimeString(),
+                    'updated_at' => $now->toDateTimeString(),
+                ];
+            }
+        }
+        $this->chunkInsert('scholarship_recipients', $recipientRows);
+
+        // Previous-year payments driven by the stamped flags.
+        $paymentRows = [];
+        $paySeq = 0;
+        foreach ($studentSpecs as $spec) {
+            if ($spec['feeFlag'] === 'covered') {
+                continue;
+            }
+            $s = $studentByUserId[$studentUsersByEmail[$spec['email']]->id];
+            $fs = $structByKey[$spec['program']->id.':'.$spec['preLevel'].':'.$prevSession->id];
+            $total = (float) $fs->total_amount;
+            $paid = $spec['feeFlag'] === 'full' ? $total : round($total / 2, 2);
+            $paySeq++;
+            $paymentRows[] = [
+                'student_id' => $s->id,
+                'fee_structure_id' => $fs->id,
+                'amount_paid' => $paid,
+                'payment_method' => $this->pick(['Bank Transfer', 'Mobile Money', 'Bank Transfer', 'Cheque']),
+                'payment_date' => $this->dateIn($prevStart, $prevEnd, $spec['seq'], 11)->toDateString(),
+                'reference_number' => 'PAY-'.$prevStart->format('Y').'-'.str_pad((string) $paySeq, 5, '0', STR_PAD_LEFT),
+                'status' => 'completed',
+                'received_by' => $accountant->id,
+                'created_at' => $now->toDateTimeString(),
+                'updated_at' => $now->toDateTimeString(),
+            ];
+        }
+        $this->chunkInsert('payments', $paymentRows);
+
+        $feeService = app(FeeCalculationService::class);
+        foreach ($students as $s) {
+            $feeService->syncFeePaymentLedger($s, $prevSession);
+        }
+
+        // ==============================================================
+        // 5. PREVIOUS-YEAR RESULTS (all approved; fails seed retakes)
+        // ==============================================================
+        $coursesByProgramLevel = [];
+        foreach ($courses as $course) {
+            $coursesByProgramLevel[$course->program_id][(string) ((int) $course->year_level * 100)][] = $course;
+        }
+        $teacherById = [];
+        foreach ($teachers as $t) {
+            $teacherById[$t->id] = $t;
+        }
+
+        $gradeFor = function (float $score) use ($gradeBands): array {
+            foreach ($gradeBands as $gp) {
+                if ($score >= (float) $gp->min_score && $score <= (float) $gp->max_score) {
+                    return ['grade' => $gp->grade, 'points' => (float) $gp->points];
+                }
+            }
+
+            return ['grade' => 'F', 'points' => 0.0];
         };
 
-        // For all students, seed completed courses based on program and year levels (current and previous)
-        foreach ($studentsList as $student) {
-            $currentYearInt = intval($student->current_year ?? '100');
-            $yearLevels = [];
-            for ($y = 100; $y <= $currentYearInt; $y += 100) {
-                $yearLevels[] = strval($y / 100);
+        // Deterministic score: hash of (studentSeq, courseId) -> fail band or pass.
+        $scoreFor = function (int $studentSeq, int $courseId, int $tweak = 0): array {
+            $h = ($studentSeq * 37 + $courseId * 17 + $tweak) % 100;
+            $fail = $h < 15;
+            $att = 6 + (($studentSeq + $courseId) % 5);
+            $mid = 12 + (($studentSeq * 3 + $courseId) % 9);
+            $proj = 6 + (($studentSeq + $courseId * 2) % 5);
+            $exam = $fail ? (15 + ($h % 15)) : (35 + (($studentSeq * 5 + $courseId * 3 + $tweak) % 24));
+            $exam = min($exam, 60);
+            $total = $att + $mid + $proj + $exam;
+
+            return [$att, $mid, $proj, $exam, (float) $total];
+        };
+
+        $slipRows = [];
+        $gradeRows = [];
+        $resultRows = [];
+        $slipSeq = 0;
+        $prevFails = []; // studentId => [courseIds failed in previous year]
+        // One approved slip per (course, previous session).
+        foreach ($courses as $course) {
+            $courseTeacher = $teacherById[$course->teacher_id];
+            $semester = str_contains((string) $course->course_semester, '2') ? 2 : 1;
+            $slipSeq++;
+            $slipRows[] = [
+                'slip_number' => 'SLIP-'.$prevStart->format('Y').'-'.str_pad((string) $slipSeq, 6, '0', STR_PAD_LEFT),
+                'teacher_id' => $courseTeacher->id,
+                'program_id' => $course->program_id,
+                'course_id' => $course->id,
+                'academic_session_id' => $prevSession->id,
+                'level' => (string) ((int) $course->year_level * 100),
+                'semester' => $semester,
+                'status' => 'approved',
+                'review_comments' => null,
+                'approved_by' => $exams->id,
+                'approved_at' => $prevEnd->copy()->subDays(20)->toDateTimeString(),
+                'created_at' => $now->toDateTimeString(),
+                'updated_at' => $now->toDateTimeString(),
+            ];
+        }
+        $this->chunkInsert('result_slips', $slipRows);
+        $slips = ResultSlip::query()->get()->all();
+        $slipByCourseSession = [];
+        foreach ($slips as $slip) {
+            $slipByCourseSession[$slip->course_id.':'.$slip->academic_session_id] = $slip;
+        }
+
+        $resSeq = 0;
+        foreach ($studentSpecs as $spec) {
+            $s = $studentByUserId[$studentUsersByEmail[$spec['email']]->id];
+            $levels = [];
+            for ($l = 100; $l <= (int) $spec['preLevel']; $l += 100) {
+                $levels[] = (string) $l;
             }
-
-            $studentCourses = Course::where('program_id', $student->program_id)
-                ->whereIn('year_level', $yearLevels)
-                ->get();
-
-            foreach ($studentCourses as $course) {
-                // With an 80% probability, seed a result/grade
-                if (rand(0, 10) < 8) {
-                    $assignment = TeacherAssignment::where('course_id', $course->id)->first();
-                    if ($assignment) {
-                        $teacher = Teacher::find($assignment->teacher_id);
-                    } else {
-                        $teacher = collect($teachersList)->random();
-                    }
-
-                    $attendanceScore = floatval(rand(6, 10));
-                    $midsemScore = floatval(rand(12, 20));
-                    $projectScore = floatval(rand(6, 10));
-                    $classScore = $attendanceScore + $midsemScore + $projectScore;
-                    $examScore = floatval(rand(30, 60));
-                    $totalScore = $classScore + $examScore;
-
-                    $gradeDetails = $getGradeDetails($totalScore);
-
-                    $semesterVal = str_contains((string) $course->course_semester, '2') ? 2 : 1;
-                    $courseLevelStr = strval(intval($course->year_level ?? '1') * 100);
-                    
-                    $resultSessionId = ((int) $courseLevelStr < (int) $student->current_year) ? $previousSession->id : $session->id;
-                    
-                    $slip = ResultSlip::firstOrCreate([
-                        'teacher_id' => $teacher->id,
-                        'program_id' => $student->program_id,
+            foreach ($levels as $lvl) {
+                foreach ($coursesByProgramLevel[$spec['program']->id][$lvl] ?? [] as $course) {
+                    [$att, $mid, $proj, $exam, $total] = $scoreFor($spec['seq'], $course->id);
+                    $gd = $gradeFor($total);
+                    $slip = $slipByCourseSession[$course->id.':'.$prevSession->id];
+                    $courseTeacher = $teacherById[$course->teacher_id];
+                    $gradeRows[] = [
+                        'result_slip_id' => $slip->id,
+                        'student_id' => $s->id,
+                        'teacher_id' => $courseTeacher->id,
+                        'attendance_score' => $att,
+                        'midsem_score' => $mid,
+                        'project_score' => $proj,
+                        'class_score' => $att + $mid + $proj,
+                        'exam_score' => $exam,
+                        'created_at' => $now->toDateTimeString(),
+                        'updated_at' => $now->toDateTimeString(),
+                    ];
+                    $resSeq++;
+                    $resultRows[] = [
+                        'student_id' => $s->id,
                         'course_id' => $course->id,
-                        'academic_session_id' => $resultSessionId,
-                        'level' => $courseLevelStr,
-                        'semester' => $semesterVal,
-                    ], [
-                        'status' => 'approved',
-                        'approved_by' => $adminUser->id,
-                        'approved_at' => now(),
-                    ]);
-
-                    Result::create([
-                        'student_id' => $student->id,
-                        'course_id' => $course->id,
-                        'academic_session_id' => $resultSessionId,
-                        'score' => $totalScore,
-                        'grade' => $gradeDetails['grade'],
-                        'grade_points' => $gradeDetails['grade_points'],
-                        'entered_by' => $teacher->user_id,
-                        'entered_date' => now()->subWeeks(rand(1, 3)),
-                        'result_token' => 'RES-'.$course->code.'-'.Str::random(10),
-                        'teacher_id' => $teacher->id,
+                        'academic_session_id' => $prevSession->id,
+                        'score' => $total,
+                        'grade' => $gd['grade'],
+                        'grade_points' => $gd['points'],
+                        'entered_by' => $courseTeacher->user_id,
+                        'entered_date' => $prevEnd->copy()->subDays(30)->toDateString(),
+                        'result_token' => 'RES-'.$prevStart->format('Y').'-'.str_pad((string) $resSeq, 6, '0', STR_PAD_LEFT),
+                        'teacher_id' => $courseTeacher->id,
                         'result_slip_id' => $slip->id,
                         'admin_amended' => false,
-                    ]);
+                        'created_at' => $now->toDateTimeString(),
+                        'updated_at' => $now->toDateTimeString(),
+                    ];
+                    if ($gd['grade'] === 'F') {
+                        $prevFails[$s->id][] = $course->id;
+                    }
+                }
+            }
+        }
+        $this->chunkInsert('grades', $gradeRows);
+        $this->chunkInsert('results', $resultRows);
 
-                    Grade::create([
+        // AcademicInformation (GPA) for the previous year.
+        $this->seedAcademicInformation($prevSession);
+
+        // ==============================================================
+        // 6. PROMOTION — the real service bumps years (never hand-set)
+        // ==============================================================
+        if (! app(AutoPromotionService::class)->run()) {
+            throw new \RuntimeException('AutoPromotionService failed during seeding.');
+        }
+        $promotedCount = DB::table('promotions')->where('academic_session_id', $curSession->id)->count();
+        if ($promotedCount === 0) {
+            throw new \RuntimeException('AutoPromotionService promoted nobody; check session dates.');
+        }
+
+        // ==============================================================
+        // 7. NEW Y1 INTAKE — real registration path, approvals, activation
+        // ==============================================================
+        $photoSource = public_path('images/auth/login-office.jpeg');
+        $saveAdmission = app(SaveStudentAdmissionProfileAction::class);
+        $activate = app(ActivateStudentDashboardAction::class);
+        $assertCap = app(AssertStudentApprovalAllowedByLicence::class);
+
+        $intakeCount = 30;
+        $intakeApprovedTarget = 20;
+        $intakeSpecs = [];
+        $programIds = array_map(fn ($p): int => $p->id, $programs);
+        for ($i = 1; $i <= $intakeCount; $i++) {
+            $isFemale = ($i % 2) === 0;
+            $first = $isFemale ? $femaleFirst[($i * 3) % count($femaleFirst)] : $maleFirst[($i * 3) % count($maleFirst)];
+            $surname = $last[($i * 11) % count($last)];
+            $program = $programs[$i % count($programs)];
+            $intakeSpecs[] = [
+                'first' => $first, 'surname' => $surname, 'female' => $isFemale,
+                'program' => $program,
+                'applicantNo' => 'ADM-'.$curStart->format('Y').'-'.str_pad((string) $i, 4, '0', STR_PAD_LEFT),
+                'email' => strtolower($first).'.'.strtolower($surname).'.n'.$i.'@demo.com',
+                'username' => strtolower(substr($first, 0, 1)).'.'.strtolower($surname).'.n'.$i,
+            ];
+        }
+
+        $newApproved = 0;
+        $intakeStudents = [];
+        $intakeIds = [];
+        foreach ($intakeSpecs as $idx => $spec) {
+            $user = User::create([
+                'name' => $spec['first'].' '.$spec['surname'],
+                'email' => $spec['email'],
+                'password' => $passwordHash,
+                'type' => 'student',
+                'user_secret' => $this->token(8),
+                'active' => true,
+            ]);
+            // Real registration path (profile photo via a temp copy).
+            $tmpPhoto = sys_get_temp_dir().'/demo-intake-'.$idx.'.jpg';
+            copy($photoSource, $tmpPhoto);
+            $upload = new UploadedFile($tmpPhoto, 'photo.jpg', 'image/jpeg', null, true);
+            $student = $saveAdmission->create($user, [
+                'index_number' => $spec['applicantNo'],
+                'lastname' => $spec['surname'],
+                'firstname' => $spec['first'],
+                'othernames' => null,
+                'date_of_birth' => $today->copy()->subYears(19 + ($idx % 4))->toDateString(),
+                'nationality' => 'Ghanaian',
+                'insurance_number' => null,
+                'ghana_card' => $this->ghanaCard(),
+                'contact_address' => 'House '.($idx + 1).', '.($this->pick(['Accra', 'Kumasi', 'Ho'])),
+                'phone_number' => $this->ghanaPhone(),
+                'religion' => 'Christian',
+                'denomination' => null,
+                'disability_status' => 'no',
+                'disability_type' => null,
+                'program_id' => $spec['program']->id,
+                'hall_id' => $hallIds[$idx % count($hallIds)],
+                'gender' => $spec['female'] ? 'female' : 'male',
+                'blood_group' => $this->pick(['O+', 'A+', 'B+', 'O+', 'AB+']),
+                'username' => $spec['username'],
+            ], $upload);
+
+            ParentGuardian::create([
+                'student_id' => $student->id,
+                'name' => $this->pick($maleFirst).' '.$spec['surname'],
+                'relationship' => $this->pick(['Father', 'Mother', 'Guardian']),
+                'address' => $student->contact_address,
+                'phone_number' => $this->ghanaPhone(),
+                'email' => 'guardian.intake.'.$idx.'@demo.com',
+            ]);
+
+            // First 20 admitted AND approved (admissions_officer owns approvals):
+            // approval field semantics + licence-cap gate, for real.
+            if ($idx < $intakeApprovedTarget) {
+                $assertCap();
+                $student->forceFill([
+                    'approved' => true,
+                    'admission_index' => $student->index_number,
+                    'department_id' => $student->program?->department_id,
+                ])->save();
+                $activate->execute($student->fresh());
+                $newApproved++;
+            }
+            $fresh = $student->fresh();
+            $intakeStudents[] = $fresh;
+            $intakeIds[] = $fresh->id;
+        }
+
+        // New admits: current-year fees + payments for the approved; ledger sync.
+        $intakePaySeq = 90000;
+        foreach ($intakeStudents as $ni => $ns) {
+            if (! $ns->approved) {
+                continue;
+            }
+            $flag = ['full', 'part', 'covered'][$ni % 3];
+            $fs = $structByKey[$ns->program_id.':100:'.$curSession->id];
+            if ($flag === 'covered') {
+                $sch = $scholarships[$ni % count($scholarships)];
+                ScholarshipRecipient::create([
+                    'scholarship_id' => $sch->id,
+                    'student_id' => $ns->id,
+                    'academic_session_id' => $curSession->id,
+                    'amount_awarded' => $sch->amount,
+                    'award_date' => $this->dateIn($curStart, $today, $ni + 40)->toDateString(),
+                    'status' => 'approved',
+                ]);
+            } else {
+                $total = (float) $fs->total_amount;
+                $intakePaySeq++;
+                Payment::create([
+                    'student_id' => $ns->id,
+                    'fee_structure_id' => $fs->id,
+                    'amount_paid' => $flag === 'full' ? $total : round($total / 2, 2),
+                    'payment_method' => $this->pick(['Bank Transfer', 'Mobile Money']),
+                    'payment_date' => $this->dateIn($curStart, $today, $ni + 50, 5)->toDateString(),
+                    'reference_number' => 'PAY-'.$curStart->format('Y').'-'.str_pad((string) $intakePaySeq, 5, '0', STR_PAD_LEFT),
+                    'status' => 'completed',
+                    'received_by' => $accountant->id,
+                ]);
+            }
+            $feeService->syncFeePaymentLedger($ns, $curSession);
+            // Current-year medical row for new admits.
+            MedicalHistory::create([
+                'student_id' => $ns->id,
+                'academic_session_id' => $curSession->id,
+                'medical_conditions' => 'None',
+                'allergies' => 'None',
+                'medications' => 'None',
+                'immunization_records' => 'Yellow Fever, COVID-19 (fully vaccinated)',
+                'emergency_contacts' => $this->pick($maleFirst).' '.$ns->lastname.' - '.$this->ghanaPhone(),
+            ]);
+        }
+        // Current-year ledgers for all continuing students.
+        $continuing = Student::query()->where('approved', true)->get()->all();
+        foreach ($continuing as $s) {
+            if (in_array($s->id, $intakeIds, true)) {
+                continue; // intake already synced above
+            }
+            $feeService->syncFeePaymentLedger($s, $curSession);
+            if ($s->id % 3 !== 0) {
+                MedicalHistory::create([
+                    'student_id' => $s->id,
+                    'academic_session_id' => $curSession->id,
+                    'medical_conditions' => 'None',
+                    'allergies' => 'None',
+                    'medications' => 'None',
+                    'immunization_records' => 'Yellow Fever, COVID-19 (fully vaccinated)',
+                    'emergency_contacts' => $this->pick($maleFirst).' '.$s->lastname.' - '.$this->ghanaPhone(),
+                ]);
+            }
+        }
+
+        // ==============================================================
+        // 8. CURRENT-YEAR RESULTS (approved + retakes + pending-only-now)
+        // ==============================================================
+        $freshStudents = Student::query()->orderBy('id')->get()->all();
+        $curSlipRows = [];
+        foreach ($courses as $course) {
+            $courseTeacher = $teacherById[$course->teacher_id];
+            $semester = str_contains((string) $course->course_semester, '2') ? 2 : 1;
+            $slipSeq++;
+            // ~1 in 5 current slips stays pending (grades only, no results).
+            $pending = (($course->id + $curSession->id) % 5) === 0;
+            $curSlipRows[] = [
+                'slip_number' => 'SLIP-'.$curStart->format('Y').'-'.str_pad((string) $slipSeq, 6, '0', STR_PAD_LEFT),
+                'teacher_id' => $courseTeacher->id,
+                'program_id' => $course->program_id,
+                'course_id' => $course->id,
+                'academic_session_id' => $curSession->id,
+                'level' => (string) ((int) $course->year_level * 100),
+                'semester' => $semester,
+                'status' => $pending ? 'pending' : 'approved',
+                'review_comments' => null,
+                'approved_by' => $pending ? null : $exams->id,
+                'approved_at' => $pending ? null : $today->copy()->subDays(10)->toDateTimeString(),
+                'created_at' => $now->toDateTimeString(),
+                'updated_at' => $now->toDateTimeString(),
+            ];
+        }
+        $this->chunkInsert('result_slips', $curSlipRows);
+        $curSlips = ResultSlip::query()->where('academic_session_id', $curSession->id)->get()->all();
+        $curSlipByCourse = [];
+        foreach ($curSlips as $slip) {
+            $curSlipByCourse[$slip->course_id] = $slip;
+        }
+
+        $curGradeRows = [];
+        $curResultRows = [];
+        foreach ($freshStudents as $s) {
+            if (! $s->approved) {
+                continue; // pending intake has no marks yet
+            }
+            $levels = [];
+            for ($l = 100; $l <= (int) $s->current_year; $l += 100) {
+                $levels[] = (string) $l;
+            }
+            foreach ($levels as $lvl) {
+                foreach ($coursesByProgramLevel[$s->program_id][$lvl] ?? [] as $course) {
+                    if (in_array($course->id, $prevFails[$s->id] ?? [], true)) {
+                        continue; // failed last year: covered by the retake row below
+                    }
+                    $slip = $curSlipByCourse[$course->id];
+                    $courseTeacher = $teacherById[$course->teacher_id];
+                    [$att, $mid, $proj, $exam, $total] = $scoreFor($s->id, $course->id, 7);
+                    $curGradeRows[] = [
                         'result_slip_id' => $slip->id,
-                        'student_id' => $student->id,
-                        'teacher_id' => $teacher->id,
-                        'attendance_score' => $attendanceScore,
-                        'midsem_score' => $midsemScore,
-                        'project_score' => $projectScore,
-                        'class_score' => $classScore,
-                        'exam_score' => $examScore,
+                        'student_id' => $s->id,
+                        'teacher_id' => $courseTeacher->id,
+                        'attendance_score' => $att,
+                        'midsem_score' => $mid,
+                        'project_score' => $proj,
+                        'class_score' => $att + $mid + $proj,
+                        'exam_score' => $exam,
+                        'created_at' => $now->toDateTimeString(),
+                        'updated_at' => $now->toDateTimeString(),
+                    ];
+                    if ($slip->status !== 'approved') {
+                        continue; // pending slip: grades entered, results await approval
+                    }
+                    $gd = $gradeFor($total);
+                    $resSeq++;
+                    $curResultRows[] = [
+                        'student_id' => $s->id,
+                        'course_id' => $course->id,
+                        'academic_session_id' => $curSession->id,
+                        'score' => $total,
+                        'grade' => $gd['grade'],
+                        'grade_points' => $gd['points'],
+                        'entered_by' => $courseTeacher->user_id,
+                        'entered_date' => $today->copy()->subDays(12)->toDateString(),
+                        'result_token' => 'RES-'.$curStart->format('Y').'-'.str_pad((string) $resSeq, 6, '0', STR_PAD_LEFT),
+                        'teacher_id' => $courseTeacher->id,
+                        'result_slip_id' => $slip->id,
+                        'admin_amended' => false,
+                        'created_at' => $now->toDateTimeString(),
+                        'updated_at' => $now->toDateTimeString(),
+                    ];
+                }
+            }
+            // Retakes: previous-year fails re-sat now (approved result).
+            foreach ($prevFails[$s->id] ?? [] as $courseId) {
+                $course = Course::find($courseId);
+                if ($course === null) {
+                    continue;
+                }
+                $slip = $curSlipByCourse[$courseId] ?? null;
+                if ($slip === null || $slip->status !== 'approved') {
+                    continue;
+                }
+                $courseTeacher = $teacherById[$course->teacher_id];
+                [$att, $mid, $proj, $exam, $total] = $scoreFor($s->id, $courseId, 99);
+                $total = max($total, 52.0); // retake passes
+                $gd = $gradeFor($total);
+                $resSeq++;
+                $curResultRows[] = [
+                    'student_id' => $s->id,
+                    'course_id' => $courseId,
+                    'academic_session_id' => $curSession->id,
+                    'score' => $total,
+                    'grade' => $gd['grade'],
+                    'grade_points' => $gd['points'],
+                    'entered_by' => $courseTeacher->user_id,
+                    'entered_date' => $today->copy()->subDays(9)->toDateString(),
+                    'result_token' => 'RES-'.$curStart->format('Y').'-R'.str_pad((string) $resSeq, 5, '0', STR_PAD_LEFT),
+                    'teacher_id' => $courseTeacher->id,
+                    'result_slip_id' => $slip->id,
+                    'admin_amended' => false,
+                    'created_at' => $now->toDateTimeString(),
+                    'updated_at' => $now->toDateTimeString(),
+                ];
+            }
+        }
+        $this->chunkInsert('grades', $curGradeRows);
+        $this->chunkInsert('results', $curResultRows);
+        $this->seedAcademicInformation($curSession);
+
+        // ==============================================================
+        // 9. EVALUATIONS — QA creates; status service opens/closes
+        // ==============================================================
+        $likert = [
+            'The lecturer explains course concepts with clarity.',
+            'The lecturer demonstrates mastery of the subject matter.',
+            'The lecturer is punctual and regular for classes.',
+            'Marking of assignments and exams is fair and timely.',
+            'The lecturer is available for consultation outside class.',
+            'The quality of course materials and slides is high.',
+        ];
+        $prevForm = EvaluationForm::create([
+            'title' => 'Lecturer Performance Evaluation',
+            'academic_year' => $prevName,
+            'unique_code' => 'EVAL-'.$prevStart->format('Y').'-A',
+            'start_time' => $prevStart->copy()->addMonth()->toDateTimeString(),
+            'end_time' => $prevEnd->copy()->subMonths(3)->toDateTimeString(),
+            'control_type' => 'auto',
+            'is_active' => false,
+            'created_by' => $qa->id,
+            'last_edited_by' => $qa->id,
+        ]);
+        $curForm = EvaluationForm::create([
+            'title' => 'Lecturer Performance Evaluation',
+            'academic_year' => $curName,
+            'unique_code' => 'EVAL-'.$curStart->format('Y').'-A',
+            'start_time' => $today->copy()->subDays(7)->toDateTimeString(),
+            'end_time' => $curEnd->copy()->subMonths(3)->toDateTimeString(),
+            'control_type' => 'auto',
+            'is_active' => false,
+            'created_by' => $qa->id,
+            'last_edited_by' => $qa->id,
+        ]);
+        $questionRows = [];
+        foreach ([$prevForm, $curForm] as $form) {
+            $order = 0;
+            foreach ($likert as $text) {
+                $order++;
+                $questionRows[] = [
+                    'form_id' => $form->id,
+                    'question_text' => $text,
+                    'question_order' => $order,
+                    'rating_type' => 'scale_5',
+                    'is_required' => true,
+                    'options_json' => null,
+                    'created_by' => $qa->id,
+                    'last_edited_by' => $qa->id,
+                    'created_at' => $now->toDateTimeString(),
+                    'updated_at' => $now->toDateTimeString(),
+                ];
+            }
+            $order++;
+            $questionRows[] = [
+                'form_id' => $form->id,
+                'question_text' => 'Provide any constructive feedback or comments for this lecturer.',
+                'question_order' => $order,
+                'rating_type' => 'text_long',
+                'is_required' => false,
+                'options_json' => null,
+                'created_by' => $qa->id,
+                'last_edited_by' => $qa->id,
+                'created_at' => $now->toDateTimeString(),
+                'updated_at' => $now->toDateTimeString(),
+            ];
+        }
+        $this->chunkInsert('evaluation_questions', $questionRows);
+        if (! app(EvaluationFormStatusService::class)->run()) {
+            throw new \RuntimeException('EvaluationFormStatusService failed during seeding.');
+        }
+
+        $questionsByForm = [];
+        foreach (EvaluationQuestion::query()->orderBy('question_order')->get()->all() as $q) {
+            $questionsByForm[$q->form_id][] = $q;
+        }
+        $ratingPool = [5, 5, 5, 4, 4, 4, 4, 3, 3, 2];
+        $commentPool = [
+            'Explains difficult topics with great patience and clarity.',
+            'Very punctual; slides are well organised and helpful.',
+            'Marking was fair, though feedback arrived a week late.',
+            'Approachable during consultation hours; solved my project blockers.',
+            'Practical examples made the course enjoyable and relevant.',
+            'Pace is fast in the second half; more revision would help.',
+        ];
+        // Teacher of the student's own program (mirrors auto-assignment).
+        $programTeacherUserId = [];
+        foreach ($programs as $program) {
+            $firstCourse = Course::query()->where('program_id', $program->id)->orderBy('id')->first();
+            $programTeacherUserId[$program->id] = $teacherById[$firstCourse->teacher_id]->user_id;
+        }
+        $evaluable = array_values(array_filter($freshStudents, fn ($s): bool => (bool) $s->approved));
+        $responseRows = [];
+        $detailRows = [];
+        $respSeq = 0;
+        foreach ([$prevForm, $curForm] as $fi => $form) {
+            $isPrev = $fi === 0;
+            foreach ($evaluable as $ei => $s) {
+                $roll = ($ei * 7 + $form->id) % 10;
+                // Previous (closed): submitted only. Current: ~70% submit,
+                // ~10% draft, rest skip. Never 100%.
+                if ($isPrev ? $roll > 5 : $roll > 7) {
+                    continue;
+                }
+                $submitted = $isPrev || $roll <= 6;
+                $respSeq++;
+                $submittedAt = $isPrev
+                    ? $this->dateIn($prevStart, $prevEnd, $ei + 5)->toDateTimeString()
+                    : $this->dateIn($curStart, $today, $ei + 5)->toDateTimeString();
+                $responseRows[] = [
+                    'form_id' => $form->id,
+                    'student_id' => $s->user_id,
+                    'teacher_id' => $programTeacherUserId[$s->program_id],
+                    'student_department_id' => $s->department_id,
+                    'response_code' => 'RESP-'.$form->id.'-'.str_pad((string) $respSeq, 5, '0', STR_PAD_LEFT),
+                    'status' => $submitted ? 'submitted' : 'draft',
+                    'submitted_at' => $submitted ? $submittedAt : null,
+                    'created_at' => $now->toDateTimeString(),
+                ];
+            }
+        }
+        $this->chunkInsert('evaluation_responses', $responseRows);
+        $responses = EvaluationResponse::query()->orderBy('id')->get()->all();
+        foreach ($responses as $ri => $resp) {
+            foreach ($questionsByForm[$resp->form_id] as $qi => $q) {
+                if ($resp->status === 'draft' && (($ri + $qi) % 3) === 0) {
+                    continue; // partial drafts: skipped questions
+                }
+                if ($q->rating_type === 'scale_5') {
+                    $detailRows[] = [
+                        'response_id' => $resp->id,
+                        'question_id' => $q->id,
+                        'question_text_snapshot' => $q->question_text,
+                        'answer_value' => $ratingPool[($ri * 3 + $qi) % count($ratingPool)],
+                        'answer_text' => null,
+                        'created_at' => $now->toDateTimeString(),
+                    ];
+                } else {
+                    // Comment box: answered by ~2 in 3 respondents.
+                    if ((($ri + $qi) % 3) === 0) {
+                        continue;
+                    }
+                    $detailRows[] = [
+                        'response_id' => $resp->id,
+                        'question_id' => $q->id,
+                        'question_text_snapshot' => $q->question_text,
+                        'answer_value' => null,
+                        'answer_text' => $commentPool[($ri + $qi) % count($commentPool)],
+                        'created_at' => $now->toDateTimeString(),
+                    ];
+                }
+            }
+        }
+        $this->chunkInsert('response_details', $detailRows);
+
+        // ==============================================================
+        // 10. MEMOS — secretary drafts; HOD -> Dean/VP chains; PRO news
+        // ==============================================================
+        $memoFiles = [
+            'memos/seed-fee-schedule.txt' => "Second instalment fee schedule per programme level.\nTuition balances are due before mid-semester examinations.\n",
+            'memos/seed-matriculation-programme.txt' => "Matriculation ceremony programme outline.\nAll newly admitted students are expected to attend in academic dress.\n",
+        ];
+        foreach ($memoFiles as $path => $body) {
+            Storage::disk('local')->put($path, $body);
+        }
+
+        $memoDefs = [
+            [
+                'title' => 'Payment of Second Instalment Fees - Deadline Reminder',
+                'content' => 'All continuing students are reminded that the second instalment of fees for the academic year is due before the mid-semester examinations. Students with outstanding balances should visit the Finance Office.',
+                'recipient_type' => 'faculty', 'recipient_entity_id' => $faculties[0]->id, 'recipient_role_id' => null,
+                'status' => 'sent', 'signers' => [$hodByDept[$departments[0]->id]->id, $dean->id],
+                'attach' => 'memos/seed-fee-schedule.txt', 'topic_day' => 12,
+            ],
+            [
+                'title' => 'Matriculation Ceremony for Newly Admitted Students',
+                'content' => 'The matriculation ceremony for newly admitted students comes off at the forecourt of the Administration Block. Deans, HODs and guardians are cordially invited.',
+                'recipient_type' => 'faculty', 'recipient_entity_id' => $faculties[1]->id, 'recipient_role_id' => null,
+                'status' => 'sent', 'signers' => [$hodByDept[$departments[2]->id]->id, $vp->id],
+                'attach' => 'memos/seed-matriculation-programme.txt', 'topic_day' => 20,
+            ],
+            [
+                'title' => 'End-of-Semester Examination Timetable',
+                'content' => 'Heads of Department are to submit draft examination timetables for vetting before publication on student notice boards.',
+                'recipient_type' => 'department', 'recipient_entity_id' => $departments[0]->id, 'recipient_role_id' => null,
+                'status' => 'pending_signature', 'signers' => [$hodByDept[$departments[0]->id]->id],
+                'attach' => null, 'topic_day' => 28,
+            ],
+            [
+                'title' => 'Teaching Practice Postings - Second Year Trainees',
+                'content' => 'Draft posting schedule for second-year teacher trainees to partner basic schools. Supervisors to confirm availability before dispatch.',
+                'recipient_type' => 'department', 'recipient_entity_id' => $departments[1]->id, 'recipient_role_id' => null,
+                'status' => 'draft', 'signers' => [$hodByDept[$departments[1]->id]->id, $dean->id],
+                'attach' => null, 'topic_day' => 34,
+            ],
+            [
+                'title' => 'Emergency Staff Meeting - Accreditation Visit',
+                'content' => 'An emergency meeting of all teaching and non-teaching staff has been scheduled ahead of the accreditation panel visit. Attendance is compulsory.',
+                'recipient_type' => 'department', 'recipient_entity_id' => $departments[3]->id, 'recipient_role_id' => null,
+                'status' => 'sent', 'signers' => [$hodByDept[$departments[3]->id]->id, $vp->id],
+                'attach' => null, 'topic_day' => 40,
+            ],
+        ];
+        $memoDate = fn (int $day): string => $curStart->copy()->addDays($day)->toDateTimeString();
+        foreach ($memoDefs as $mi => $md) {
+            $memo = Memo::create([
+                'title' => $md['title'],
+                'content' => $md['content'],
+                'sender_id' => $secretary->id,
+                'sender_entity_type' => 'user',
+                'sender_entity_id' => null,
+                'recipient_type' => $md['recipient_type'],
+                'recipient_entity_id' => $md['recipient_entity_id'],
+                'recipient_role_id' => $md['recipient_role_id'],
+                'confidentiality_level' => 'internal',
+                'status' => $md['status'],
+                'signing_user_id' => $md['status'] === 'pending_signature' ? $md['signers'][0] : null,
+                'route_sequentially' => true,
+                'cc_recipients' => null,
+                'created_at' => $memoDate($md['topic_day']),
+                'updated_at' => $memoDate($md['topic_day']),
+            ]);
+            $signerRows = [];
+            foreach ($md['signers'] as $step => $signerId) {
+                $signed = $md['status'] === 'sent' || ($md['status'] === 'pending_signature' && $step === 0 && $mi !== 2);
+                if ($md['status'] === 'pending_signature') {
+                    $signed = false; // awaiting the HOD: nothing signed yet
+                }
+                $signerRows[] = [
+                    'memo_id' => $memo->id,
+                    'user_id' => $signerId,
+                    'step_number' => $step + 1,
+                    'status' => $signed ? 'signed' : 'pending',
+                    'signature_path' => null,
+                    'remarks' => $signed ? 'Approved and signed.' : null,
+                    'signed_at' => $signed ? $memoDate($md['topic_day'] + $step + 1) : null,
+                    'created_at' => $memoDate($md['topic_day']),
+                    'updated_at' => $memoDate($md['topic_day']),
+                ];
+                if ($signed) {
+                    MemoTracking::create([
+                        'memo_id' => $memo->id,
+                        'from_entity_type' => 'user',
+                        'from_entity_id' => $signerId,
+                        'to_entity_type' => $md['recipient_type'],
+                        'to_entity_id' => $md['recipient_entity_id'],
+                        'forwarded_by' => $signerId,
+                        'action' => 'signed',
+                        'remarks' => 'Signed in demo seeding.',
+                        'created_at' => $memoDate($md['topic_day'] + $step + 1),
                     ]);
                 }
             }
-        }
-
-        // 14.1 Seed Academic Information (GPA & Attendance)
-        foreach ($studentsList as $student) {
-            $sessions = Result::where('student_id', $student->id)
-                ->select('academic_session_id')
-                ->distinct()
-                ->pluck('academic_session_id');
-
-            foreach ($sessions as $sessionId) {
-                $sessionModel = AcademicSession::find($sessionId);
-                if (!$sessionModel) {
-                    continue;
-                }
-
-                $studentResults = Result::where('student_id', $student->id)
-                    ->where('academic_session_id', $sessionId)
-                    ->get();
-
-                if ($studentResults->isEmpty()) {
-                    continue;
-                }
-
-                $totalPts = floatval($studentResults->sum('grade_points'));
-                $count = $studentResults->count();
-                $gpa = $count > 0 ? ($totalPts / $count) : 0.0;
-
-                $classLevel = $student->current_year;
-                if ($sessionId === $previousSession->id) {
-                    $classLevel = (string) max(100, (int)$student->current_year - 100);
-                }
-
-                \App\Models\AcademicInformation::create([
-                    'student_id' => $student->id,
-                    'class_level' => $classLevel,
-                    'section' => 'A',
-                    'academic_session' => $sessionModel->name,
-                    'program_id' => $student->program_id,
-                    'major_field' => $student->program?->name,
-                    'gpa' => $gpa,
-                    'attendance_record' => rand(85, 120),
-                    'result_id' => $studentResults->first()->id,
-                ]);
-            }
-        }
-
-        // 15. Seed Disciplinary Records (Randomized)
-        $disciplinaryInfractions = [
-            ['offense' => 'Academic dishonesty during mid-semester examination.', 'action' => 'Suspension for 1 semester.'],
-            ['offense' => 'Destruction of campus library computer resources.', 'action' => 'Fine of GHS 500 and written apology.'],
-            ['offense' => 'Violation of residential hall curfew rules.', 'action' => 'Written warning and community service.'],
-            ['offense' => 'Unauthorized entry into faculty server room.', 'action' => 'Suspension for 2 weeks and loss of computer laboratory privileges.'],
-        ];
-
-        $numCases = rand(4, 8);
-        $disciplinedStudents = collect($studentsList)->random($numCases);
-        foreach ($disciplinedStudents as $idx => $student) {
-            $isLevel100 = ((int) $student->current_year === 100);
-            $targetSession = $isLevel100 ? $session : (($idx % 2 === 0) ? $previousSession : $session);
-            $case = fake()->randomElement($disciplinaryInfractions);
-            DisciplinaryRecord::create([
-                'index_number' => $student->index_number,
-                'fullname' => $student->firstname.' '.$student->lastname,
-                'program_id' => $student->program_id,
-                'academic_session_id' => $targetSession->id,
-                'offense' => $case['offense'],
-                'action_taken' => $case['action'],
-                'comments' => 'Student was cooperative and expressed remorse during the disciplinary panel review.',
-                'date_of_action' => ($targetSession->id === $previousSession->id) 
-                    ? now()->subYear()->subDays(rand(10, 60))->format('Y-m-d')
-                    : now()->subDays(rand(10, 60))->format('Y-m-d'),
-                'return_date' => ($targetSession->id === $previousSession->id) 
-                    ? now()->subYear()->addDays(rand(15, 45))->format('Y-m-d')
-                    : now()->addDays(rand(15, 45))->format('Y-m-d'),
-                'return_status' => ($targetSession->id === $previousSession->id) ? true : false,
-            ]);
-        }
-
-        // 16. Seed Evaluation Forms & Questions & Responses
-        $evalForm = EvaluationForm::create([
-            'title' => 'First Semester Lecturer Performance Evaluation',
-            'academic_year' => '2025/2026',
-            'unique_code' => 'EVAL-2025-SEM1',
-            'start_time' => now()->subDays(10),
-            'end_time' => now()->addDays(20),
-            'control_type' => 'manual',
-            'is_active' => true,
-            'created_by' => $adminUser->id,
-        ]);
-
-        $evalQuestions = [
-            [
-                'text' => 'The lecturer explains the course concepts clearly and understandably.',
-                'type' => 'scale_5',
-            ],
-            [
-                'text' => 'The lecturer is punctual and regular for classes.',
-                'type' => 'scale_5',
-            ],
-            [
-                'text' => 'Rate the overall quality of course materials and slides provided on a scale from 1 to 10.',
-                'type' => 'scale_10',
-            ],
-            [
-                'text' => 'Would you recommend this lecturer to other students next semester?',
-                'type' => 'boolean',
-            ],
-            [
-                'text' => 'Which resource was most helpful for your learning in this course?',
-                'type' => 'select_single',
-                'options' => ['Lecture Slides', 'Reference Textbooks', 'Online Videos/Labs', 'Discussion Forums'],
-            ],
-            [
-                'text' => 'Select all teaching methodologies that the lecturer regularly employed.',
-                'type' => 'select_multiple',
-                'options' => ['Interactive lectures', 'Group projects', 'Live coding demos', 'Case study analysis', 'Guest speakers'],
-            ],
-            [
-                'text' => 'Provide any constructive feedback or comments for this lecturer.',
-                'type' => 'text_long',
-            ],
-        ];
-
-        $questionIds = [];
-        foreach ($evalQuestions as $idx => $q) {
-            $createdQ = EvaluationQuestion::create([
-                'form_id' => $evalForm->id,
-                'question_text' => $q['text'],
-                'question_order' => $idx + 1,
-                'rating_type' => $q['type'],
-                'is_required' => in_array($q['type'], ['scale_5', 'scale_10', 'boolean', 'select_single'], true),
-                'options_json' => isset($q['options']) ? $q['options'] : null,
-                'created_by' => $adminUser->id,
-            ]);
-            $questionIds[] = $createdQ->id;
-        }
-
-        // Seed evaluation responses
-        $evalCohortSize = rand(15, min(count($studentsList), 50));
-        $evaluatingStudents = collect($studentsList)->random($evalCohortSize);
-
-        $scale5Ratings = [5, 5, 5, 5, 5, 4, 4, 4, 4, 4, 3, 3, 2, 1];
-        $scale10Ratings = [10, 10, 9, 9, 9, 8, 8, 8, 8, 7, 7, 6, 5, 4, 2];
-        $commentsPool = [
-            'Excellent instructor who explains complex topics with great clarity. Always willing to help.',
-            'Great class, but the assignments were graded a bit late. The lecture slides are very helpful.',
-            'The practical coding exercises were amazing! I learned a lot of industry-relevant skills.',
-            'Lectures can be dry at times, but the professor is extremely knowledgeable and supportive.',
-            'Very punctual and structured course. I highly recommend taking this class.',
-            'The exams were quite tough and required deep understanding, but the review sessions helped.',
-            'Could provide more real-world examples during lectures. Overall, a decent learning experience.',
-            'Super energetic and interactive teaching style. Keeps the class fully engaged!',
-            'Sometimes moves through slides too quickly. A bit more pace control would be appreciated.',
-            'The group project was very challenging but taught me how to work effectively in a team.',
-            'Always approachable during office hours. Great guidance on our final presentations.',
-            'Feedback on assignments was detailed and constructive. Helped me improve my grades.',
-            'The class was very engaging, though I wish there were fewer quizzes and more coding tasks.',
-            'Outstanding lecturer. Explains concepts from multiple perspectives to ensure everyone understands.',
-        ];
-
-        foreach ($evaluatingStudents as $estd) {
-            $randomTeacher = collect($teachersList)->random();
-
-            $response = EvaluationResponse::create([
-                'form_id' => $evalForm->id,
-                'student_id' => $estd->user_id,
-                'teacher_id' => $randomTeacher->user_id,
-                'student_department_id' => $estd->department_id,
-                'response_code' => 'RESP-'.Str::random(10),
-                'status' => 'submitted',
-                'submitted_at' => now()->subDays(rand(1, 5)),
-            ]);
-
-            foreach ($questionIds as $qId) {
-                $qObj = EvaluationQuestion::find($qId);
-                $answerValue = null;
-                $answerText = null;
-
-                if ($qObj->rating_type === 'scale_5') {
-                    $answerValue = $scale5Ratings[array_rand($scale5Ratings)];
-                } elseif ($qObj->rating_type === 'scale_10') {
-                    $answerValue = $scale10Ratings[array_rand($scale10Ratings)];
-                } elseif ($qObj->rating_type === 'boolean') {
-                    $isYes = rand(0, 10) < 8;
-                    $answerValue = $isYes ? 1 : 0;
-                    $answerText = $isYes ? 'yes' : 'no';
-                } elseif ($qObj->rating_type === 'select_single') {
-                    $opts = $qObj->options_json;
-                    $answerText = $opts[array_rand($opts)];
-                } elseif ($qObj->rating_type === 'select_multiple') {
-                    $opts = $qObj->options_json;
-                    $numToPick = rand(1, min(3, count($opts)));
-                    $picked = (array) array_rand(array_flip($opts), $numToPick);
-                    $answerText = json_encode(array_values($picked));
-                } elseif ($qObj->rating_type === 'text_long') {
-                    $answerText = $commentsPool[array_rand($commentsPool)];
-                }
-
-                ResponseDetail::create([
-                    'response_id' => $response->id,
-                    'question_id' => $qId,
-                    'question_text_snapshot' => $qObj->question_text,
-                    'answer_value' => $answerValue,
-                    'answer_text' => $answerText,
-                ]);
-            }
-        }
-
-        // 17. Seed Announcements
-        $teacherSarah = $teachersList[0];
-        if ($coursesList[0]) {
-            Announcement::create([
-                'course_id' => $coursesList[0]->id,
-                'academic_session_id' => $session->id,
-                'teacher_id' => $teacherSarah->id,
-                'title' => 'Welcome to the Course',
-                'body' => 'This is a demo announcement to showcase course-level updates. You can edit, create, or delete announcements as needed.',
-                'status' => 'active',
-                'published' => true,
-                'approved_by' => $adminUser->id,
-                'approved_date' => now()->subDays(2),
-            ]);
-        }
-
-        // 18. Seed Administrative Memos (5 to 10)
-        $secretaryUser = User::where('username', 'secretary_demo')->first();
-        $hodUser = User::where('username', 'hod_demo')->first();
-
-        $memosData = [
-            [
-                'title' => 'First Semester Examination Protocol & Guidelines',
-                'content' => 'All lecturers and academic invigilators are required to adhere to the strict examination guidelines. Question papers must be submitted to the HOD office by next week. Students must be vetted for ghana card or registration slip before entry.',
-                'confidentiality' => 'internal',
-                'recipient_type' => 'role',
-                'recipient_role_id' => UserRole::where('name', 'teacher')->first()?->id,
-                'status' => 'sent',
-                'sender' => $secretaryUser,
-                'signatories' => [
-                    ['user_id' => $hodUser->id, 'status' => 'signed', 'remarks' => 'Approved from department perspective.'],
-                    ['user_id' => $adminUser->id, 'status' => 'signed', 'remarks' => 'Final approval granted. Publish immediately.'],
-                ],
-            ],
-            [
-                'title' => 'Quarterly Academic Review and Performance Meeting',
-                'content' => 'Notice is hereby given for the quarterly review meeting of all academic staff. We will discuss evaluation responses, student feedback, and curriculum modifications for the next semester. Attendance is compulsory.',
-                'confidentiality' => 'internal',
-                'recipient_type' => 'department',
-                'recipient_entity_id' => 1,
-                'status' => 'pending_signature',
-                'sender' => $secretaryUser,
-                'signatories' => [
-                    ['user_id' => $hodUser->id, 'status' => 'pending', 'remarks' => null],
-                ],
-            ],
-            [
-                'title' => 'Proposed Development of Computing Lab Complex',
-                'content' => 'The proposal for the expansion of the Computing and Computer Engineering Lab facilities has been approved. The budget estimate is attached for review. HODs must submit equipment requirements.',
-                'confidentiality' => 'confidential',
-                'recipient_type' => 'department',
-                'recipient_entity_id' => 2,
-                'status' => 'draft',
-                'sender' => $secretaryUser,
-                'signatories' => [],
-            ],
-            [
-                'title' => 'STEM Research Grants Opportunities (2026)',
-                'content' => 'The school board is offering local research grants for projects focusing on Applied Engineering and Artificial Intelligence. Proposals should be submitted through the department heads by the end of June.',
-                'confidentiality' => 'public',
-                'recipient_type' => 'faculty',
-                'recipient_entity_id' => 1,
-                'status' => 'sent',
-                'sender' => $hodUser,
-                'signatories' => [
-                    ['user_id' => $hodUser->id, 'status' => 'signed', 'remarks' => 'Self-signed by HOD.'],
-                ],
-            ],
-            [
-                'title' => 'Annual Campus Security and Audit Notice',
-                'content' => 'Please note that an audit of security credentials, card passes, and student clearance procedures is underway. Non-compliance must be reported to the registrar office immediately.',
-                'confidentiality' => 'public',
-                'recipient_type' => 'user',
-                'recipient_entity_id' => $teachersList[0]->user_id,
-                'status' => 'sent',
-                'sender' => $secretaryUser,
-                'signatories' => [
-                    ['user_id' => $adminUser->id, 'status' => 'signed', 'remarks' => 'Approved by Principal.'],
-                ],
-            ],
-        ];
-
-        foreach ($memosData as $mData) {
-            $sender = $mData['sender'] ?? $adminUser;
-
-            $memo = Memo::create([
-                'title' => $mData['title'],
-                'content' => $mData['content'],
-                'sender_id' => $sender->id,
-                'sender_entity_type' => ($sender->type === 'teacher') ? 'department' : 'user',
-                'sender_entity_id' => ($sender->type === 'teacher') ? $sender->teacher?->department_id : $sender->id,
-                'recipient_type' => $mData['recipient_type'],
-                'recipient_entity_id' => $mData['recipient_entity_id'] ?? null,
-                'recipient_role_id' => $mData['recipient_role_id'] ?? null,
-                'confidentiality_level' => $mData['confidentiality'],
-                'status' => $mData['status'],
-                'signing_user_id' => $adminUser->id,
-            ]);
-
-            // Seed signatories
-            foreach ($mData['signatories'] as $sigData) {
-                \App\Models\MemoSignatory::create([
+            $this->chunkInsert('memo_signatories', $signerRows);
+            if ($md['status'] === 'draft') {
+                MemoTracking::create([
                     'memo_id' => $memo->id,
-                    'user_id' => $sigData['user_id'],
-                    'status' => $sigData['status'],
-                    'remarks' => $sigData['remarks'],
-                    'signed_at' => ($sigData['status'] === 'signed') ? now()->subHours(rand(1, 10)) : null,
+                    'from_entity_type' => 'user',
+                    'from_entity_id' => $secretary->id,
+                    'to_entity_type' => $md['recipient_type'],
+                    'to_entity_id' => $md['recipient_entity_id'],
+                    'forwarded_by' => $secretary->id,
+                    'action' => 'saved',
+                    'remarks' => 'Saved as draft.',
+                    'created_at' => $memoDate($md['topic_day']),
                 ]);
+                continue;
             }
-
-            // Seed Memo Tracking Logs
             MemoTracking::create([
                 'memo_id' => $memo->id,
-                'from_entity_type' => $memo->sender_entity_type,
-                'from_entity_id' => $memo->sender_entity_id,
-                'to_entity_type' => $memo->recipient_type,
-                'to_entity_id' => $memo->recipient_entity_id,
-                'forwarded_by' => $sender->id,
-                'action' => $memo->status === 'sent' ? 'sent' : ($memo->status === 'pending_signature' ? 'returned' : 'saved'),
-                'remarks' => 'Memo initialized in demo data seeding.',
+                'from_entity_type' => 'user',
+                'from_entity_id' => $secretary->id,
+                'to_entity_type' => $md['recipient_type'],
+                'to_entity_id' => $md['recipient_entity_id'],
+                'forwarded_by' => $secretary->id,
+                'action' => 'sent',
+                'remarks' => $md['status'] === 'sent' ? 'Memo fully signed and dispatched.' : 'Memo dispatched for signature.',
+                'created_at' => $memoDate($md['topic_day']),
             ]);
-
-            if ($memo->status === 'sent') {
-                $recipients = $memo->resolveTargetRecipients();
-                foreach ($recipients as $recipient) {
-                    $viewed = rand(0, 1);
-                    $acknowledged = $viewed && rand(0, 1);
-                    
-                    \App\Models\MemoReadReceipt::create([
+            if ($md['attach'] !== null) {
+                MemoAttachment::create([
+                    'memo_id' => $memo->id,
+                    'file_path' => $md['attach'],
+                    'file_name' => basename($md['attach']),
+                    'file_size' => Storage::disk('local')->size($md['attach']),
+                    'created_at' => $memoDate($md['topic_day']),
+                    'updated_at' => $memoDate($md['topic_day']),
+                ]);
+            }
+            if ($md['status'] === 'sent') {
+                // Read receipts for a deterministic slice of target recipients.
+                $targets = $memo->resolveTargetRecipients()->sortBy('id')->values();
+                $take = min(6, $targets->count());
+                for ($r = 0; $r < $take; $r++) {
+                    $viewed = ($r % 3) !== 2;
+                    $acked = ($r % 3) === 0;
+                    MemoReadReceipt::create([
                         'memo_id' => $memo->id,
-                        'user_id' => $recipient->id,
-                        'viewed_at' => $viewed ? now()->subHours(rand(1, 24)) : null,
-                        'acknowledged_at' => $acknowledged ? now()->subMinutes(rand(1, 59)) : null,
+                        'user_id' => $targets[$r]->id,
+                        'viewed_at' => $viewed ? $memoDate($md['topic_day'] + 2) : null,
+                        'acknowledged_at' => $acked ? $memoDate($md['topic_day'] + 3) : null,
+                        'created_at' => $memoDate($md['topic_day'] + 1),
+                        'updated_at' => $memoDate($md['topic_day'] + 1),
                     ]);
+                    if ($acked) {
+                        MemoTracking::create([
+                            'memo_id' => $memo->id,
+                            'from_entity_type' => 'user',
+                            'from_entity_id' => $targets[$r]->id,
+                            'to_entity_type' => 'user',
+                            'to_entity_id' => $secretary->id,
+                            'forwarded_by' => $targets[$r]->id,
+                            'action' => 'acknowledged',
+                            'remarks' => 'Receipt acknowledged.',
+                            'created_at' => $memoDate($md['topic_day'] + 3),
+                        ]);
+                    }
                 }
             }
         }
 
-        // 19. Seed Transcript Requests (for demo data testing)
-        $level400Students = collect($studentsList)->filter(fn($s) => (int) $s->current_year >= 400)->values();
-        if ($level400Students->isNotEmpty()) {
-            // Seed a pending request
-            \App\Models\TranscriptRequest::create([
-                'student_id' => $level400Students[0]->id,
-                'status' => 'pending',
-                'purpose' => 'Graduate Studies Application at MIT',
+        // PRO college announcements: chainless, self-signed at creation.
+        $announcementMemos = [
+            ['SRC Week Celebration - Programme of Activities', 'The SRC week celebration opens with a float through town, followed by inter-hall games, a debate night and an awards dinner.', 'faculty', $faculties[0]->id],
+            ['Staff Durbar with Management', 'All teaching and non-teaching staff are invited to a durbar with management to discuss welfare matters and the new academic calendar.', 'department', $departments[2]->id],
+        ];
+        foreach ($announcementMemos as $ai => $am) {
+            $memo = Memo::create([
+                'title' => $am[0],
+                'content' => $am[1],
+                'sender_id' => $pro->id,
+                'sender_entity_type' => 'user',
+                'sender_entity_id' => null,
+                'recipient_type' => $am[2],
+                'recipient_entity_id' => $am[3],
+                'recipient_role_id' => null,
+                'confidentiality_level' => 'public',
+                'status' => 'sent',
+                'signing_user_id' => null,
+                'route_sequentially' => false,
+                'cc_recipients' => null,
+                'created_at' => $memoDate(45 + $ai),
+                'updated_at' => $memoDate(45 + $ai),
             ]);
-
-            // Seed a processed request
-            if ($level400Students->count() > 1) {
-                \App\Models\TranscriptRequest::create([
-                    'student_id' => $level400Students[1]->id,
-                    'status' => 'processed',
-                    'purpose' => 'Employment Background Check',
-                    'processed_by' => $adminUser->id,
-                    'processed_at' => now()->subDays(2),
-                ]);
-            }
-
-            // Seed a rejected request
-            if ($level400Students->count() > 2) {
-                \App\Models\TranscriptRequest::create([
-                    'student_id' => $level400Students[2]->id,
-                    'status' => 'rejected',
-                    'purpose' => 'Personal Archives',
-                    'remarks' => 'Please clear outstanding tuition and library fines.',
-                    'processed_by' => $adminUser->id,
-                    'processed_at' => now()->subDays(1),
-                ]);
-            }
+            MemoSignatory::create([
+                'memo_id' => $memo->id,
+                'user_id' => $pro->id,
+                'step_number' => 1,
+                'status' => 'signed',
+                'signature_path' => null,
+                'remarks' => 'Self-signed at creation.',
+                'signed_at' => $memoDate(45 + $ai),
+            ]);
+            MemoTracking::create([
+                'memo_id' => $memo->id,
+                'from_entity_type' => 'user',
+                'from_entity_id' => $pro->id,
+                'to_entity_type' => $am[2],
+                'to_entity_id' => $am[3],
+                'forwarded_by' => $pro->id,
+                'action' => 'sent',
+                'remarks' => 'Memo dispatched.',
+                'created_at' => $memoDate(45 + $ai),
+            ]);
         }
 
-        // 20. Seed Timetable and Slots
-        $csProgram = $programsList[0]; // BSc Computer Science
-        $csLevel = 100;
-        
-        $timetable = \App\Models\Timetable::create([
-            'program_id' => $csProgram->id,
-            'level' => $csLevel,
-            'session_id' => $session->id,
-            'created_by' => $adminUser->id,
+        // ==============================================================
+        // 11. OUTCOMES — discipline, clearance, graduation, leaves,
+        //     expenditures, attendance files, transcripts, jobs
+        // ==============================================================
+        $allStudents = Student::query()->orderBy('id')->get()->all();
+
+        // Discipline: serving (return_status=false) + served mix, any student.
+        $offences = [
+            ['Academic dishonesty during mid-semester examination.', 'Suspension for one semester with counselling.'],
+            ['Destruction of library computer accessories.', 'Fine of GHS 500.00 and written apology.'],
+            ['Violation of residential hall curfew rules.', 'Written warning and two weeks community service.'],
+            ['Unauthorised entry into the faculty server room.', 'Suspension for two weeks and loss of laboratory privileges.'],
+            ['Fighting in the dining hall during supper.', 'Suspension for three weeks and parental invitation.'],
+            ['Forgery of a medical excuse chit.', 'Suspension for one semester and re-sit of affected papers.'],
+        ];
+        $discRows = [];
+        for ($d = 0; $d < 6; $d++) {
+            $s = $allStudents[($d * 23) % count($allStudents)];
+            $served = ($d % 2) === 1;
+            $sess = $d < 3 ? $prevSession : $curSession;
+            $actionDate = $this->dateIn(Carbon::parse($sess->start_date), Carbon::parse($sess->end_date), $d + 2)->toDateString();
+            $discRows[] = [
+                'index_number' => $s->index_number,
+                'fullname' => trim($s->firstname.' '.$s->lastname),
+                'program_id' => $s->program_id,
+                'academic_session_id' => $sess->id,
+                'offense' => $offences[$d][0],
+                'action_taken' => $offences[$d][1],
+                'comments' => 'Student appeared before the disciplinary committee with a guardian.',
+                'date_of_action' => $actionDate,
+                'return_date' => $served ? Carbon::parse($actionDate)->addMonths(2)->toDateString() : Carbon::parse($actionDate)->addMonths(4)->toDateString(),
+                'return_status' => $served,
+                'created_at' => $now->toDateTimeString(),
+                'updated_at' => $now->toDateTimeString(),
+            ];
+        }
+        $this->chunkInsert('disciplinary_records', $discRows);
+
+        // Clearance: final-year-of-program ONLY (dynamic max), current session.
+        $clearKeys = array_keys(config('clearance.definitions', []));
+        $finalists = array_values(array_filter($allStudents, function ($s): bool {
+            $program = $s->program;
+            if ($program === null) {
+                return false;
+            }
+
+            return (int) $s->current_year === ((int) $program->program_length) * 100;
+        }));
+        // NOTE: StudentClearance has no $fillable (auto-fills session at
+        // runtime), so rows go through the query builder, not ::create().
+        $clearRows = [];
+        foreach ($finalists as $fi => $s) {
+            foreach ($clearKeys as $ki => $key) {
+                $cleared = (($fi + $ki) % 5) < 3; // ~60% cleared
+                $clearRows[] = [
+                    'student_id' => $s->id,
+                    'academic_session_id' => $curSession->id,
+                    'department_key' => $key,
+                    'status' => $cleared ? 'cleared' : 'pending',
+                    'cleared_by' => $cleared ? $registrar->id : null,
+                    'cleared_at' => $cleared ? $today->toDateTimeString() : null,
+                    'notes' => null,
+                    'created_at' => $now->toDateTimeString(),
+                    'updated_at' => $now->toDateTimeString(),
+                ];
+            }
+        }
+        $this->chunkInsert('student_clearances', $clearRows);
+
+        // Graduation through the REAL service (4-year finalists of two
+        // programmes; the service hardcodes level 400, so diploma finalists
+        // cannot graduate here — flagged, left ungraduated with clearance).
+        $graduateService = app(ProcessGraduationService::class);
+        $gradProgramIds = [$programs[0]->id, $programs[3]->id]; // CS + Accounting
+        foreach ($gradProgramIds as $pid) {
+            $graduateService->run($curSession->id, '400', $pid, $today->toDateString(), $registrar->id);
+        }
+
+        // Leaves: pending / approved / rejected across both years.
+        $teacherUserIds = array_map(fn ($t): int => $t->user_id, $teachers);
+        $leaveDefs = [
+            // [userIdx|email, typeIdx, startOffsetPrev/Cur, days, status, reviewerRole, emergency]
+            ['teacher:0', 0, 'prev:40', 5, 'approved', 'owner', false, 'Annual family visit to Kumasi'],
+            ['teacher:1', 0, 'cur:10', 3, 'pending', null, false, 'Outdoor naming ceremony arrangements'],
+            ['teacher:5', 0, 'prev:120', 6, 'rejected', 'hod', false, 'Conference travel without cover plan'],
+            [$secretary->email, 1, 'prev:60', 4, 'approved', 'hr', false, 'Rest and medical check-up'],
+            [$accountant->email, 1, 'cur:5', 2, 'pending', null, true, 'Emergency dental procedure'],
+            [$pro->email, 1, 'prev:200', 7, 'approved', 'hr', false, 'Annual leave'],
+            ['teacher:9', 0, 'cur:20', 5, 'pending', null, false, 'Supervision field trip recovery'],
+            [$registrar->email, 0, 'prev:90', 3, 'rejected', 'hr', false, 'Clash with matriculation planning week'],
+        ];
+        $leaveRows = [];
+        foreach ($leaveDefs as $li => $ld) {
+            $email = str_starts_with($ld[0], 'teacher:')
+                ? $teacherUsers[(int) substr($ld[0], 8)]->email
+                : $ld[0];
+            $u = User::query()->where('email', $email)->firstOrFail();
+            [$scope, $offset] = explode(':', $ld[2]);
+            $base = $scope === 'prev' ? $prevStart : $curStart;
+            $start = $base->copy()->addDays((int) $offset);
+            $end = $start->copy()->addDays($ld[3] - 1);
+            $reviewerId = null;
+            if ($ld[4] === 'approved') {
+                // Teaching staff final approval via owner override (no principal
+                // user exists); non-teaching staff decided by HR.
+                $reviewerId = $ld[5] === 'hr' ? $hr->id : $owner->id;
+            } elseif ($ld[4] === 'rejected') {
+                $reviewerId = $ld[5] === 'hr' ? $hr->id : $hodByDept[$departments[0]->id]->id;
+            }
+            $stage = $ld[4] === 'pending'
+                ? ($u->type === 'teacher' ? 'pending_hod' : 'pending_registrar')
+                : $ld[4];
+            $leaveRows[] = [
+                'user_id' => $u->id,
+                'staff_leave_type_id' => $leaveTypes[$ld[1]]->id,
+                'start_date' => $start->toDateString(),
+                'end_date' => $end->toDateString(),
+                'requested_days' => $ld[3],
+                'status' => $ld[4],
+                'current_stage' => $stage,
+                'reason' => $ld[7],
+                'is_emergency' => $ld[6],
+                'reviewer_id' => $reviewerId,
+                'reviewed_at' => $reviewerId !== null ? $start->copy()->subDays(4)->toDateTimeString() : null,
+                'rejection_reason' => $ld[4] === 'rejected' ? 'Cover arrangements were not satisfactory for the period requested.' : null,
+                'academic_session_id' => $scope === 'prev' ? $prevSession->id : $curSession->id,
+                'created_at' => $now->toDateTimeString(),
+                'updated_at' => $now->toDateTimeString(),
+            ];
+        }
+        $this->chunkInsert('leave_requests', $leaveRows);
+
+        // Products, invoices (accountant posts), expenditures (vote-book).
+        $productRows = [
+            ['Semester Registration Kit', 'PROD-REG-KIT', 'Registrar', 15.00, 'Orientation and registration package'],
+            ['Official Academic Transcript', 'PROD-TRANSCRIPT', 'Registrar', 50.00, 'Printed academic record sheet'],
+            ['Graduation Gown Hire', 'PROD-GRAD-GOWN', 'Ceremony', 120.00, 'Rental of graduation cap and gown'],
+        ];
+        $prodRows = [];
+        foreach ($productRows as $pr) {
+            $prodRows[] = [
+                'name' => $pr[0], 'sku' => $pr[1], 'category' => $pr[2], 'unit_price' => $pr[3],
+                'description' => $pr[4], 'created_at' => $now->toDateTimeString(), 'updated_at' => $now->toDateTimeString(),
+            ];
+        }
+        $this->chunkInsert('products', $prodRows);
+        $products = Product::query()->orderBy('id')->get()->all();
+
+        $invRows = [
+            ['INV-'.$prevStart->format('Y').'-0001', 'Apex Supplies Ltd', 'Orientation packages and transcript materials', 65.00, $prevStart->copy()->addDays(40)->toDateString(), $prevStart->copy()->addDays(75)->toDateString(), 'paid'],
+            ['INV-'.$curStart->format('Y').'-0001', 'Ghana Gown Rentals', 'Rental gowns for the graduation ceremony', 240.00, $curStart->copy()->addDays(5)->toDateString(), $curStart->copy()->addDays(40)->toDateString(), 'partially_paid'],
+            ['INV-'.$curStart->format('Y').'-0002', 'Danquah Printers', 'Examination answer booklets, second semester', 480.00, $curStart->copy()->addDays(8)->toDateString(), $curStart->copy()->addDays(45)->toDateString(), 'pending'],
+        ];
+        $invInsert = [];
+        foreach ($invRows as $ir) {
+            $invInsert[] = [
+                'invoice_number' => $ir[0], 'vendor_name' => $ir[1], 'description' => $ir[2], 'amount' => $ir[3],
+                'invoice_date' => $ir[4], 'due_date' => $ir[5], 'status' => $ir[6],
+                'file_path' => null, 'created_by' => $accountant->id,
+                'created_at' => $now->toDateTimeString(), 'updated_at' => $now->toDateTimeString(),
+            ];
+        }
+        $this->chunkInsert('invoices', $invInsert);
+        $invoices = Invoice::query()->orderBy('id')->get()->all();
+        $this->chunkInsert('invoice_items', [
+            ['invoice_id' => $invoices[0]->id, 'product_id' => $products[0]->id, 'quantity' => 1, 'unit_price' => 15.00, 'total_amount' => 15.00, 'created_at' => $now->toDateTimeString(), 'updated_at' => $now->toDateTimeString()],
+            ['invoice_id' => $invoices[0]->id, 'product_id' => $products[1]->id, 'quantity' => 1, 'unit_price' => 50.00, 'total_amount' => 50.00, 'created_at' => $now->toDateTimeString(), 'updated_at' => $now->toDateTimeString()],
+            ['invoice_id' => $invoices[1]->id, 'product_id' => $products[2]->id, 'quantity' => 2, 'unit_price' => 120.00, 'total_amount' => 240.00, 'created_at' => $now->toDateTimeString(), 'updated_at' => $now->toDateTimeString()],
+            ['invoice_id' => $invoices[2]->id, 'product_id' => $products[0]->id, 'quantity' => 32, 'unit_price' => 15.00, 'total_amount' => 480.00, 'created_at' => $now->toDateTimeString(), 'updated_at' => $now->toDateTimeString()],
         ]);
+        $expRows = [
+            [$invoices[0]->id, 'EXP-'.$prevStart->format('Y').'-0001', 65.00, 'Bank Transfer', $prevStart->copy()->addDays(50)->toDateString(), 'Registrar Supplies', 'Settled invoice '.$invoices[0]->invoice_number],
+            [$invoices[1]->id, 'EXP-'.$curStart->format('Y').'-0001', 100.00, 'Bank Transfer', $curStart->copy()->addDays(12)->toDateString(), 'Ceremony', 'Part payment of '.$invoices[1]->invoice_number],
+            [null, 'EXP-'.$curStart->format('Y').'-0002', 150.00, 'Mobile Money', $curStart->copy()->addDays(15)->toDateString(), 'Office Supplies', 'Printer papers and cartridges'],
+            [null, 'EXP-'.$prevStart->format('Y').'-0002', 500.00, 'Bank Transfer', $prevStart->copy()->addDays(150)->toDateString(), 'Maintenance', 'Server room air-conditioner repair'],
+            [null, 'EXP-'.$curStart->format('Y').'-0003', 320.00, 'Bank Transfer', $curStart->copy()->addDays(18)->toDateString(), 'IT Infrastructure', 'Network switches for the new computer laboratory'],
+        ];
+        $expInsert = [];
+        foreach ($expRows as $er) {
+            $expInsert[] = [
+                'invoice_id' => $er[0], 'expense_number' => $er[1], 'amount' => $er[2], 'payment_method' => $er[3],
+                'payment_date' => $er[4], 'reference_number' => null, 'category' => $er[5],
+                'proof_file_path' => null, 'notes' => $er[6], 'recorded_by' => $accountant->id,
+                'created_at' => $now->toDateTimeString(), 'updated_at' => $now->toDateTimeString(),
+            ];
+        }
+        $this->chunkInsert('expenditures', $expInsert);
 
-        $csCourses = collect($coursesList)->where('program_id', $csProgram->id)->where('year_level', '1')->values();
-        $teachers = collect($teachersList);
-
-        $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-        foreach ($days as $dayIndex => $dayName) {
-            $course = $csCourses[$dayIndex % count($csCourses)];
-            $teacher = $teachers->first(fn($t) => $t->department_id === $csProgram->department_id) ?? $teachers->random();
-            
-            \App\Models\TimetableClass::create([
-                'timetable_id' => $timetable->id,
-                'program_id' => $csProgram->id,
-                'course_id' => $course->id,
-                'teacher_id' => $teacher->id,
-                'day' => $dayName,
-                'start_time' => '09:00:00',
-                'end_time' => '11:30:00',
-                'venue' => 'Room 204, IT Block',
-            ]);
-
-            if ($dayIndex % 2 === 0) {
-                $otherCourse = $csCourses[($dayIndex + 1) % count($csCourses)];
-                \App\Models\TimetableClass::create([
-                    'timetable_id' => $timetable->id,
-                    'program_id' => $csProgram->id,
-                    'course_id' => $otherCourse->id,
-                    'teacher_id' => $teacher->id,
-                    'day' => $dayName,
-                    'start_time' => '13:00:00',
-                    'end_time' => '15:00:00',
-                    'venue' => 'Main Lab 1',
-                ]);
+        // Teacher attendance sheets (HOD batch): one CSV per teacher per year.
+        $attRows = [];
+        foreach ($teachers as $ti => $t) {
+            $ownCourses = array_values(array_filter($courses, fn ($c): bool => $c->teacher_id === $t->id));
+            if ($ownCourses === []) {
+                continue;
+            }
+            $course = $ownCourses[$ti % count($ownCourses)];
+            foreach ([$prevSession, $curSession] as $si => $sess) {
+                $dir = 'teachers/attendance-sheets';
+                $fname = 'seed-attendance-t'.$t->id.'-s'.$sess->id.'.csv';
+                $csv = "index_number,fullname,present\n";
+                $csv .= 'SAMPLE-001,Sample Student,Y'."\n";
+                Storage::disk('college_uploads')->put($dir.'/'.$fname, $csv);
+                $classDate = $si === 0
+                    ? $this->dateIn($prevStart, $prevEnd, $ti + 9)->toDateString()
+                    : $this->dateIn($curStart, $today, $ti + 9)->toDateString();
+                $attRows[] = [
+                    'teacher_id' => $t->id,
+                    'course_id' => $course->id,
+                    'academic_session_id' => $sess->id,
+                    'semester_id' => null,
+                    'class_date' => $classDate,
+                    'file_path' => $dir.'/'.$fname,
+                    'original_name' => 'attendance_'.$course->code.'_'.str_replace('-', '', $classDate).'.csv',
+                    'created_at' => $now->toDateTimeString(),
+                    'updated_at' => $now->toDateTimeString(),
+                ];
             }
         }
+        $this->chunkInsert('teacher_attendance_sheets', $attRows);
 
-        // 21. Seed Course Materials & Teacher Attendance Sheets for realism
-        $timetableClasses = \App\Models\TimetableClass::all();
-        $semesters = Semester::all();
-
-        foreach ($timetableClasses as $index => $tClass) {
-            // Assign session and semester context
-            $targetSemester = $semesters[$index % count($semesters)];
-            $targetSession = $targetSemester->academicSession;
-
-            if ($index % 2 === 0) {
-                CourseMaterial::create([
-                    'course_id' => $tClass->course_id,
-                    'teacher_id' => $tClass->teacher_id,
-                    'academic_session_id' => $targetSession->id,
-                    'semester_id' => $targetSemester->id,
-                    'title' => 'Lecture Note ' . (($index % 3) + 1) . ' - ' . $tClass->course?->name,
-                    'description' => 'Comprehensive slides and reference materials for this weeks lecture topics.',
-                    'file_path' => 'materials/demo_pdf_' . $index . '.pdf',
+        // Course materials (lecturer authors, QA approves) + course announcements.
+        $matRows = [];
+        $annRows = [];
+        $matCourses = array_slice($courses, 0, 8);
+        foreach ($matCourses as $mi => $course) {
+            $courseTeacher = $teacherById[$course->teacher_id];
+            if ($mi < 6) {
+                $matRows[] = [
+                    'course_id' => $course->id,
+                    'teacher_id' => $courseTeacher->id,
+                    'academic_session_id' => $curSession->id,
+                    'semester_id' => null,
+                    'title' => 'Lecture Notes - '.$course->name,
+                    'description' => 'Compiled slides and reading guide for '.$course->code.'.',
+                    'file_path' => 'materials/seed_'.strtolower($course->code).'.pdf',
                     'file_type' => 'pdf',
                     'status' => 'approved',
                     'published' => true,
-                    'approved_by' => $adminUser->id,
-                    'approved_date' => now()->subDays(15),
-                ]);
+                    'approved_by' => $qa->id,
+                    'approved_date' => $today->copy()->subDays(15)->toDateTimeString(),
+                    'rejection_reason' => null,
+                    'created_at' => $now->toDateTimeString(),
+                    'updated_at' => $now->toDateTimeString(),
+                ];
             }
-
-            if ($index % 3 === 0) {
-                TeacherAttendanceSheet::create([
-                    'teacher_id' => $tClass->teacher_id,
-                    'course_id' => $tClass->course_id,
-                    'academic_session_id' => $targetSession->id,
-                    'semester_id' => $targetSemester->id,
-                    'class_date' => now()->subDays($index + 2)->format('Y-m-d'),
-                    'file_path' => 'attendance/sheet_' . $index . '.xlsx',
-                    'original_name' => 'attendance_' . strtolower($tClass->course?->code ?? '') . '_' . now()->subDays($index + 2)->format('Ymd') . '.xlsx',
-                ]);
+            if ($mi < 4) {
+                $annRows[] = [
+                    'course_id' => $course->id,
+                    'academic_session_id' => $curSession->id,
+                    'teacher_id' => $courseTeacher->id,
+                    'title' => $mi === 0 ? 'Welcome to '.$course->code : 'Mid-semester arrangements for '.$course->code,
+                    'body' => $mi === 0
+                        ? 'Welcome to '.$course->name.'. Lectures hold as timetabled; come along with your registration slips.'
+                        : 'Mid-semester quiz dates and revision classes for '.$course->code.' are posted on the department notice board.',
+                    'status' => 'active',
+                    'published' => true,
+                    'approved_by' => $qa->id,
+                    'approved_date' => $today->copy()->subDays(4)->toDateTimeString(),
+                    'rejection_reason' => null,
+                    'created_at' => $now->toDateTimeString(),
+                    'updated_at' => $now->toDateTimeString(),
+                ];
             }
         }
+        $this->chunkInsert('course_materials', $matRows);
+        $this->chunkInsert('announcements', $annRows);
 
-        // Seed default Settings
-        $settings = [
-            [
-                'category' => 'system_preferences',
-                'setting_key' => 'system_preferences.student_grading_redirect',
-                'setting_value' => '0',
-                'data_type' => 'boolean',
-                'description' => 'Redirect students to external grading software',
-                'updated_by' => $adminUser->id,
-            ],
-            [
-                'category' => 'system_preferences',
-                'setting_key' => 'system_preferences.allow_student_self_registration',
-                'setting_value' => '1',
-                'data_type' => 'boolean',
-                'description' => 'Allow student self-registration',
-                'updated_by' => $adminUser->id,
-            ],
-            [
-                'category' => 'system_preferences',
-                'setting_key' => 'system_preferences.enable_email_notifications',
-                'setting_value' => '1',
-                'data_type' => 'boolean',
-                'description' => 'Enable system email alerts',
-                'updated_by' => $adminUser->id,
-            ],
-            [
-                'category' => 'system_preferences',
-                'setting_key' => 'system_preferences.memos_require_signature',
-                'setting_value' => '1',
-                'data_type' => 'boolean',
-                'description' => 'Memos require official signatures before dispatch',
-                'updated_by' => $adminUser->id,
-            ],
-            [
-                'category' => 'system_preferences',
-                'setting_key' => 'system_preferences.memos_multiple_signatories',
-                'setting_value' => '1',
-                'data_type' => 'boolean',
-                'description' => 'Memos support multiple concurrent signatories',
-                'updated_by' => $adminUser->id,
-            ],
-            [
-                'category' => 'system_preferences',
-                'setting_key' => 'system_preferences.show_detailed_bill_breakdown',
-                'setting_value' => '0',
-                'data_type' => 'boolean',
-                'description' => 'Show detailed itemized fee breakdown to students',
-                'updated_by' => $adminUser->id,
-            ],
-            [
-                'category' => 'system_preferences',
-                'setting_key' => 'system_preferences.show_attendance_policy',
-                'setting_value' => '1',
-                'data_type' => 'boolean',
-                'description' => 'Show class attendance policy disclaimer to students',
-                'updated_by' => $adminUser->id,
-            ],
-            [
-                'category' => 'system_preferences',
-                'setting_key' => 'system_preferences.min_attendance_threshold',
-                'setting_value' => '75',
-                'data_type' => 'integer',
-                'description' => 'Default minimum attendance percentage required for exams',
-                'updated_by' => $adminUser->id,
-            ],
-            [
-                'category' => 'image_validation',
-                'setting_key' => 'image_validation.passport_bg_color_r',
-                'setting_value' => '255',
-                'data_type' => 'integer',
-                'description' => 'Passport background R',
-                'updated_by' => $adminUser->id,
-            ],
-            [
-                'category' => 'image_validation',
-                'setting_key' => 'image_validation.passport_bg_color_g',
-                'setting_value' => '0',
-                'data_type' => 'integer',
-                'description' => 'Passport background G',
-                'updated_by' => $adminUser->id,
-            ],
-            [
-                'category' => 'image_validation',
-                'setting_key' => 'image_validation.passport_bg_color_b',
-                'setting_value' => '0',
-                'data_type' => 'integer',
-                'description' => 'Passport background B',
-                'updated_by' => $adminUser->id,
-            ],
-            [
-                'category' => 'image_validation',
-                'setting_key' => 'image_validation.passport_tolerance',
-                'setting_value' => '120',
-                'data_type' => 'integer',
-                'description' => 'Passport background tolerance',
-                'updated_by' => $adminUser->id,
-            ],
-            [
-                'category' => 'finance',
-                'setting_key' => 'system_preferences.fee_billing_cycle',
-                'setting_value' => 'year',
-                'data_type' => 'string',
-                'description' => 'Billing cycle preference (year or semester)',
-                'updated_by' => $adminUser->id,
-            ],
-            [
-                'category' => 'memos',
-                'setting_key' => 'system_preferences.strict_departmental_access',
-                'setting_value' => '0',
-                'data_type' => 'boolean',
-                'description' => 'Limit memo visibility to active departmental members only',
-                'updated_by' => $adminUser->id,
-            ],
-            [
-                'category' => 'memos',
-                'setting_key' => 'system_preferences.thread_isolation_on_forward',
-                'setting_value' => '0',
-                'data_type' => 'boolean',
-                'description' => 'Isolate memo history snapshot upon forwarding to new departments',
-                'updated_by' => $adminUser->id,
-            ],
-            [
-                'category' => 'leave',
-                'setting_key' => 'system_preferences.emergency_leave_enabled',
-                'setting_value' => '0',
-                'data_type' => 'boolean',
-                'description' => 'Allow submittals outside application windows for emergency cases',
-                'updated_by' => $adminUser->id,
-            ],
-            [
-                'category' => 'leave',
-                'setting_key' => 'system_preferences.leave_submission_start',
-                'setting_value' => '2026-06-01',
-                'data_type' => 'string',
-                'description' => 'Staff leave request submission window start date',
-                'updated_by' => $adminUser->id,
-            ],
-            [
-                'category' => 'leave',
-                'setting_key' => 'system_preferences.leave_submission_end',
-                'setting_value' => '2026-07-31',
-                'data_type' => 'string',
-                'description' => 'Staff leave request submission window end date',
-                'updated_by' => $adminUser->id,
-            ],
+        // Transcripts: approved + rejected history (exams_officer), pending current-only.
+        $eligible = array_values(array_filter($allStudents, function ($s): bool {
+            if (! $s->approved) {
+                return false;
+            }
+            $program = $s->program;
+            if ($program === null) {
+                return false;
+            }
+
+            return $s->graduated || ((int) $s->current_year) >= ((int) $program->program_length) * 100;
+        }));
+        $purposes = ['National Service posting documentation', 'Graduate studies application', 'Employment background check', 'Professional licensing documentation'];
+        $trRows = [];
+        foreach ([0, 1, 2, 3, 4, 5] as $k => $ei) {
+            $s = $eligible[($ei * 7) % count($eligible)];
+            if ($k < 2) {
+                $trRows[] = [
+                    'student_id' => $s->id, 'status' => 'approved', 'purpose' => $purposes[$k],
+                    'remarks' => null, 'processed_by' => $exams->id,
+                    'processed_at' => ($k === 0 ? $prevEnd->copy()->subDays(30) : $today->copy()->subDays(20))->toDateTimeString(),
+                    'created_at' => ($k === 0 ? $prevEnd->copy()->subDays(34) : $today->copy()->subDays(24))->toDateTimeString(),
+                    'updated_at' => $now->toDateTimeString(),
+                ];
+            } elseif ($k < 4) {
+                $trRows[] = [
+                    'student_id' => $s->id, 'status' => 'rejected', 'purpose' => $purposes[$k],
+                    'remarks' => 'Please clear outstanding tuition and library obligations first.',
+                    'processed_by' => $exams->id,
+                    'processed_at' => ($k === 2 ? $prevEnd->copy()->subDays(12) : $today->copy()->subDays(6))->toDateTimeString(),
+                    'created_at' => ($k === 2 ? $prevEnd->copy()->subDays(16) : $today->copy()->subDays(10))->toDateTimeString(),
+                    'updated_at' => $now->toDateTimeString(),
+                ];
+            } else {
+                $trRows[] = [
+                    'student_id' => $s->id, 'status' => 'pending', 'purpose' => $purposes[$k % count($purposes)],
+                    'remarks' => null, 'processed_by' => null, 'processed_at' => null,
+                    'created_at' => $today->toDateTimeString(),
+                    'updated_at' => $now->toDateTimeString(),
+                ];
+            }
+        }
+        $this->chunkInsert('transcript_requests', $trRows);
+
+        // Job alerts: college-relevant, expired + active mix.
+        $jobRows = [
+            ['National Service Scheme (NSS) Postings', 'job', 'National Service Secretariat', 'NSS placement list for final-year students has been released. Check your postings and print appointment letters.', 'Final-year clearance required.', $today->copy()->addMonths(3)->toDateString()],
+            ['Teaching Practice Placement - Partner Schools', 'activity', 'Faculty of Applied Sciences', 'Second-year trainees report to partner basic schools for the teaching practice block.', 'Level 200 standing.', $today->copy()->addMonths(2)->toDateString()],
+            ['Graduate Trainee - Rural & Community Bank', 'job', 'Akwapim Rural Bank', 'Graduate trainee intake for accounting and business graduates. Written aptitude test first.', 'BSc Accounting or Diploma in Business, second class minimum.', $today->copy()->addWeeks(6)->toDateString()],
+            ['District Scholarship Secretariat Bursary', 'activity', 'Scholarship Secretariat', 'District-level bursary applications open for needy continuing students.', 'Ghanaian, level 200 and above.', $today->copy()->addMonths(4)->toDateString()],
+            ['Campus Sanitation Volunteers', 'activity', 'Dean of Students Affairs', 'Volunteers needed for the campus clean-up exercise ahead of the matriculation ceremony.', 'Open to all levels.', $today->copy()->subDays(20)->toDateString()],
+            ['Inter-Hall Games Officiating Crew', 'activity', 'SRC Sports Committee', 'Officiating and protocol crew call for the inter-hall games festival.', 'Open to all levels.', $today->copy()->subMonths(2)->toDateString()],
         ];
-
-        foreach ($settings as $setting) {
-            Setting::create($setting);
+        $jobInsert = [];
+        foreach ($jobRows as $jr) {
+            $jobInsert[] = [
+                'title' => $jr[0], 'type' => $jr[1], 'company_or_organizer' => $jr[2],
+                'description' => $jr[3], 'requirements' => $jr[4], 'expiry_date' => $jr[5],
+                'created_at' => $now->toDateTimeString(), 'updated_at' => $now->toDateTimeString(),
+            ];
         }
+        $this->chunkInsert('job_alerts', $jobInsert);
 
-        // Seed initial Job Board & Activities
-        \App\Models\JobAlert::create([
-            'title' => 'Software Engineer Intern',
-            'type' => 'job',
-            'company_or_organizer' => 'Google Ghana',
-            'description' => '<p>Join the Android Platform team in Accra for a 6-month software engineering internship. Work on modern mobile applications and APIs.</p>',
-            'requirements' => 'Proficiency in Java, Kotlin, or Go. Currently enrolled in Level 300/400 Computer Science program.',
-            'expiry_date' => now()->addWeeks(3)->toDateString(),
-        ]);
-
-        \App\Models\JobAlert::create([
-            'title' => 'Student Tutor - Calculus I',
-            'type' => 'activity',
-            'company_or_organizer' => 'Mathematics Department',
-            'description' => '<p>Help first-year students with basic calculus concepts, limits, derivatives, and applications. Conduct bi-weekly review sessions.</p>',
-            'requirements' => 'Grade A in Calculus I. Strong communication skills.',
-            'expiry_date' => now()->addDays(10)->toDateString(),
-        ]);
-
-        \App\Models\JobAlert::create([
-            'title' => 'Part-Time Library Assistant',
-            'type' => 'job',
-            'company_or_organizer' => 'Apex Central Library',
-            'description' => '<p>Assist in cataloging new arrivals, managing student book loans, and organizing reading rooms. 10 hours per week maximum.</p>',
-            'requirements' => 'Good organizational skills. No experience needed.',
-            'expiry_date' => now()->subDays(5)->toDateString(), // Expired (Recently Closed)
-        ]);
-
-        \App\Models\JobAlert::create([
-            'title' => 'Annual Hackathon 2026',
-            'type' => 'activity',
-            'company_or_organizer' => 'Computer Science Club',
-            'description' => '<p>Apex annual 48-hour hackathon. Build innovative solutions for local environmental and healthcare challenges.</p>',
-            'requirements' => 'Open to all students. Registration required.',
-            'expiry_date' => now()->subMonths(4)->toDateString(), // Archived
-        ]);
-
-        // Seed staff leave requests
-        $mainTeacher = collect($teachersList)->first();
-        if ($mainTeacher) {
-            LeaveRequest::create([
-                'user_id' => $mainTeacher->user_id,
-                'staff_leave_type_id' => $seniorStaffLeave->id,
-                'start_date' => '2026-06-10',
-                'end_date' => '2026-06-15',
-                'requested_days' => 5,
-                'reason' => 'Annual family vacation and rest',
-                'status' => 'approved',
-                'reviewer_id' => $hodUser->id,
-                'reviewed_at' => '2026-06-05 10:00:00',
-            ]);
-
-            LeaveRequest::create([
-                'user_id' => $mainTeacher->user_id,
-                'staff_leave_type_id' => $seniorStaffLeave->id,
-                'start_date' => '2026-07-01',
-                'end_date' => '2026-07-07',
-                'requested_days' => 6,
-                'reason' => 'Dental appointment and recovery',
-                'status' => 'pending',
-            ]);
-        }
-
-        // Seed products, invoices and expenditures
-        $prod1 = Product::create([
-            'name' => 'Semester Registration Kit',
-            'sku' => 'PROD-REG-KIT',
-            'category' => 'Registrar',
-            'unit_price' => 15.00,
-            'description' => 'Standard orientation and registration package',
-        ]);
-        $prod2 = Product::create([
-            'name' => 'Official Academic Transcript',
-            'sku' => 'PROD-TRANSCRIPT',
-            'category' => 'Registrar',
-            'unit_price' => 50.00,
-            'description' => 'Printed academic record sheet',
-        ]);
-        $prod3 = Product::create([
-            'name' => 'Graduation Gown Hire',
-            'sku' => 'PROD-GRAD-GOWN',
-            'category' => 'Ceremony',
-            'unit_price' => 120.00,
-            'description' => 'Rental of graduation cap and gown',
-        ]);
-
-        $inv1 = Invoice::create([
-            'invoice_number' => 'INV-2026-0001',
-            'vendor_name' => 'Apex Supplies Ltd',
-            'description' => 'Invoice for orientation packages and transcript materials',
-            'amount' => 65.00,
-            'invoice_date' => '2026-06-01',
-            'due_date' => '2026-07-15',
-            'status' => 'paid',
-            'created_by' => $adminUser->id,
-        ]);
-        InvoiceItem::create([
-            'invoice_id' => $inv1->id,
-            'product_id' => $prod1->id,
-            'quantity' => 1,
-            'unit_price' => 15.00,
-            'total_amount' => 15.00,
-        ]);
-        InvoiceItem::create([
-            'invoice_id' => $inv1->id,
-            'product_id' => $prod2->id,
-            'quantity' => 1,
-            'unit_price' => 50.00,
-            'total_amount' => 50.00,
-        ]);
-
-        $inv2 = Invoice::create([
-            'invoice_number' => 'INV-2026-0002',
-            'vendor_name' => 'Ghana Gown Rentals',
-            'description' => 'Rental gowns for the 2026 graduation ceremony',
-            'amount' => 120.00,
-            'invoice_date' => '2026-06-05',
-            'due_date' => '2026-07-20',
-            'status' => 'unpaid',
-            'created_by' => $adminUser->id,
-        ]);
-        InvoiceItem::create([
-            'invoice_id' => $inv2->id,
-            'product_id' => $prod3->id,
-            'quantity' => 1,
-            'unit_price' => 120.00,
-            'total_amount' => 120.00,
-        ]);
-
-        // Expenditure 1: Pay off invoice 1
-        Expenditure::create([
-            'invoice_id' => $inv1->id,
-            'expense_number' => 'EXP-2026-0001',
-            'amount' => 65.00,
-            'payment_method' => 'bank_transfer',
-            'payment_date' => '2026-06-10',
-            'category' => 'Registrar Supplies',
-            'notes' => 'Settled invoice INV-2026-0001',
-            'recorded_by' => $adminUser->id,
-        ]);
-
-        // Expenditure 2: Independent expense
-        Expenditure::create([
-            'invoice_id' => null,
-            'expense_number' => 'EXP-2026-0002',
-            'amount' => 150.00,
-            'payment_method' => 'cash',
-            'payment_date' => '2026-06-20',
-            'category' => 'Office Supplies',
-            'notes' => 'Printer papers and cartridges',
-            'recorded_by' => $adminUser->id,
-        ]);
-
-        // Expenditure 3: Independent expense
-        Expenditure::create([
-            'invoice_id' => null,
-            'expense_number' => 'EXP-2026-0003',
-            'amount' => 500.00,
-            'payment_method' => 'bank_transfer',
-            'payment_date' => '2026-06-22',
-            'category' => 'Maintenance',
-            'notes' => 'Server AC repair',
-            'recorded_by' => $adminUser->id,
-        ]);
-
-        // Seed system audit logs under respective users to showcase contextual timelines
-        // Invoice logging under Demo Admin
-        auth()->login($adminUser);
-        \App\Helpers\AuditHelper::log(
-            'invoice_created',
-            "Invoice {$inv1->invoice_number} created for vendor Apex Supplies Ltd by Demo Admin",
-            $inv1
-        );
-        \App\Helpers\AuditHelper::log(
-            'invoice_paid',
-            "Invoice {$inv1->invoice_number} marked as paid by Demo Admin",
-            $inv1
-        );
-        \App\Helpers\AuditHelper::log(
-            'invoice_created',
-            "Invoice {$inv2->invoice_number} created for vendor Ghana Gown Rentals by Demo Admin",
-            $inv2
-        );
-
-        // Leave request logging (request under teacher/staff, approval under reviewer/HOD)
-        $leaveRequests = LeaveRequest::all();
-        foreach ($leaveRequests as $lr) {
-            $requester = User::find($lr->user_id);
-            if ($requester) {
-                auth()->login($requester);
-                \App\Helpers\AuditHelper::log(
-                    'leave_submitted',
-                    "Leave request submitted by {$requester->name}",
-                    $lr
-                );
-            }
-
-            if ($lr->status === 'approved') {
-                $reviewer = User::find($lr->reviewer_id ?? $hodUser->id);
-                if ($reviewer) {
-                    auth()->login($reviewer);
-                    \App\Helpers\AuditHelper::log(
-                        'leave_approved',
-                        "Leave request approved by {$reviewer->name}",
-                        $lr
-                    );
+        // ==============================================================
+        // 12. TIMETABLE — 5-day grids per program/level/session
+        // ==============================================================
+        $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+        $slots = [['08:00:00', '10:30:00'], ['11:00:00', '13:00:00'], ['13:30:00', '15:30:00']];
+        $venues = ['Lecture Hall 1', 'Lecture Hall 2', 'Room B4', 'Main Laboratory', 'ICT Centre'];
+        $ttRows = [];
+        foreach ([$prevSession, $curSession] as $sess) {
+            foreach ($programs as $program) {
+                $maxLevel = ((int) $program->program_length) * 100;
+                for ($lvl = 100; $lvl <= $maxLevel; $lvl += 100) {
+                    $ttRows[] = [
+                        'program_id' => $program->id,
+                        'level' => $lvl,
+                        'session_id' => $sess->id,
+                        'created_by' => $owner->id,
+                        'created_at' => $now->toDateTimeString(),
+                        'updated_at' => $now->toDateTimeString(),
+                    ];
                 }
             }
         }
-
-        // Expenditure logging under Demo Admin
-        auth()->login($adminUser);
-        $expenditures = Expenditure::all();
-        foreach ($expenditures as $exp) {
-            \App\Helpers\AuditHelper::log(
-                'expenditure_recorded',
-                "Expenditure {$exp->expense_number} recorded by Demo Admin",
-                $exp
-            );
+        $this->chunkInsert('timetables', $ttRows);
+        $timetables = Timetable::query()->get()->all();
+        $classRows = [];
+        foreach ($timetables as $tt) {
+            $isPrev = (int) $tt->session_id === (int) $prevSession->id;
+            $levelCourses = $coursesByProgramLevel[$tt->program_id][(string) $tt->level] ?? [];
+            foreach (array_values($levelCourses) as $ci => $course) {
+                // Previous-year grid slightly varied: shifted day/slot/venue.
+                $day = $days[($ci + ($isPrev ? 2 : 0)) % count($days)];
+                $slot = $slots[($ci + ($isPrev ? 1 : 0)) % count($slots)];
+                $venue = $venues[($course->id + ($isPrev ? 3 : 0)) % count($venues)];
+                $classRows[] = [
+                    'timetable_id' => $tt->id,
+                    'program_id' => $tt->program_id,
+                    'course_id' => $course->id,
+                    'teacher_id' => $course->teacher_id,
+                    'day' => $day,
+                    'start_time' => $slot[0],
+                    'end_time' => $slot[1],
+                    'venue' => $venue,
+                    'created_at' => $now->toDateTimeString(),
+                    'updated_at' => $now->toDateTimeString(),
+                ];
+            }
         }
+        $this->chunkInsert('timetable_classes', $classRows);
 
-        // Settings change audit log under Demo Admin
-        \App\Helpers\AuditHelper::log(
-            'settings_updated',
-            "System preferences updated and verified by Demo Admin",
-            null,
-            ['category' => 'system_preferences']
-        );
+        // ==============================================================
+        // 13. SETTINGS + ownership audit trail + impersonation + backup
+        // ==============================================================
+        $settingRows = [
+            ['system_preferences', 'system_preferences.student_grading_redirect', '0', 'boolean', 'Redirect students to external grading software'],
+            ['system_preferences', 'system_preferences.allow_student_self_registration', '1', 'boolean', 'Allow student self-registration'],
+            ['system_preferences', 'system_preferences.enable_email_notifications', '1', 'boolean', 'Enable system email alerts'],
+            ['system_preferences', 'system_preferences.memos_require_signature', '1', 'boolean', 'Memos require official signatures before dispatch'],
+            ['system_preferences', 'system_preferences.memos_multiple_signatories', '1', 'boolean', 'Memos support multiple concurrent signatories'],
+            ['system_preferences', 'system_preferences.show_detailed_bill_breakdown', '0', 'boolean', 'Show detailed itemized fee breakdown to students'],
+            ['system_preferences', 'system_preferences.show_attendance_policy', '1', 'boolean', 'Show class attendance policy disclaimer to students'],
+            ['system_preferences', 'system_preferences.min_attendance_threshold', '75', 'integer', 'Default minimum attendance percentage required for exams'],
+            ['image_validation', 'image_validation.passport_bg_color_r', '255', 'integer', 'Passport background R'],
+            ['image_validation', 'image_validation.passport_bg_color_g', '0', 'integer', 'Passport background G'],
+            ['image_validation', 'image_validation.passport_bg_color_b', '0', 'integer', 'Passport background B'],
+            ['image_validation', 'image_validation.passport_tolerance', '120', 'integer', 'Passport background tolerance'],
+            ['finance', 'system_preferences.fee_billing_cycle', 'year', 'string', 'Billing cycle preference (year or semester)'],
+            ['memos', 'system_preferences.strict_departmental_access', '0', 'boolean', 'Limit memo visibility to active departmental members only'],
+            ['memos', 'system_preferences.thread_isolation_on_forward', '0', 'boolean', 'Isolate memo history snapshot upon forwarding to new departments'],
+            ['leave', 'system_preferences.emergency_leave_enabled', '0', 'boolean', 'Allow submittals outside application windows for emergency cases'],
+            ['leave', 'system_preferences.leave_submission_start', $curStart->copy()->addDays(30)->toDateString(), 'string', 'Staff leave request submission window start date'],
+            ['leave', 'system_preferences.leave_submission_end', $curStart->copy()->addDays(60)->toDateString(), 'string', 'Staff leave request submission window end date'],
+        ];
+        $settingInsert = [];
+        foreach ($settingRows as $sr) {
+            $settingInsert[] = [
+                'category' => $sr[0], 'setting_key' => $sr[1], 'setting_value' => $sr[2],
+                'data_type' => $sr[3], 'description' => $sr[4], 'updated_by' => $owner->id,
+                'created_at' => $now->toDateTimeString(), 'updated_at' => $now->toDateTimeString(),
+            ];
+        }
+        $this->chunkInsert('settings', $settingInsert);
 
-        // Clear session after seeding
-        auth()->logout();
+        // Impersonation history (owner only) + a system backup row.
+        $teacherUser0 = $teacherUsers[0];
+        $studentUser0 = $studentUsersByEmail['student@demo.com'];
+        $this->chunkInsert('admin_impersonation_logs', [
+            [
+                'impersonator_user_id' => $owner->id,
+                'impersonated_user_id' => $teacherUser0->id,
+                'started_at' => $prevEnd->copy()->subDays(40)->toDateTimeString(),
+                'ended_at' => $prevEnd->copy()->subDays(40)->addHours(2)->toDateTimeString(),
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'DemoSeed/1.0',
+                'created_at' => $now->toDateTimeString(),
+                'updated_at' => $now->toDateTimeString(),
+            ],
+            [
+                'impersonator_user_id' => $owner->id,
+                'impersonated_user_id' => $studentUser0->id,
+                'started_at' => $today->copy()->subDays(12)->toDateTimeString(),
+                'ended_at' => $today->copy()->subDays(12)->addHour()->toDateTimeString(),
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'DemoSeed/1.0',
+                'created_at' => $now->toDateTimeString(),
+                'updated_at' => $now->toDateTimeString(),
+            ],
+        ]);
+        DB::table('backups')->insert([
+            'filename' => 'demo-backup-'.$today->format('Ymd').'.sql',
+            'file_path' => 'backups/demo-backup-'.$today->format('Ymd').'.sql',
+            'file_size' => 5242880,
+            'created_by' => $owner->id,
+            'created_at' => $now->toDateTimeString(),
+        ]);
+
+        // Audit trail under the users who actually moved each item.
+        $audit = \App\Helpers\AuditHelper::class;
+        Auth::login($accountant);
+        $audit::log('invoice_created', 'Invoice '.$invoices[0]->invoice_number.' posted for '.$invoices[0]->vendor_name, $invoices[0]);
+        $audit::log('invoice_paid', 'Invoice '.$invoices[0]->invoice_number.' settled in full', $invoices[0]);
+        $audit::log('invoice_created', 'Invoice '.$invoices[1]->invoice_number.' posted for '.$invoices[1]->vendor_name, $invoices[1]);
+        Auth::login($accountant);
+        foreach (Expenditure::query()->orderBy('id')->get()->all() as $exp) {
+            $audit::log('expenditure_recorded', 'Expenditure '.$exp->expense_number.' recorded', $exp);
+        }
+        Auth::login($secretary);
+        $firstMemo = Memo::query()->orderBy('id')->first();
+        $audit::log('memo_sent', 'Memo "'.$firstMemo->title.'" drafted and dispatched', $firstMemo);
+        Auth::login($admissions);
+        $firstIntake = $intakeStudents[0] ?? null;
+        if ($firstIntake !== null) {
+            $audit::log('student_approved', 'Admission approved for '.$firstIntake->lastname.' '.$firstIntake->firstname, $firstIntake);
+        }
+        // Leave trail: submissions under requesters, approvals under reviewers.
+        foreach (LeaveRequest::query()->orderBy('id')->get()->all() as $lr) {
+            $requester = User::query()->find($lr->user_id);
+            if ($requester !== null) {
+                Auth::login($requester);
+                $audit::log('leave_submitted', 'Leave request submitted by '.$requester->name, $lr);
+            }
+            if ($lr->status === 'approved') {
+                $reviewer = User::query()->find($lr->reviewer_id);
+                if ($reviewer !== null) {
+                    Auth::login($reviewer);
+                    $audit::log('leave_approved', 'Leave request approved by '.$reviewer->name, $lr);
+                }
+            }
+        }
+        Auth::login($owner);
+        $audit::log('settings_updated', 'System preferences verified for the demo year', null, ['category' => 'system_preferences']);
+    }
+
+    /** GPA + transcript-support rows for every student with results in-session. */
+    private function seedAcademicInformation(AcademicSession $session): void
+    {
+        $now = now()->toDateTimeString();
+        $studentIds = Result::query()
+            ->where('academic_session_id', $session->id)
+            ->select('student_id')
+            ->distinct()
+            ->pluck('student_id');
+        $rows = [];
+        foreach ($studentIds as $studentId) {
+            $student = Student::query()->find($studentId);
+            if ($student === null) {
+                continue;
+            }
+            $results = Result::query()
+                ->where('student_id', $studentId)
+                ->where('academic_session_id', $session->id)
+                ->get();
+            if ($results->isEmpty()) {
+                continue;
+            }
+            $gpa = round($results->avg('grade_points'), 2);
+            $rows[] = [
+                'student_id' => $studentId,
+                'class_level' => $student->current_year,
+                'section' => 'A',
+                'academic_session' => $session->name,
+                'program_id' => $student->program_id,
+                'major_field' => $student->program?->name,
+                'gpa' => $gpa,
+                'result_id' => $results->first()->id,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+        $this->chunkInsert('academic_information', $rows);
+    }
+
+    private function splitName(string $full): array
+    {
+        $parts = preg_split('/\s+/', trim($full));
+        $last = array_pop($parts);
+
+        return [implode(' ', $parts), $last];
+    }
+
+    private function pickGender(string $fullName): string
+    {
+        $first = explode(' ', trim($fullName))[0];
+
+        return in_array($first, ['Ama', 'Abena', 'Akosua', 'Adwoa', 'Efya', 'Esi', 'Araba', 'Ewurama', 'Maame', 'Selasie', 'Dzifa', 'Kafui', 'Abla', 'Dede', 'Naa', 'Mamle'], true) ? 'female' : 'male';
     }
 }
