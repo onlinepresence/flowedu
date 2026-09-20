@@ -163,6 +163,121 @@ class LandingPageTest extends TestCase
         $this->assertNull($response->json('download_url'));
     }
 
+    public function test_quote_request_dispatches_control_desk_lead(): void
+    {
+        config(['controlplane.url' => 'https://control.test']);
+        \Illuminate\Support\Facades\Queue::fake();
+        \Illuminate\Support\Facades\Http::fake();
+
+        $payload = [
+            'college_name'      => 'Accra College of Education',
+            'name'              => 'Ebenezer Boateng',
+            'role'              => 'Registrar',
+            'phone'             => '0249100268',
+            'email'             => 'ebenezer@accra.edu.gh',
+            'student_band'      => '501-1000',
+            'modules'           => ['finance'],
+            'hosting_setup'     => 'self_hosted',
+            'config_setup'      => '0',
+            'migration'         => '0',
+            'admin_training'    => 0,
+            'teacher_training'  => 0,
+            'onsite_training'   => 0,
+            'founding_client'   => '0',
+            'send_client_receipt' => '0',
+        ];
+
+        $this->postJson(route('quote-request'), $payload)->assertStatus(200)->assertJson(['success' => true]);
+
+        \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\PostLeadToControlDeskJob::class, function ($job) {
+            return $job->lead['product_slug'] === 'flowedu'
+                && $job->lead['contact']['email'] === 'ebenezer@accra.edu.gh'
+                && $job->lead['contact']['college'] === 'Accra College of Education'
+                && $job->lead['band'] === '501-1000'
+                && $job->lead['modules'] === ['finance']
+                && $job->lead['quote']['upfront'] > 0
+                && $job->lead['quote']['renewal'] > 0
+                && count($job->lead['quote']['lines']) > 0;
+        });
+    }
+
+    public function test_quote_request_succeeds_when_lead_endpoint_404s(): void
+    {
+        config(['controlplane.url' => 'https://control.test']);
+        \Illuminate\Support\Facades\Mail::fake();
+        \Illuminate\Support\Facades\Http::fake([
+            '*/api/v1/leads' => \Illuminate\Support\Facades\Http::response([], 404),
+        ]);
+
+        $payload = [
+            'college_name'      => 'Ho Technical University',
+            'name'              => 'Ama Serwaa',
+            'role'              => 'Registrar',
+            'phone'             => '0249100268',
+            'email'             => 'ama@htu.edu.gh',
+            'student_band'      => '1-500',
+            'hosting_setup'     => 'self_hosted',
+            'config_setup'      => '0',
+            'migration'         => '0',
+            'admin_training'    => 0,
+            'teacher_training'  => 0,
+            'onsite_training'   => 0,
+            'founding_client'   => '0',
+            'send_client_receipt' => '0',
+        ];
+
+        // Sync driver runs the job inline; the 404 fast-fails inside it.
+        $this->postJson(route('quote-request'), $payload)
+            ->assertStatus(200)
+            ->assertJson(['success' => true]);
+
+        // Admin email fallback still fires.
+        \Illuminate\Support\Facades\Mail::assertSent(QuoteRequest::class);
+    }
+
+    public function test_quote_request_rejects_failed_turnstile_when_configured(): void
+    {
+        config(['captcha.turnstile_site_key' => 'site-key']);
+        config(['captcha.turnstile_secret_key' => 'secret-key']);
+        \Illuminate\Support\Facades\Http::fake([
+            'challenges.cloudflare.com/*' => \Illuminate\Support\Facades\Http::response(['success' => false], 200),
+        ]);
+
+        $this->postJson(route('quote-request'), ['cf-turnstile-response' => 'bogus'])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.cf-turnstile-response.0', 'Spam check failed. Please confirm you are human and try again.');
+    }
+
+    public function test_quote_request_passes_turnstile_with_valid_token(): void
+    {
+        config(['captcha.turnstile_site_key' => 'site-key']);
+        config(['captcha.turnstile_secret_key' => 'secret-key']);
+        \Illuminate\Support\Facades\Mail::fake();
+        \Illuminate\Support\Facades\Http::fake([
+            'challenges.cloudflare.com/*' => \Illuminate\Support\Facades\Http::response(['success' => true], 200),
+        ]);
+
+        $payload = [
+            'college_name'      => 'Accra College of Education',
+            'name'              => 'Ebenezer Boateng',
+            'role'              => 'Registrar',
+            'phone'             => '0249100268',
+            'email'             => 'ebenezer@accra.edu.gh',
+            'student_band'      => '1-500',
+            'hosting_setup'     => 'self_hosted',
+            'config_setup'      => '0',
+            'migration'         => '0',
+            'admin_training'    => 0,
+            'teacher_training'  => 0,
+            'onsite_training'   => 0,
+            'founding_client'   => '0',
+            'send_client_receipt' => '0',
+            'cf-turnstile-response' => 'valid-token',
+        ];
+
+        $this->postJson(route('quote-request'), $payload)->assertStatus(200)->assertJson(['success' => true]);
+    }
+
     public function test_download_pdf_redirects_when_session_empty(): void
     {
         $response = $this->get(route('quote.download-pdf'));

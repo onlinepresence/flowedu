@@ -119,6 +119,35 @@ final class ControlPlaneClient
         ];
     }
 
+    /**
+     * Post a sales lead. Unknown/inactive product slugs answer 404 — logged
+     * once, never retried. Anything else unexpected throws for queue retry.
+     *
+     * @param array<string, mixed> $lead
+     * @return array{status: string}
+     */
+    public function postLead(array $lead): array
+    {
+        $url = $this->baseUrl();
+        if ($url === null) {
+            return ['status' => 'skipped'];
+        }
+
+        $response = Http::timeout(config('controlplane.timeout', 8))
+            ->acceptJson()
+            ->post($url.'/api/v1/leads', $lead);
+
+        if ($response->successful()) {
+            return ['status' => 'ok'];
+        }
+
+        if ($response->status() === 404) {
+            return ['status' => 'notFound'];
+        }
+
+        throw new \RuntimeException('Lead post failed with HTTP '.$response->status().'.');
+    }
+
     public function humanMessage(string $code): string
     {
         return match ($code) {

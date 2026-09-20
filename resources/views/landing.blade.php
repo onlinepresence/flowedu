@@ -1089,6 +1089,11 @@
                         <span class="error-msg text-[10px] text-red-500 hidden mt-1"></span>
                     </div>
 
+                    @if(config('captcha.turnstile_site_key'))
+                        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+                        <div class="cf-turnstile" data-sitekey="{{ config('captcha.turnstile_site_key') }}" data-theme="auto"></div>
+                    @endif
+
                     <button type="submit" id="submit-form-btn" class="w-full rounded-xl bg-emerald-600 py-3.5 text-center text-sm font-bold text-white shadow hover:bg-emerald-500 transition duration-200 flex items-center justify-center space-x-2">
                         <span>Request a Quote</span>
                         <i class="fa-solid fa-arrow-right"></i>
@@ -1524,6 +1529,12 @@
                             if (pdfSection) pdfSection.classList.remove('hidden');
                         }
                     } else if (status === 422) {
+                        // Spam-check failures have no input to attach to.
+                        if (body.errors && body.errors['cf-turnstile-response']) {
+                            alert(body.errors['cf-turnstile-response'][0]);
+                            if (window.turnstile) { try { turnstile.reset(); } catch (e) {} }
+                            return;
+                        }
                         // Display Validation errors inline
                         Object.keys(body.errors).forEach(field => {
                             const input = document.getElementById(field) || document.getElementsByName(field)[0];

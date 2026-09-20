@@ -57,6 +57,20 @@ exactly as before. Heartbeats go to `POST {CONTROL_PLANE_URL}/api/v1/heartbeats`
 counts{students, teachers, users}, modules_in_use[]}`. Test without the
 wizard: `php artisan controlplane:ping --redeem CODE`.
 
+## Sales leads (landing quote → ControlDesk)
+
+Every landing quote submit ALSO posts
+`{product_slug: "flowedu", contact{name, role, phone, email, college}, band,
+modules[], quote{upfront, renewal, lines}}` to
+`POST {CONTROL_PLANE_URL}/api/v1/leads` (no auth — the slug identifies
+against the products table; unknown/inactive slug → 404, logged once, never
+retried). The post runs in the queued `PostLeadToControlDeskJob` (3 tries,
+backoff 60s/5m/15m, silent failure) so the quote response never waits on it,
+and the admin notification email still goes out regardless as fallback.
+Phone/email leads that never touch the form get entered manually in
+ControlDesk. The public form carries Cloudflare Turnstile armor
+(`TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET_KEY`; skipped when unset).
+
 ## Admin impersonation (replaces legacy SYSTEM_PASSWORD)
 
 **Who may impersonate:** admin users whose role is `owner` or `system_admin` (see [`AdminSystemSeeder`](../database/seeders/AdminSystemSeeder.php)).

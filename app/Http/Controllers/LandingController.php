@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Jobs\PostLeadToControlDeskJob;
 use App\Mail\QuoteRequest;
 use App\Mail\QuoteReceipt;
 use App\Services\QuoteCalculationService;
+use App\Services\TurnstileVerifier;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -67,8 +69,27 @@ class LandingController extends Controller
 
         $data = $validator->validated();
 
+        // Spam armor: enforced only when Turnstile keys are configured.
+        if (TurnstileVerifier::configured()
+            && ! TurnstileVerifier::verify($request->input('cf-turnstile-response'), $request->ip())
+        ) {
+            return response()->json([
+                'success' => false,
+                'errors' => ['cf-turnstile-response' => [__('Spam check failed. Please confirm you are human and try again.')]],
+            ], 422);
+        }
+
         // Calculate pricing details on backend matching frontend
         $pricing = QuoteCalculationService::calculate($data);
+
+        // Mirror the lead to ControlDesk asynchronously. Dispatch can never
+        // break the quote response (sync-driver safety); the job retries on
+        // its own and the admin email below stays the fallback regardless.
+        try {
+            PostLeadToControlDeskJob::dispatch($this->leadPayload($data, $pricing));
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         $sendClientReceipt = ($data['send_client_receipt'] ?? '0') === '1';
         $downloadUrl = null;
@@ -110,6 +131,64 @@ class LandingController extends Controller
             'message'      => $message,
             'download_url' => $downloadUrl,
         ]);
+    }
+
+    /**
+     * Shape a quote into the ControlDesk lead contract. Scalars only.
+     *
+     * @param array<string, mixed> $data
+     * @param array<string, mixed> $pricing
+     * @return array<string, mixed>
+     */
+    private function leadPayload(array $data, array $pricing): array
+    {
+        $lines = [];
+        $lines[] = [
+            'label' => 'Core licence ('.($pricing['band_label'] ?? '').')',
+            'amount' => (float) ($pricing['core_upfront_final'] ?? 0.0),
+        ];
+        foreach ($pricing['modules'] ?? [] as $module) {
+            $lines[] = [
+                'label' => (string) ($module['label'] ?? 'Module'),
+                'amount' => (float) ($module['onetime'] ?? 0.0),
+            ];
+        }
+        if ((float) ($pricing['hosting_setup_fee'] ?? 0.0) > 0) {
+            $lines[] = [
+                'label' => (string) ($pricing['hosting_label'] ?? 'Hosting setup'),
+                'amount' => (float) $pricing['hosting_setup_fee'],
+            ];
+        }
+        foreach ($pricing['addons'] ?? [] as $addon) {
+            $lines[] = [
+                'label' => (string) ($addon['label'] ?? 'Addon'),
+                'amount' => (float) ($addon['price'] ?? 0.0),
+            ];
+        }
+        foreach ($pricing['trainings'] ?? [] as $training) {
+            $lines[] = [
+                'label' => (string) ($training['label'] ?? 'Training'),
+                'amount' => (float) ($training['price'] ?? 0.0),
+            ];
+        }
+
+        return [
+            'product_slug' => 'flowedu',
+            'contact' => [
+                'name' => (string) ($data['name'] ?? ''),
+                'role' => (string) ($data['role'] ?? ''),
+                'phone' => (string) ($data['phone'] ?? ''),
+                'email' => (string) ($data['email'] ?? ''),
+                'college' => (string) ($data['college_name'] ?? ''),
+            ],
+            'band' => (string) ($data['student_band'] ?? ''),
+            'modules' => array_values((array) ($data['modules'] ?? [])),
+            'quote' => [
+                'upfront' => (float) ($pricing['upfront_total'] ?? 0.0),
+                'renewal' => (float) ($pricing['renew_total'] ?? 0.0),
+                'lines' => $lines,
+            ],
+        ];
     }
 
     /**
