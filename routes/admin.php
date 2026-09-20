@@ -175,7 +175,6 @@ Route::middleware($adminApp)->prefix('admin/settings')->group(function () {
         ->middleware('college.licence:system_admin')
         ->name('admin.settings.backup.download');
     Route::get('system-preferences', SystemPreferencesPage::class)
-        ->middleware('college.licence:system_admin')
         ->name('admin.settings.system-preferences');
     Route::get('licence', LicenceSettingsPage::class)->name('admin.settings.licence');
 });

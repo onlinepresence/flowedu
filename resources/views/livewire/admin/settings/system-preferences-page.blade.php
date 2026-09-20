@@ -242,11 +242,14 @@
                             </div>
                             <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed max-w-2xl">
                                 {{ __('Choose whether tuition fees are calculated and billed on a semester-by-semester basis or a full academic year cycle.') }}
+                                @unless($hasFinanceLicence)
+                                    <span class="mt-1 block font-semibold text-amber-600 dark:text-amber-400">{{ __('Requires the Finance module — currently read-only.') }}</span>
+                                @endunless
                             </p>
                         </div>
 
                         <div class="flex items-center shrink-0">
-                            <select wire:model="finance_billing_cycle" id="finance_billing_cycle" class="block rounded-lg border-gray-300 py-2.5 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white">
+                            <select wire:model="finance_billing_cycle" id="finance_billing_cycle" @disabled(! $hasFinanceLicence) class="block rounded-lg border-gray-300 py-2.5 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white disabled:opacity-70">
                                 <option value="semester">{{ __('Semester-based Billing') }}</option>
                                 <option value="yearly">{{ __('Yearly-based Billing') }}</option>
                             </select>

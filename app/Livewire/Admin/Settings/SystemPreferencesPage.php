@@ -32,6 +32,8 @@ class SystemPreferencesPage extends Component
 
     public bool $hasTeacherToolsLicence = false;
 
+    public bool $hasFinanceLicence = false;
+
     // New Modular preferences
     public string $finance_billing_cycle = 'semester';
 
@@ -44,6 +46,7 @@ class SystemPreferencesPage extends Component
         abort_unless($this->canManageSettings(), 403);
 
         $this->hasTeacherToolsLicence = $licenceService->can('teacher_tools');
+        $this->hasFinanceLicence = $licenceService->can('finance');
 
         $settings = Setting::query()->pluck('setting_value', 'setting_key');
 
@@ -70,6 +73,14 @@ class SystemPreferencesPage extends Component
         // Enforce feature-gate: if they don't have teacher_tools licence, they cannot enable student_grading_redirect
         if (! $this->hasTeacherToolsLicence) {
             $this->student_grading_redirect = false;
+        }
+
+        // Same for the finance billing cycle: without the finance module the
+        // stored value is preserved untouched.
+        if (! $this->hasFinanceLicence) {
+            $this->finance_billing_cycle = (string) (Setting::query()
+                ->where('setting_key', 'finance_settings.billing_cycle')
+                ->value('setting_value') ?? 'semester');
         }
 
         $this->validate([
@@ -174,11 +185,11 @@ class SystemPreferencesPage extends Component
 
     private function canManageSettings(): bool
     {
+        // Page-level access is user-type only. Licence gating happens per
+        // item (teacher_tools for grading redirect, finance for the billing
+        // cycle) so the page stays reachable on leaner licence tiers.
         $actor = auth()->user();
-        if ($actor === null || ($actor->type !== 'admin' && $actor->type !== 'staff')) {
-            return false;
-        }
 
-        return app(SchoolLicenceService::class)->can('system_admin');
+        return $actor !== null && ($actor->type === 'admin' || $actor->type === 'staff');
     }
 }
