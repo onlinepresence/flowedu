@@ -107,13 +107,22 @@ Route::post('/demo/key', function (\Illuminate\Http\Request $request, \App\Servi
     }
 
     $code = (string) $request->input('code', '');
+    $check = $verifier->check($code, $request->getHost());
 
-    if ($verifier->verify($code, $request->getHost())) {
+    if ($check['ok']) {
         $request->session()->put('demo_key_accepted', true);
         $request->session()->forget('demo_key_error');
 
         return redirect()->intended(route('login'));
     }
 
-    return redirect()->route('demo.key.show')->with('demo_key_error', __('That key did not look right. Check it and try again.'));
+    $copy = match ($check['reason']) {
+        \App\Services\DemoKeyVerifier::REASON_EXPIRED => __('That key has expired — ask ops for a fresh one.'),
+        \App\Services\DemoKeyVerifier::REASON_WRONG_DOOR => __('That looks like a ControlDesk heartbeat token — those belong in .env as CONTROL_PLANE_TOKEN, not here. Use your demo key instead.'),
+        \App\Services\DemoKeyVerifier::REASON_HOST_MISMATCH => __('That key was issued for a different host.'),
+        \App\Services\DemoKeyVerifier::REASON_CLOCK_SKEW => __('That key is not valid yet — the server clock may be off. Ask ops for a fresh key.'),
+        default => __('That key did not look right. Check it and try again.'),
+    };
+
+    return redirect()->route('demo.key.show')->with('demo_key_error', $copy);
 })->name('demo.key.store');

@@ -108,17 +108,27 @@ Tasks: evaluation maintenance (hourly), semester status (hourly), auto-promotion
 No second DB, no runtime connection swapping. Demo vs production is one flag
 (`config('college.demo_mode')` wired to `APP_DEMO`) over identical code.
 
+> `APP_DEMO` is for marketing demo deployments ONLY — a throwaway database
+> seeded with sample data. Never point it at a school production database:
+> banners, open credentials hints, closed registration and the monthly
+> `demo:refresh` wipe are all designed around disposable data.
+
 When `APP_DEMO=true`: demo banner on all pages, demo credentials hint on login,
 mail forced to `log` driver, public registration closed (seeded users only).
 Licence enforcement STAYS ON — the seeded `school_licences` row governs features.
 
 Key gate: `DEMO_KEY` env bypasses the key-entry screen entirely (the hosted instance
-lives here). Without it, visitors see `GET /demo/key` (403-style, FlowEdu landing look,
-Alpine form, no Livewire) and must enter a key once per session
-(`session('demo_key_accepted')`). Validation lives in
-[`DemoKeyVerifier`](../app/Services/DemoKeyVerifier.php) — currently any 8–64 char
-`[A-Za-z0-9-_]` code is accepted and logged; the seam is marked with a TODO for the
-future ControlDesk verify call.
+lives here — set it to a valid signed key). Without it, visitors see `GET /demo/key`
+(403-style, FlowEdu landing look, Alpine form, no Livewire) and must enter a key once
+per session (`session('demo_key_accepted')`). Validation lives in
+[`DemoKeyVerifier`](../app/Services/DemoKeyVerifier.php) and is fully offline:
+keys are `demo1.<payload>.<signature>` tokens (ed25519, verified against
+`DEMO_PUBLIC_KEY`), carrying the issued host (`h`) and expiry (`exp`). Bad
+signatures (tamper) and issued-in-the-future keys (clock suspect) fail into the
+enforced key screen with a warning-level log; expired, wrong-host and malformed
+keys fail quieter with per-reason screen copy. A bare opaque token (e.g. a
+ControlDesk heartbeat token pasted at the wrong door) gets its own error telling
+the visitor those belong in `.env`, not here.
 
 ### Provisioning the demo DB + user (DDL scoped to it)
 
@@ -133,7 +143,8 @@ FLUSH PRIVILEGES;
 ```
 
 Point the demo host `.env` at it (`DB_DATABASE=flowedu_demo`, `DB_USERNAME=flowedu_demo`),
-set `APP_DEMO=true` and `DEMO_KEY=<hosted-key>`, then `php artisan migrate --force`
+set `APP_DEMO=true`, `DEMO_KEY=<signed-key>` and `DEMO_PUBLIC_KEY=<base64-ed25519-pubkey>`,
+then `php artisan migrate --force`
 plus `php artisan db:seed --class="Database\Seeders\DemoDataSeeder" --force`.
 
 ### Monthly refresh
@@ -144,7 +155,8 @@ check). [`routes/console.php`](../routes/console.php) registers it
 (`demo-refresh-monthly`, monthly on the 1st at 03:00) ONLY when `APP_DEMO` is true —
 never unconditionally. There is no public HTTP reset.
 
-Key rotation = change `DEMO_KEY`.
+Key rotation = issue new signed keys (old ones lapse at their `exp`); change
+`DEMO_KEY` to rotate the hosted bypass.
 
 ## Queue workers
 

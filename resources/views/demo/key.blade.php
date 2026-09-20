@@ -58,7 +58,7 @@
                     </p>
                 @endif
 
-                <form method="POST" action="{{ route('demo.key.store') }}" class="mt-6 space-y-4" x-data="{ code: '', get valid() { return /^[A-Za-z0-9\-_]{8,64}$/.test(this.code.trim()); } }">
+                <form method="POST" action="{{ route('demo.key.store') }}" class="mt-6 space-y-4" x-data="{ code: '', get valid() { return /^demo1\.[A-Za-z0-9\-_=]+\.[A-Za-z0-9\-_=]+$/.test(this.code.trim()); } }">
                     @csrf
                     <div>
                         <label for="demo-key" class="block text-sm font-semibold text-slate-700 dark:text-slate-300">Access key</label>
@@ -69,13 +69,13 @@
                             autocomplete="off"
                             autofocus
                             required
-                            minlength="8"
-                            maxlength="64"
+                            minlength="20"
+                            maxlength="256"
                             x-model="code"
                             class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 font-mono text-sm text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-                            placeholder="e.g. FLOWEDU-DEMO-2026"
+                            placeholder="e.g. demo1.eyJoIjoiZGVtby5leGFtcGxlLmNvbSJ9..."
                         >
-                        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">8–64 characters: letters, numbers, dash or underscore.</p>
+                        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Paste the full demo key (starts with <span class="font-mono">demo1.</span>).</p>
                     </div>
 
                     <button

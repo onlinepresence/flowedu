@@ -37,6 +37,18 @@ return [
     */
     'demo_key' => env('DEMO_KEY'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Demo key public key (base64-encoded 32-byte ed25519 key)
+    |--------------------------------------------------------------------------
+    |
+    | Verifies signed demo keys entered at /demo/key (see DemoKeyVerifier).
+    | No network involved. When empty, entered keys cannot verify — set
+    | DEMO_PUBLIC_KEY from ops alongside APP_DEMO.
+    |
+    */
+    'demo_public_key' => env('DEMO_PUBLIC_KEY'),
+
 
     /*
     |--------------------------------------------------------------------------
