@@ -58,16 +58,20 @@
                 </a>
             @endcan
             @can('admin.view_financial_data')
-                <a href="{{ route('admin.finance.fees') }}" wire:navigate class="dashboard-quick-link">
-                    <i class="fa-solid fa-wallet text-emerald-500 dark:text-emerald-400"></i>
-                    {{ __('Fee Structure') }}
-                </a>
+                @if($canFinance)
+                    <a href="{{ route('admin.finance.fees') }}" wire:navigate class="dashboard-quick-link">
+                        <i class="fa-solid fa-wallet text-emerald-500 dark:text-emerald-400"></i>
+                        {{ __('Fee Structure') }}
+                    </a>
+                @endif
             @endcan
             @can('admin.view_audit_logs')
-                <a href="{{ route('admin.audit-logs') }}" wire:navigate class="dashboard-quick-link">
-                    <i class="fa-solid fa-clock-rotate-left text-purple-500 dark:text-purple-400"></i>
-                    {{ __('Audit Trail') }}
-                </a>
+                @if($canSystemAdmin)
+                    <a href="{{ route('admin.audit-logs') }}" wire:navigate class="dashboard-quick-link">
+                        <i class="fa-solid fa-clock-rotate-left text-purple-500 dark:text-purple-400"></i>
+                        {{ __('Audit Trail') }}
+                    </a>
+                @endif
             @endcan
             <a href="{{ route('admin.settings.school') }}" wire:navigate class="dashboard-quick-link">
                 <i class="fa-solid fa-gears text-gray-500 dark:text-gray-400"></i>
@@ -181,10 +185,12 @@
                 </a>
             @endcan
             @can('admin.nav_teachers_evaluations')
-                <a href="{{ route('admin.evaluations') }}" wire:navigate class="dashboard-quick-link">
-                    <i class="fa-solid fa-clipboard-question text-purple-500"></i>
-                    {{ __('Evaluations') }}
-                </a>
+                @if($canEvaluations)
+                    <a href="{{ route('admin.evaluations') }}" wire:navigate class="dashboard-quick-link">
+                        <i class="fa-solid fa-clipboard-question text-purple-500"></i>
+                        {{ __('Evaluations') }}
+                    </a>
+                @endif
             @endcan
         </x-college.quick-links>
 
@@ -264,24 +270,26 @@
             />
         </div>
 
-        <x-college.quick-links :title="__('Finance Actions')">
-            <a href="{{ route('admin.finance.fees') }}" wire:navigate class="dashboard-quick-link">
-                <i class="fa-solid fa-wallet text-emerald-500"></i>
-                {{ __('Fee Structures') }}
-            </a>
-            <a href="{{ route('admin.finance.payments') }}" wire:navigate class="dashboard-quick-link">
-                <i class="fa-solid fa-circle-dollar-to-slot text-green-500"></i>
-                {{ __('Payments Log') }}
-            </a>
-            <a href="{{ route('admin.finance.outstanding') }}" wire:navigate class="dashboard-quick-link">
-                <i class="fa-solid fa-receipt text-rose-500"></i>
-                {{ __('Outstanding Fees') }}
-            </a>
-            <a href="{{ route('admin.finance.invoices') }}" wire:navigate class="dashboard-quick-link">
-                <i class="fa-solid fa-money-check-dollar text-indigo-500"></i>
-                {{ __('Invoices') }}
-            </a>
-        </x-college.quick-links>
+        @if($canFinance)
+            <x-college.quick-links :title="__('Finance Actions')">
+                <a href="{{ route('admin.finance.fees') }}" wire:navigate class="dashboard-quick-link">
+                    <i class="fa-solid fa-wallet text-emerald-500"></i>
+                    {{ __('Fee Structures') }}
+                </a>
+                <a href="{{ route('admin.finance.payments') }}" wire:navigate class="dashboard-quick-link">
+                    <i class="fa-solid fa-circle-dollar-to-slot text-green-500"></i>
+                    {{ __('Payments Log') }}
+                </a>
+                <a href="{{ route('admin.finance.outstanding') }}" wire:navigate class="dashboard-quick-link">
+                    <i class="fa-solid fa-receipt text-rose-500"></i>
+                    {{ __('Outstanding Fees') }}
+                </a>
+                <a href="{{ route('admin.finance.invoices') }}" wire:navigate class="dashboard-quick-link">
+                    <i class="fa-solid fa-money-check-dollar text-indigo-500"></i>
+                    {{ __('Invoices') }}
+                </a>
+            </x-college.quick-links>
+        @endif
 
         <div x-data="{ finTab: 'income' }">
             <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -365,14 +373,14 @@
                 :value="$disciplinaryCount"
                 color="rose"
                 icon="fa-solid fa-gavel"
-                :href="route('admin.students.discipline')"
+                :href="$canStudentWelfare ? route('admin.students.discipline') : null"
             />
             <x-college.stats-card
                 :title="__('Medical History Records')"
                 :value="$medicalCount"
                 color="blue"
                 icon="fa-solid fa-briefcase-medical"
-                :href="route('admin.students.medical')"
+                :href="$canStudentWelfare ? route('admin.students.medical') : null"
             />
             <x-college.stats-card
                 :title="__('Welfare Enrolled')"
@@ -388,14 +396,16 @@
                 <i class="fa-solid fa-users text-blue-500"></i>
                 {{ __('Student List') }}
             </a>
-            <a href="{{ route('admin.students.discipline') }}" wire:navigate class="dashboard-quick-link">
-                <i class="fa-solid fa-gavel text-rose-500"></i>
-                {{ __('Discipline') }}
-            </a>
-            <a href="{{ route('admin.students.medical') }}" wire:navigate class="dashboard-quick-link">
-                <i class="fa-solid fa-heart-pulse text-red-500"></i>
-                {{ __('Medical Records') }}
-            </a>
+            @if($canStudentWelfare)
+                <a href="{{ route('admin.students.discipline') }}" wire:navigate class="dashboard-quick-link">
+                    <i class="fa-solid fa-gavel text-rose-500"></i>
+                    {{ __('Discipline') }}
+                </a>
+                <a href="{{ route('admin.students.medical') }}" wire:navigate class="dashboard-quick-link">
+                    <i class="fa-solid fa-heart-pulse text-red-500"></i>
+                    {{ __('Medical Records') }}
+                </a>
+            @endif
         </x-college.quick-links>
 
         <div>
@@ -431,38 +441,40 @@
                 :value="$totalStaffCount"
                 color="blue"
                 icon="fa-solid fa-user-tie"
-                :href="route('admin.staff.index')"
+                :href="$canStaffHr ? route('admin.staff.index') : null"
             />
             <x-college.stats-card
                 :title="__('Total Active Teachers')"
                 :value="$totalTeachersCount"
                 color="indigo"
                 icon="fa-solid fa-chalkboard-user"
-                :href="route('admin.staff.teachers')"
+                :href="$canStaffHr ? route('admin.staff.teachers') : null"
             />
             <x-college.stats-card
                 :title="__('Pending Leave Requests')"
                 :value="$pendingLeavesCount"
                 color="amber"
                 icon="fa-solid fa-calendar-minus"
-                :href="route('admin.staff.leaves')"
+                :href="$canStaffHr ? route('admin.staff.leaves') : null"
             />
         </div>
 
-        <x-college.quick-links :title="__('Human Resource Center')">
-            <a href="{{ route('admin.staff.index') }}" wire:navigate class="dashboard-quick-link">
-                <i class="fa-solid fa-user-shield text-blue-500"></i>
-                {{ __('Support Staff') }}
-            </a>
-            <a href="{{ route('admin.staff.teachers') }}" wire:navigate class="dashboard-quick-link">
-                <i class="fa-solid fa-chalkboard-user text-indigo-500"></i>
-                {{ __('Teachers List') }}
-            </a>
-            <a href="{{ route('admin.staff.leaves') }}" wire:navigate class="dashboard-quick-link">
-                <i class="fa-solid fa-calendar-day text-amber-500"></i>
-                {{ __('Leave Manager') }}
-            </a>
-        </x-college.quick-links>
+        @if($canStaffHr)
+            <x-college.quick-links :title="__('Human Resource Center')">
+                <a href="{{ route('admin.staff.index') }}" wire:navigate class="dashboard-quick-link">
+                    <i class="fa-solid fa-user-shield text-blue-500"></i>
+                    {{ __('Support Staff') }}
+                </a>
+                <a href="{{ route('admin.staff.teachers') }}" wire:navigate class="dashboard-quick-link">
+                    <i class="fa-solid fa-chalkboard-user text-indigo-500"></i>
+                    {{ __('Teachers List') }}
+                </a>
+                <a href="{{ route('admin.staff.leaves') }}" wire:navigate class="dashboard-quick-link">
+                    <i class="fa-solid fa-calendar-day text-amber-500"></i>
+                    {{ __('Leave Manager') }}
+                </a>
+            </x-college.quick-links>
+        @endif
 
         <div>
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">{{ __('Pending Leaves for Review') }}</h2>
@@ -517,10 +529,12 @@
                 <i class="fa-solid fa-shield-halved text-indigo-500"></i>
                 {{ __('System Audit Logs') }}
             </a>
-            <a href="{{ route('admin.finance.invoices') }}" wire:navigate class="dashboard-quick-link">
-                <i class="fa-solid fa-file-invoice-dollar text-emerald-500"></i>
-                {{ __('Invoices & Expenses') }}
-            </a>
+            @if($canFinance)
+                <a href="{{ route('admin.finance.invoices') }}" wire:navigate class="dashboard-quick-link">
+                    <i class="fa-solid fa-file-invoice-dollar text-emerald-500"></i>
+                    {{ __('Invoices & Expenses') }}
+                </a>
+            @endif
             <a href="{{ route('admin.staff.leaves') }}" wire:navigate class="dashboard-quick-link">
                 <i class="fa-solid fa-calendar-day text-amber-500"></i>
                 {{ __('Staff Leaves') }}

@@ -153,6 +153,10 @@ class AdminDashboardPage extends Component
             'recentMemos' => $recentMemos,
             'recentAnnouncements' => $recentAnnouncements,
             'canFinance' => $licenceService->can('finance'),
+            'canStudentWelfare' => $licenceService->can('student_welfare'),
+            'canStaffHr' => $licenceService->can('staff_hr'),
+            'canEvaluations' => $licenceService->can('evaluations'),
+            'canSystemAdmin' => $licenceService->can('system_admin'),
         ])->layout('components.layouts.admin', [
             'title' => __('Dashboard'),
             'headerDescription' => __('Welcome back! Here is an overview of the school status, quick actions, and recent activities.'),

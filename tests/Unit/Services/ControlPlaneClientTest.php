@@ -64,8 +64,16 @@ class ControlPlaneClientTest extends TestCase
             'unbound_code' => 'invalid',
         ];
 
+        // NOTE: Http::fake([...]) merges stubs with first-match priority, so
+        // re-registering per iteration would poison later slugs with the
+        // first stub. One fake with a by-reference slug instead.
+        $current = '';
+        Http::fake(function () use (&$current) {
+            return Http::response(['message' => 'x', 'error' => $current], 422);
+        });
+
         foreach ($cases as $slug => $bucket) {
-            Http::fake(['*/api/v1/enroll' => Http::response(['message' => 'x', 'error' => $slug], 422)]);
+            $current = $slug;
 
             $result = app(ControlPlaneClient::class)->enroll('APEX-1');
 

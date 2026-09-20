@@ -7,7 +7,6 @@ namespace App\Livewire\Admin\Settings;
 use App\Livewire\Concerns\DispatchesCollegeToasts;
 use App\Models\User;
 use App\Services\AdminImpersonationService;
-use App\Services\SchoolLicenceService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Hash;
@@ -345,12 +344,15 @@ class UsersIndexPage extends Component
 
     private function canManageUserSettings(): bool
     {
+        // User accounts are core functionality: admin type plus the
+        // nav_settings_users capability (owner and system_admin roles pass
+        // via the admin.* gate). No licence-module check.
         $actor = auth()->user();
         if ($actor === null || $actor->type !== 'admin') {
             return false;
         }
 
-        return app(SchoolLicenceService::class)->can('system_admin');
+        return $actor->canAdmin('admin.nav_settings_users');
     }
 
     private function currentUserProfileRoute(): string

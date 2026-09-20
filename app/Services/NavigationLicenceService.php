@@ -48,7 +48,9 @@ final class NavigationLicenceService
         if (str_starts_with($path, '/admin/academic/timetable')) {
             return 'timetable';
         }
-        if (preg_match('#^/admin/settings/(roles|users|image-validation|backup)$#', $path) === 1) {
+        // NOTE: user accounts are core functionality (permission-gated by
+        // nav_settings_users), not part of the system_admin module.
+        if (preg_match('#^/admin/settings/(roles|image-validation|backup)$#', $path) === 1) {
             return 'system_admin';
         }
         if (str_starts_with($path, '/admin/audit-logs')) {

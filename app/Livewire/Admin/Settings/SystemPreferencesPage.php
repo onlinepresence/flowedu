@@ -34,6 +34,8 @@ class SystemPreferencesPage extends Component
 
     public bool $hasFinanceLicence = false;
 
+    public bool $hasAttendanceLicence = false;
+
     // New Modular preferences
     public string $finance_billing_cycle = 'semester';
 
@@ -47,6 +49,7 @@ class SystemPreferencesPage extends Component
 
         $this->hasTeacherToolsLicence = $licenceService->can('teacher_tools');
         $this->hasFinanceLicence = $licenceService->can('finance');
+        $this->hasAttendanceLicence = $licenceService->can('attendance');
 
         $settings = Setting::query()->pluck('setting_value', 'setting_key');
 
@@ -81,6 +84,16 @@ class SystemPreferencesPage extends Component
             $this->finance_billing_cycle = (string) (Setting::query()
                 ->where('setting_key', 'finance_settings.billing_cycle')
                 ->value('setting_value') ?? 'semester');
+        }
+
+        // Same for the class attendance policy block.
+        if (! $this->hasAttendanceLicence) {
+            $this->show_attendance_policy = (bool) (Setting::query()
+                ->where('setting_key', 'system_preferences.show_attendance_policy')
+                ->value('setting_value') ?? true);
+            $this->min_attendance_threshold = (int) (Setting::query()
+                ->where('setting_key', 'system_preferences.min_attendance_threshold')
+                ->value('setting_value') ?? 75);
         }
 
         $this->validate([

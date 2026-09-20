@@ -11,7 +11,9 @@
 | `staff` | `/admin/staff/*` except paths containing `/admin/staff/evaluation` | Administration / most staff nav hidden; evaluation items use `evaluations` |
 | `evaluations` | `/admin/staff/evaluation*`, `/student/evaluation*` | Evaluation links hidden |
 | `student_professional` | `/admin/students/promotion|graduation|medical|discipline`, `/student/clearance`, `/student/medical`, `/student/discipline` | Those items hidden |
-| `system_admin` | `/admin/settings/roles`, `users`, `image-validation`, `backup`, `/env-generator` | Those settings links hidden (`/tools/*` is middleware-only; not in legacy URL map) |
+| `system_admin` | `/admin/settings/roles`, `image-validation`, `backup`, `/env-generator` | Those settings links hidden (`/tools/*` is middleware-only; not in legacy URL map) |
+
+User Accounts (`/admin/settings/users`) is core functionality, not a licensed module: it is permission-gated (`nav_settings_users`) on every tier. Dashboard links and stats-card targets are likewise hidden unless their route's licence module allows (finance, welfare, staff HR, evaluations, system admin).
 
 With `LICENCE_ENFORCE=false` (see `config/licence.php` `enforce`), all `can()` checks pass and nothing is hidden by tier.
 

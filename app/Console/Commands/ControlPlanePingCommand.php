@@ -39,8 +39,8 @@ final class ControlPlanePingCommand extends Command
             return self::SUCCESS;
         }
 
-        $uuid = trim((string) env('DEPLOYMENT_UUID'));
-        $token = (string) env('CONTROL_PLANE_TOKEN', '');
+        $uuid = trim((string) config('controlplane.deployment_uuid'));
+        $token = (string) config('controlplane.token', '');
 
         if ($uuid === '') {
             $this->error(__('No DEPLOYMENT_UUID configured. Redeem a code first (--redeem CODE).'));

@@ -54,7 +54,7 @@ final class LicenceEnrollmentService
 
     public function isLinked(?School $school = null): bool
     {
-        $uuid = trim((string) env('DEPLOYMENT_UUID'));
+        $uuid = trim((string) config('controlplane.deployment_uuid'));
         if ($uuid === '') {
             return false;
         }

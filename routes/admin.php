@@ -166,7 +166,6 @@ Route::middleware($adminApp)->prefix('admin/settings')->group(function () {
         ->name('admin.settings.image-validation');
     Route::get('school', SchoolProfileForm::class)->name('admin.settings.school');
     Route::get('users', UsersIndexPage::class)
-        ->middleware('college.licence:system_admin')
         ->name('admin.settings.users');
     Route::get('backup', BackupIndex::class)
         ->middleware('college.licence:system_admin')

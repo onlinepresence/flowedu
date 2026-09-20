@@ -42,7 +42,6 @@ class LicenceEnrollmentTest extends TestCase
     protected function tearDown(): void
     {
         @unlink($this->envFile);
-        putenv('DEPLOYMENT_UUID');
 
         parent::tearDown();
     }
@@ -122,8 +121,17 @@ class LicenceEnrollmentTest extends TestCase
         $school = $this->setupSchool();
         $user = $this->owner();
 
+        // NOTE: Http::fake([...]) merges stubs with first-match priority, so
+        // one by-reference fake serves the whole test (see ControlPlaneClientTest).
+        $body = ['message' => 'nope', 'error' => 'unknown_code'];
+        $status = 422;
+        Http::fake(function () use (&$body, &$status) {
+            return Http::response($body, $status);
+        });
+
         foreach (['unknown_code', 'code_voided', 'code_expired', 'attempts_exceeded', 'deployment_mismatch', 'deployment_revoked', 'unbound_code'] as $error) {
-            Http::fake(['*/api/v1/enroll' => Http::response(['message' => 'nope', 'error' => $error], 422)]);
+            $body = ['message' => 'nope', 'error' => $error];
+            $status = 422;
 
             $component = Livewire::actingAs($user)
                 ->test(SetupLicenceForm::class)
@@ -137,7 +145,8 @@ class LicenceEnrollmentTest extends TestCase
         // Consumed-replay: 200 with a licence but no one-time token.
         $replay = $this->snapshot();
         $replay['heartbeat_token'] = null;
-        Http::fake(['*/api/v1/enroll' => Http::response($replay, 200)]);
+        $body = $replay;
+        $status = 200;
 
         $replayed = Livewire::actingAs($user)
             ->test(SetupLicenceForm::class)
@@ -147,7 +156,8 @@ class LicenceEnrollmentTest extends TestCase
         $replayed->assertHasNoErrors();
         $this->assertStringContainsString('already used', $replayed->get('enrollError'));
 
-        Http::fake(['*/api/v1/enroll' => Http::response([], 500)]);
+        $body = [];
+        $status = 500;
         Livewire::actingAs($user)
             ->test(SetupLicenceForm::class)
             ->set('enrollCode', 'ANY-CODE')
@@ -271,7 +281,9 @@ class LicenceEnrollmentTest extends TestCase
             'max_active_students' => 100,
             'module_finance' => true,
         ]);
-        putenv('DEPLOYMENT_UUID=dep-linked-1');
+        // NOTE: config, not putenv — putenv() cannot shadow a real
+        // $_SERVER entry, which made this test order/machine-dependent.
+        config(['controlplane.deployment_uuid' => 'dep-linked-1']);
 
         // Old form design restored: full catalog with server values,
         // every input frozen (disabled).

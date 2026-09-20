@@ -39,4 +39,18 @@ return [
     */
     'app_version' => env('APP_VERSION', '1.0.0'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | This deployment's identity (written by enrollment, read via config)
+    |--------------------------------------------------------------------------
+    |
+    | Always read through config (never env() at runtime): config survives
+    | config:cache and is trivially overridable in tests, while putenv()
+    | cannot shadow a real $_SERVER entry.
+    |
+    */
+    'deployment_uuid' => env('DEPLOYMENT_UUID'),
+
+    'token' => env('CONTROL_PLANE_TOKEN'),
+
 ];

@@ -197,18 +197,21 @@
                             </div>
                             <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed max-w-2xl">
                                 {{ __('Enable the student-facing attendance policy disclaimer and define the default minimum attendance percentage threshold required to sit for examinations.') }}
+                                @unless($hasAttendanceLicence)
+                                    <span class="mt-1 block font-semibold text-amber-600 dark:text-amber-400">{{ __('Requires the Attendance Tracker module — currently read-only.') }}</span>
+                                @endunless
                             </p>
                         </div>
 
                         <div class="flex items-center shrink-0">
-                            <label class="relative inline-flex cursor-pointer items-center">
-                                <input type="checkbox" wire:model.live="show_attendance_policy" id="show_attendance_policy" class="peer sr-only">
+                            <label class="relative inline-flex {{ $hasAttendanceLicence ? 'cursor-pointer' : 'cursor-not-allowed' }} items-center">
+                                <input type="checkbox" wire:model.live="show_attendance_policy" id="show_attendance_policy" @disabled(! $hasAttendanceLicence) class="peer sr-only">
                                 <div class="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-purple-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none dark:bg-gray-700"></div>
                             </label>
                         </div>
                     </div>
 
-                    @if ($show_attendance_policy)
+                        @if ($show_attendance_policy)
                         <div class="mt-4 border-t border-gray-100 pt-4 dark:border-gray-700/50 space-y-2">
                             <x-input-label for="min_attendance_threshold" :value="__('Minimum Attendance Threshold (%)')" />
                             <x-text-input
@@ -217,8 +220,9 @@
                                 type="number"
                                 min="0"
                                 max="100"
-                                class="block w-28 text-sm"
+                                class="block w-28 text-sm disabled:opacity-70"
                                 required
+                                :disabled="! $hasAttendanceLicence"
                             />
                             <p class="text-2xs text-gray-400 dark:text-gray-500 mt-1">
                                 {{ __('Students with attendance rates below this threshold for the current semester will be marked as Ineligible for exams.') }}
