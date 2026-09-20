@@ -131,17 +131,26 @@ mail forced to `log` driver, public registration closed (seeded users only).
 Licence enforcement STAYS ON — the seeded `school_licences` row governs features.
 
 Key gate: `DEMO_KEY` env bypasses the key-entry screen entirely (the hosted instance
-lives here — set it to a valid signed key). Without it, visitors see `GET /demo/key`
-(403-style, FlowEdu landing look, Alpine form, no Livewire) and must enter a key once
-per session (`session('demo_key_accepted')`). Validation lives in
-[`DemoKeyVerifier`](../app/Services/DemoKeyVerifier.php) and is fully offline:
-keys are `demo1.<payload>.<signature>` tokens (ed25519, verified against
-`DEMO_PUBLIC_KEY`), carrying the issued host (`h`) and expiry (`exp`). Bad
-signatures (tamper) and issued-in-the-future keys (clock suspect) fail into the
-enforced key screen with a warning-level log; expired, wrong-host and malformed
-keys fail quieter with per-reason screen copy. A bare opaque token (e.g. a
-ControlDesk heartbeat token pasted at the wrong door) gets its own error telling
-the visitor those belong in `.env`, not here.
+lives here). Without it, visitors see `GET /demo/key` (403-style, FlowEdu landing
+look, Alpine form, no Livewire) and must enter a key once per session
+(`session('demo_key_accepted')`). The screen takes two inputs: a pasted signed
+document, or a bare code (verified online once, then cached). Validation lives in
+[`DemoKeyVerifier`](../app/Services/DemoKeyVerifier.php) and is offline-first —
+documents look like
+`{"payload": {"expires_at": "2027-09-18"|null, "host": "demo.example.com"|null,
+"issued_at": "2026-09-19"}, "signature": "<hex ed25519>", "algorithm": "ed25519"}`,
+verified against the baked-in `DEMO_PUBLIC_KEY` with no network involved. A bare
+code is POSTed once to ControlDesk `/api/v1/demo-keys/verify`; the returned
+document is cached locally (`demo.cached_key_document` setting) and every later
+check — including offline ones — runs against that cached signature. Offline with
+no cache stays on the key screen, as always. A null `expires_at` means NEVER
+(the marketing key): accepted, but logged at warning level so it stays visible.
+Bad signatures (tamper) and issued-in-the-future documents (clock suspect) fail
+into the enforced key screen with a warning-level log; expired, wrong-host and
+malformed keys fail quieter with per-reason screen copy. A bare opaque token
+(e.g. a ControlDesk heartbeat token pasted at the wrong door) gets its own error
+telling the visitor those belong in `.env`, not here. Linked (live) installs
+refuse demo keys outright — elevation never flows back to demo.
 
 ### Provisioning the demo DB + user (DDL scoped to it)
 

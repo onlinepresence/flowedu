@@ -385,7 +385,8 @@ class LicenceEnrollmentTest extends TestCase
     }
 
     /**
-     * Mint a signed demo key (ed25519) for one-way-gate tests.
+     * Mint a signed demo-key document fixture (ed25519) for one-way-gate
+     * tests. Returns the JSON-encoded document as pasted at the key screen.
      */
     private function mintDemoKey(string $host, string $exp): string
     {
@@ -397,14 +398,16 @@ class LicenceEnrollmentTest extends TestCase
             config(['college.demo_public_key' => base64_encode(sodium_crypto_sign_publickey($keypair))]);
         }
 
-        $segment = rtrim(strtr(base64_encode((string) json_encode([
-            'h' => $host,
-            'exp' => $exp,
-            'iat' => now()->toDateString(),
-        ])), '+/', '-_'), '=');
-        $sig = rtrim(strtr(base64_encode(sodium_crypto_sign_detached($segment, $secret)), '+/', '-_'), '=');
+        $payload = ['expires_at' => $exp, 'host' => $host, 'issued_at' => now()->toDateString()];
 
-        return 'demo1.'.$segment.'.'.$sig;
+        return (string) json_encode([
+            'payload' => $payload,
+            'signature' => bin2hex(sodium_crypto_sign_detached(
+                \App\Services\DemoKeyVerifier::canonicalJson($payload),
+                $secret
+            )),
+            'algorithm' => 'ed25519',
+        ]);
     }
 
     public function test_elevation_panel_shows_only_with_existing_data(): void

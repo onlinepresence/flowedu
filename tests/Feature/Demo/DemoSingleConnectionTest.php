@@ -56,12 +56,11 @@ class DemoSingleConnectionTest extends TestCase
     }
 
     /**
-     * Mint a signed demo key for tests. Returns [key, secret] so tests can
-     * tamper deliberately.
+     * Mint a signed licence document fixture. Returns [document array, secret].
      *
-     * @return array{0: string, 1: string}
+     * @return array{0: array, 1: string}
      */
-    private function mintDemoKey(string $host, string $exp, ?string $iat = null): array
+    private function mintDocument(?string $host, ?string $exp, ?string $iat = null): array
     {
         static $secret = null;
         static $public = null;
@@ -74,14 +73,17 @@ class DemoSingleConnectionTest extends TestCase
 
         config(['college.demo_public_key' => base64_encode($public)]);
 
-        $segment = rtrim(strtr(base64_encode((string) json_encode([
-            'h' => $host,
-            'exp' => $exp,
-            'iat' => $iat ?? now()->toDateString(),
-        ])), '+/', '-_'), '=');
-        $sig = rtrim(strtr(base64_encode(sodium_crypto_sign_detached($segment, $secret)), '+/', '-_'), '=');
+        $payload = ['expires_at' => $exp, 'host' => $host, 'issued_at' => $iat ?? now()->toDateString()];
+        $message = DemoKeyVerifier::canonicalJson($payload);
 
-        return ['demo1.'.$segment.'.'.$sig, $secret];
+        return [
+            [
+                'payload' => $payload,
+                'signature' => bin2hex(sodium_crypto_sign_detached($message, $secret)),
+                'algorithm' => 'ed25519',
+            ],
+            $secret,
+        ];
     }
 
     public function test_key_entry_sets_session_and_passes_gate(): void
@@ -92,9 +94,9 @@ class DemoSingleConnectionTest extends TestCase
 
         $this->post('/demo/key', ['code' => 'short'])->assertRedirect(route('demo.key.show'));
 
-        [$key] = $this->mintDemoKey('localhost', now()->addMonth()->toDateString());
+        [$doc] = $this->mintDocument('localhost', now()->addMonth()->toDateString());
 
-        $this->post('/demo/key', ['code' => $key])
+        $this->post('/demo/key', ['code' => json_encode($doc)])
             ->assertRedirect(route('login'));
 
         $this->assertTrue(session('demo_key_accepted', false));
@@ -108,7 +110,7 @@ class DemoSingleConnectionTest extends TestCase
         config(['college.demo_key' => null]);
         $this->createTestSchool();
 
-        $response = $this->post('/demo/key', ['code' => 'tok-secret-0123456789abcdef']);
+        $response = $this->post('/demo/key', ['code' => 'tok-secret-0123456789abcdefABCDEF0123456789ab']);
         $response->assertRedirect(route('demo.key.show'));
         $this->assertStringContainsString(
             'heartbeat',
@@ -123,11 +125,72 @@ class DemoSingleConnectionTest extends TestCase
         config(['college.demo_key' => null]);
         $this->createTestSchool();
 
-        [$key] = $this->mintDemoKey('localhost', now()->subDay()->toDateString());
+        [$doc] = $this->mintDocument('localhost', now()->subDay()->toDateString());
 
-        $this->post('/demo/key', ['code' => $key])->assertRedirect(route('demo.key.show'));
+        $this->post('/demo/key', ['code' => json_encode($doc)])->assertRedirect(route('demo.key.show'));
         $this->assertStringContainsString('expired', (string) session('demo_key_error'));
         $this->assertFalse(session('demo_key_accepted', false));
+    }
+
+    public function test_bare_code_verifies_online_then_caches_for_offline(): void
+    {
+        config(['college.demo_mode' => true]);
+        config(['college.demo_key' => null]);
+        config(['controlplane.url' => 'https://control.test']);
+        $this->createTestSchool();
+
+        [$doc] = $this->mintDocument('localhost', now()->addMonth()->toDateString());
+
+        // Online: ControlDesk returns the document, which is cached + verified.
+        \Illuminate\Support\Facades\Http::fake([
+            '*/api/v1/demo-keys/verify' => \Illuminate\Support\Facades\Http::response($doc, 200),
+        ]);
+
+        $this->post('/demo/key', ['code' => 'SOME-BARE-CODE-123'])
+            ->assertRedirect(route('login'));
+        $this->assertTrue(session('demo_key_accepted', false));
+        $this->assertNotNull(
+            \App\Models\Setting::query()->where('setting_key', DemoKeyVerifier::CACHE_KEY)->value('setting_value')
+        );
+
+        // Offline (network down): the cached document still opens the door.
+        session()->forget('demo_key_accepted');
+        \Illuminate\Support\Facades\Http::fake(function () {
+            throw new \Illuminate\Http\Client\ConnectionException('down');
+        });
+
+        $this->post('/demo/key', ['code' => 'ANY-OTHER-CODE-456'])
+            ->assertRedirect(route('login'));
+        $this->assertTrue(session('demo_key_accepted', false));
+    }
+
+    public function test_bare_code_offline_without_cache_stays_on_screen(): void
+    {
+        config(['college.demo_mode' => true]);
+        config(['college.demo_key' => null]);
+        config(['controlplane.url' => 'https://control.test']);
+        $this->createTestSchool();
+
+        $this->assertNull(
+            \App\Models\Setting::query()->where('setting_key', DemoKeyVerifier::CACHE_KEY)->value('setting_value')
+        );
+
+        \Illuminate\Support\Facades\Http::fake(function () {
+            throw new \Illuminate\Http\Client\ConnectionException('down');
+        });
+
+        $this->post('/demo/key', ['code' => 'SOME-BARE-CODE-123'])->assertRedirect(route('demo.key.show'));
+        $this->assertFalse(session('demo_key_accepted', false));
+    }
+
+    public function test_marketing_key_without_expiry_is_accepted_loudly(): void
+    {
+        $verifier = app(DemoKeyVerifier::class);
+
+        [$doc] = $this->mintDocument('localhost', null);
+
+        $this->assertTrue($verifier->verify(json_encode($doc), 'localhost'));
+        $this->assertSame(DemoKeyVerifier::REASON_OK, $verifier->check(json_encode($doc), 'localhost')['reason']);
     }
 
     public function test_registration_closed_in_demo_mode(): void
@@ -165,34 +228,45 @@ class DemoSingleConnectionTest extends TestCase
     {
         $verifier = app(DemoKeyVerifier::class);
 
-        [$key] = $this->mintDemoKey('demo.example.com', now()->addMonth()->toDateString());
+        [$doc] = $this->mintDocument('demo.example.com', now()->addMonth()->toDateString());
+        $code = (string) json_encode($doc);
 
-        $this->assertTrue($verifier->verify($key, 'demo.example.com'));
-        $this->assertSame(DemoKeyVerifier::REASON_OK, $verifier->check($key, 'demo.example.com')['reason']);
+        $this->assertTrue($verifier->verify($code, 'demo.example.com'));
+        $this->assertSame(DemoKeyVerifier::REASON_OK, $verifier->check($code, 'demo.example.com')['reason']);
 
         // Tampered signature.
-        $tampered = substr_replace($key, $key[-1] === 'A' ? 'B' : 'A', -1);
-        $this->assertFalse($verifier->verify($tampered, 'demo.example.com'));
+        $tampered = $doc;
+        $tampered['signature'] = str_repeat('0', 128);
+        $this->assertFalse($verifier->verify((string) json_encode($tampered), 'demo.example.com'));
+
+        // Wrong algorithm.
+        $wrongAlgo = $doc;
+        $wrongAlgo['algorithm'] = 'hmac-sha256';
+        $this->assertFalse($verifier->verify((string) json_encode($wrongAlgo), 'demo.example.com'));
 
         // Expired.
-        [$old] = $this->mintDemoKey('demo.example.com', now()->subDay()->toDateString());
-        $this->assertSame(DemoKeyVerifier::REASON_EXPIRED, $verifier->check($old, 'demo.example.com')['reason']);
+        [$old] = $this->mintDocument('demo.example.com', now()->subDay()->toDateString());
+        $this->assertSame(DemoKeyVerifier::REASON_EXPIRED, $verifier->check((string) json_encode($old), 'demo.example.com')['reason']);
 
         // Wrong host.
-        $this->assertSame(DemoKeyVerifier::REASON_HOST_MISMATCH, $verifier->check($key, 'other.example.com')['reason']);
+        $this->assertSame(DemoKeyVerifier::REASON_HOST_MISMATCH, $verifier->check($code, 'other.example.com')['reason']);
+
+        // Unbound host passes anywhere.
+        [$open] = $this->mintDocument(null, now()->addMonth()->toDateString());
+        $this->assertTrue($verifier->verify((string) json_encode($open), 'other.example.com'));
 
         // Issued-in-the-future: clock suspect.
-        [$future] = $this->mintDemoKey('demo.example.com', now()->addYear()->toDateString(), now()->addDays(5)->toDateString());
-        $this->assertSame(DemoKeyVerifier::REASON_CLOCK_SKEW, $verifier->check($future, 'demo.example.com')['reason']);
+        [$future] = $this->mintDocument('demo.example.com', now()->addYear()->toDateString(), now()->addDays(5)->toDateString());
+        $this->assertSame(DemoKeyVerifier::REASON_CLOCK_SKEW, $verifier->check((string) json_encode($future), 'demo.example.com')['reason']);
 
-        // Bare opaque token: wrong door, not a demo key at all.
-        $this->assertSame(DemoKeyVerifier::REASON_WRONG_DOOR, $verifier->check('tok-secret-0123456789abcdef', 'demo.example.com')['reason']);
+        // Long bare opaque token: wrong door, not a demo key at all.
+        $this->assertSame(DemoKeyVerifier::REASON_WRONG_DOOR, $verifier->check('tok-secret-0123456789abcdefABCDEF0123456789ab', 'demo.example.com')['reason']);
 
         // Garbage and blanks.
         $this->assertFalse($verifier->verify('short', 'demo.example.com'));
         $this->assertFalse($verifier->verify('', 'demo.example.com'));
         $this->assertFalse($verifier->verify('bad code! with spaces', 'demo.example.com'));
-        $this->assertFalse($verifier->verify('demo1.not-base64!!.also-bad!!', 'demo.example.com'));
+        $this->assertFalse($verifier->verify('{"payload": "nope"}', 'demo.example.com'));
     }
 
     public function test_verifier_rejects_everything_when_unconfigured(): void
@@ -200,12 +274,13 @@ class DemoSingleConnectionTest extends TestCase
         config(['college.demo_public_key' => null]);
         $verifier = app(DemoKeyVerifier::class);
 
-        [$key] = $this->mintDemoKey('demo.example.com', now()->addMonth()->toDateString());
-        // mintDemoKey sets the config; clear it again to simulate no key.
+        [$doc] = $this->mintDocument('demo.example.com', now()->addMonth()->toDateString());
+        // mintDocument sets the config; clear it again to simulate no key.
         config(['college.demo_public_key' => null]);
 
-        $this->assertSame(DemoKeyVerifier::REASON_UNCONFIGURED, $verifier->check($key, 'demo.example.com')['reason']);
-        $this->assertFalse($verifier->verify($key, 'demo.example.com'));
+        $code = (string) json_encode($doc);
+        $this->assertSame(DemoKeyVerifier::REASON_UNCONFIGURED, $verifier->check($code, 'demo.example.com')['reason']);
+        $this->assertFalse($verifier->verify($code, 'demo.example.com'));
     }
 
     public function test_refresh_aborts_when_demo_flag_off(): void
