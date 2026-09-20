@@ -169,6 +169,33 @@ class SetupLicenceForm extends Component
     }
 
     /**
+     * Linked installs may still toggle CORE settings (saved locally);
+     * modules stay frozen to whatever ControlDesk granted.
+     */
+    public function saveCoreFeatures(SchoolLicenceService $licenceService, LicenceEnrollmentService $enrollment): void
+    {
+        $school = School::current();
+        if ($school === null || ! $enrollment->isLinked($school)) {
+            $this->redirect(route('admin.setup.licence'), navigate: true);
+
+            return;
+        }
+
+        $fields = [];
+        foreach (config('licence.core_features', []) as $key => $feat) {
+            if (($feat['locked'] ?? false) || ! isset($feat['db_column'])) {
+                continue;
+            }
+            $fields[$feat['db_column']] = (bool) ($this->coreStates[$key] ?? $feat['default']);
+        }
+
+        SchoolLicence::query()->updateOrCreate(['school_id' => $school->id], $fields);
+        $licenceService->refresh();
+
+        CollegeFlash::forNextRequestToo('status', __('Core settings saved.'));
+    }
+
+    /**
      * Free-form save stays for provisional (badged) and legacy installs.
      * Linked installs are read-only; pending installs must pick an exit.
      */

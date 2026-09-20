@@ -95,7 +95,7 @@
     @else
     @if($enrollmentChoice === 'linked')
     <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-100">
-        <i class="fa-solid fa-circle-check mr-2"></i>{{ __('Managed by ControlDesk (ref: :ref). Values below come from the control plane and are frozen.', ['ref' => $external_ref]) }}
+        <i class="fa-solid fa-circle-check mr-2"></i>{{ __('Managed by ControlDesk (ref: :ref). Modules are frozen to your plan — core settings below can still be changed.', ['ref' => $external_ref]) }}
     </div>
     @else
     <p class="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900 dark:border-indigo-900/40 dark:bg-indigo-950/40 dark:text-indigo-100">
@@ -138,8 +138,8 @@
                                     </div>
                                 @else
                                     <!-- Toggle Switch -->
-                                    <label class="relative inline-flex {{ $locked ?? false ? 'cursor-not-allowed' : 'cursor-pointer' }} items-center">
-                                        <input type="checkbox" wire:model.live="coreStates.{{ $key }}" class="peer sr-only" @disabled($locked ?? false)>
+                                    <label class="relative inline-flex cursor-pointer items-center">
+                                        <input type="checkbox" wire:model.live="coreStates.{{ $key }}" class="peer sr-only">
                                         <div class="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-purple-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none dark:bg-gray-700"></div>
                                     </label>
                                 @endif
@@ -283,8 +283,23 @@
                     @if($locked ?? false)
                         <button
                             type="button"
+                            wire:click="saveCoreFeatures"
+                            wire:loading.attr="disabled"
+                            wire:target="saveCoreFeatures"
+                            class="inline-flex w-full justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus:outline-none disabled:opacity-50"
+                        >
+                            <span wire:loading.remove wire:target="saveCoreFeatures" class="inline-flex items-center gap-2">
+                                {{ __('Save core settings') }}
+                            </span>
+                            <span wire:loading.delay.200ms wire:target="saveCoreFeatures" wire:loading.class.remove="hidden" class="hidden inline-flex items-center gap-2">
+                                <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+                                {{ __('Please wait…') }}
+                            </span>
+                        </button>
+                        <button
+                            type="button"
                             wire:click="continueSetup"
-                            class="inline-flex w-full justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus:outline-none"
+                            class="mt-2 inline-flex w-full justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
                         >
                             {{ __('Continue setup') }}
                         </button>

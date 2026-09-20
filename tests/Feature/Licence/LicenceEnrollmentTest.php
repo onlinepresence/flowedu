@@ -301,6 +301,19 @@ class LicenceEnrollmentTest extends TestCase
             ->call('save')
             ->assertHasErrors(['form']);
 
+        // Core toggles stay editable and persist; modules stay frozen.
+        Livewire::actingAs($user)
+            ->test(\App\Livewire\Admin\Settings\LicenceSettingsPage::class)
+            ->set('coreStates.attendance', false)
+            ->set('moduleStates.finance', false)
+            ->call('saveCoreFeatures')
+            ->assertHasNoErrors();
+
+        $row = SchoolLicence::query()->where('school_id', $school->id)->firstOrFail();
+        $this->assertFalse((bool) $row->core_attendance);
+        $this->assertTrue((bool) $row->module_finance);
+        $this->assertSame('dep-linked-1', $row->external_ref);
+
         Livewire::actingAs($user)
             ->test(SetupLicenceForm::class)
             ->assertSee('Managed by ControlDesk')

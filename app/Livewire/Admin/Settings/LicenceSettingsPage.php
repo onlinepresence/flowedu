@@ -195,6 +195,33 @@ class LicenceSettingsPage extends Component
         $this->redirect(route('admin.dashboard'), navigate: true);
     }
 
+    /**
+     * Linked installs may still toggle CORE settings (saved locally);
+     * modules stay frozen to whatever ControlDesk granted.
+     */
+    public function saveCoreFeatures(SchoolLicenceService $licenceService, \App\Services\ControlPlane\LicenceEnrollmentService $enrollment): void
+    {
+        $school = School::current();
+        if ($school === null || ! $enrollment->isLinked($school)) {
+            $this->redirect(route('admin.settings.licence'), navigate: true);
+
+            return;
+        }
+
+        $fields = [];
+        foreach (config('licence.core_features', []) as $key => $feat) {
+            if (($feat['locked'] ?? false) || ! isset($feat['db_column'])) {
+                continue;
+            }
+            $fields[$feat['db_column']] = (bool) ($this->coreStates[$key] ?? $feat['default']);
+        }
+
+        SchoolLicence::query()->updateOrCreate(['school_id' => $school->id], $fields);
+        $licenceService->refresh();
+
+        CollegeFlash::forNextRequestToo('status', __('Core settings saved.'));
+    }
+
     public function render(SchoolLicenceService $licenceService): View
     {
         $preview = $this->getPricingPreview($licenceService);

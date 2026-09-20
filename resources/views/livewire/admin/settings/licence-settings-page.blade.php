@@ -11,7 +11,7 @@
 
     @if($isLinked)
         <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-100">
-            <i class="fa-solid fa-circle-check mr-2"></i>{{ __('Managed by ControlDesk (ref: :ref). Values below come from the control plane and are frozen.', ['ref' => $external_ref]) }}
+            <i class="fa-solid fa-circle-check mr-2"></i>{{ __('Managed by ControlDesk (ref: :ref). Modules are frozen to your plan — core settings below can still be changed.', ['ref' => $external_ref]) }}
         </div>
     @endif
     @php($locked = $isLinked)
@@ -57,8 +57,8 @@
                                     </div>
                                 @else
                                     <!-- Toggle Switch -->
-                                    <label class="relative inline-flex {{ $locked ?? false ? 'cursor-not-allowed' : 'cursor-pointer' }} items-center">
-                                        <input type="checkbox" wire:model.live="coreStates.{{ $key }}" class="peer sr-only" @disabled($locked ?? false)>
+                                    <label class="relative inline-flex cursor-pointer items-center">
+                                        <input type="checkbox" wire:model.live="coreStates.{{ $key }}" class="peer sr-only">
                                         <div class="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-purple-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none dark:bg-gray-700"></div>
                                     </label>
                                 @endif
@@ -200,7 +200,22 @@
 
                 <div class="mt-6 border-t border-purple-200/60 pt-4 dark:border-purple-800/60">
                     @if($locked ?? false)
-                        <p class="text-center text-xs text-gray-500 dark:text-gray-400">{{ __('Frozen by ControlDesk — no changes can be saved.') }}</p>
+                        <button
+                            type="button"
+                            wire:click="saveCoreFeatures"
+                            wire:loading.attr="disabled"
+                            wire:target="saveCoreFeatures"
+                            class="inline-flex w-full justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus:outline-none disabled:opacity-50"
+                        >
+                            <span wire:loading.remove wire:target="saveCoreFeatures" class="inline-flex items-center gap-2">
+                                {{ __('Save core settings') }}
+                            </span>
+                            <span wire:loading.delay.200ms wire:target="saveCoreFeatures" wire:loading.class.remove="hidden" class="hidden inline-flex items-center gap-2">
+                                <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+                                {{ __('Please wait…') }}
+                            </span>
+                        </button>
+                        <p class="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">{{ __('Modules frozen by ControlDesk.') }}</p>
                     @else
                         <x-college-form-submit target="save" class="w-full justify-center">
                             {{ __('Save licensing') }}
