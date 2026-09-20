@@ -11,6 +11,7 @@ use App\Services\QuoteCalculationService;
 use App\Services\SchoolLicenceService;
 use App\Support\CollegeFlash;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Log;
 use Livewire\Component;
 
 class SetupLicenceForm extends Component
@@ -28,6 +29,8 @@ class SetupLicenceForm extends Component
     public string $external_ref = '';
 
     public string $enrollCode = '';
+
+    public string $elevationCode = '';
 
     public string $offlineCode = '';
 
@@ -109,6 +112,55 @@ class SetupLicenceForm extends Component
         }
 
         CollegeFlash::forNextRequestToo('status', __('Licence enrolled. Continue with your setup.'));
+        $this->redirect(route('admin.setup.faculties'), navigate: true);
+    }
+
+    /**
+     * Trial-to-live elevation: keep existing data, activate in place.
+     * Auto-backup via the Backup path FIRST, then redeem, then void any
+     * local demo key. Backup failure aborts before anything is touched.
+     */
+    public function activateWithExistingData(
+        LicenceEnrollmentService $enrollment,
+        \App\Services\Backup\DatabaseBackupService $backups,
+    ): void {
+        $this->resetSubmissionState();
+        $this->validate(['elevationCode' => ['required', 'string', 'max:255']]);
+
+        $backup = $backups->createBackup(auth()->user());
+        if (! ($backup['ok'] ?? false)) {
+            $this->enrollError = (string) ($backup['message'] ?? __('Backup failed, so activation stopped before touching anything.'));
+
+            return;
+        }
+
+        $result = $enrollment->redeem($this->elevationCode);
+
+        if (! ($result['ok'] ?? false)) {
+            $this->enrollError = (string) ($result['message'] ?? __('Enrollment failed. Your data and backup are untouched.'));
+
+            return;
+        }
+
+        // One-way: void any local demo key so this install can never
+        // present as demo again. Non-fatal if the file resists editing.
+        $voided = \App\Support\EnvWriter::remove(['DEMO_KEY']);
+        if (! ($voided['ok'] ?? false)) {
+            Log::warning('controlplane.elevation.demo-key-void-failed', ['path' => $voided['path'] ?? null]);
+        }
+        if (session()->has('demo_key_accepted')) {
+            session()->forget('demo_key_accepted');
+        }
+
+        if (! empty($result['manual_lines'])) {
+            $this->manualLines = array_values($result['manual_lines']);
+            $this->manualPath = (string) ($result['path'] ?? \base_path('.env'));
+            $this->choice = $enrollment->choiceState();
+
+            return;
+        }
+
+        CollegeFlash::forNextRequestToo('status', __('Activated with your existing data. Continue with your setup.'));
         $this->redirect(route('admin.setup.faculties'), navigate: true);
     }
 
@@ -354,6 +406,7 @@ class SetupLicenceForm extends Component
             'coreCatalog' => config('licence.core_features', []),
             'modulesCatalog' => config('licence.modules', []),
             'enrollmentChoice' => $enrollment->choiceState(),
+            'hasExistingData' => $enrollment->hasExistingData(),
             'bundleRate' => (float) config('licence.bundle_discount', 0.12),
         ])->layout('components.layouts.admin', ['title' => __('Package & licence')]);
     }

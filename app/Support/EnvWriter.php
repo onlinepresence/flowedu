@@ -71,4 +71,66 @@ final class EnvWriter
             return ['ok' => false, 'lines' => $lines, 'path' => $path];
         }
     }
+
+    /**
+     * Delete whole KEY= lines (e.g. voiding a local demo key on elevation).
+     *
+     * @param list<string> $keys
+     * @return array{ok: bool, path: string}
+     */
+    public static function remove(array $keys, ?string $path = null): array
+    {
+        $path ??= config('controlplane.env_path', \base_path('.env'));
+
+        if ($keys === []) {
+            return ['ok' => true, 'path' => $path];
+        }
+
+        try {
+            if (! file_exists($path)) {
+                return ['ok' => true, 'path' => $path];
+            }
+
+            $current = (string) file_get_contents($path);
+            $eol = str_contains($current, "\r\n") ? "\r\n" : "\n";
+
+            $kept = [];
+            foreach (preg_split('/\r\n|\n/', $current) as $line) {
+                $drop = false;
+                foreach ($keys as $key) {
+                    if (str_starts_with(trim((string) $line), $key.'=')) {
+                        $drop = true;
+                        break;
+                    }
+                }
+                if (! $drop) {
+                    $kept[] = $line;
+                }
+            }
+
+            $new = implode($eol, $kept);
+            if ($new !== '' && ! str_ends_with($new, $eol)) {
+                $new .= $eol;
+            }
+
+            if (@file_put_contents($path, $new) === false) {
+                return ['ok' => false, 'path' => $path];
+            }
+
+            // Verify: re-read and confirm every key is gone.
+            foreach (preg_split('/\r\n|\n/', (string) file_get_contents($path)) as $line) {
+                foreach ($keys as $key) {
+                    if (str_starts_with(trim((string) $line), $key.'=')) {
+                        return ['ok' => false, 'path' => $path];
+                    }
+                }
+            }
+
+            return ['ok' => true, 'path' => $path];
+        } catch (\Throwable $e) {
+            report($e);
+
+            return ['ok' => false, 'path' => $path];
+        }
+    }
 }

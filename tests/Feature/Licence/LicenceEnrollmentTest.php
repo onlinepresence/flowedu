@@ -384,6 +384,139 @@ class LicenceEnrollmentTest extends TestCase
         $this->assertEqualsWithDelta(1200.00 + $renewSum * 0.88, $preview['total_annual'], 0.01);
     }
 
+    /**
+     * Mint a signed demo key (ed25519) for one-way-gate tests.
+     */
+    private function mintDemoKey(string $host, string $exp): string
+    {
+        static $secret = null;
+
+        if ($secret === null) {
+            $keypair = sodium_crypto_sign_keypair();
+            $secret = sodium_crypto_sign_secretkey($keypair);
+            config(['college.demo_public_key' => base64_encode(sodium_crypto_sign_publickey($keypair))]);
+        }
+
+        $segment = rtrim(strtr(base64_encode((string) json_encode([
+            'h' => $host,
+            'exp' => $exp,
+            'iat' => now()->toDateString(),
+        ])), '+/', '-_'), '=');
+        $sig = rtrim(strtr(base64_encode(sodium_crypto_sign_detached($segment, $secret)), '+/', '-_'), '=');
+
+        return 'demo1.'.$segment.'.'.$sig;
+    }
+
+    public function test_elevation_panel_shows_only_with_existing_data(): void
+    {
+        $this->setupSchool();
+        $user = $this->owner();
+
+        // Owner alone: fresh setup, no elevation panel.
+        Livewire::actingAs($user)
+            ->test(SetupLicenceForm::class)
+            ->assertDontSee('Continue with existing data and activate')
+            ->assertDontSee('Start fresh');
+
+        // Real records present: elevation choice appears.
+        User::factory()->create(['type' => 'admin', 'username' => 'second_admin']);
+
+        Livewire::actingAs($user)
+            ->test(SetupLicenceForm::class)
+            ->assertSee('Continue with existing data and activate')
+            ->assertSee('Start fresh')
+            ->assertSee('Reinstall a fresh copy');
+    }
+
+    public function test_elevation_activates_with_backup_first_and_voids_demo_key(): void
+    {
+        $this->app->bind(
+            \App\Services\Backup\DatabaseBackupService::class,
+            \Tests\Support\FakeDatabaseBackupService::class
+        );
+        \Illuminate\Support\Facades\Storage::fake('local');
+
+        $school = $this->setupSchool();
+        $user = $this->owner();
+        User::factory()->create(['type' => 'admin', 'username' => 'second_admin']);
+
+        // A local demo key is present before elevation.
+        file_put_contents($this->envFile, "APP_NAME=Test\nDEMO_KEY=old-demo-key\nOTHER=kept\n");
+        session(['demo_key_accepted' => true]);
+
+        Http::fake(['*/api/v1/enroll' => Http::response($this->snapshot(), 200)]);
+
+        Livewire::actingAs($user)
+            ->test(SetupLicenceForm::class)
+            ->set('elevationCode', 'APEX-2026-ELEVATE')
+            ->call('activateWithExistingData')
+            ->assertHasNoErrors()
+            ->assertRedirect(route('admin.setup.faculties', absolute: false));
+
+        // Backup ran first via the Backup path.
+        $this->assertSame(1, \App\Models\Backup::query()->count());
+
+        // Licence replaced, provisional cleared.
+        $row = SchoolLicence::query()->where('school_id', $school->id)->firstOrFail();
+        $this->assertSame('dep-uuid-1234', $row->external_ref);
+        $this->assertFalse((bool) $row->provisional);
+
+        // Demo key voided locally, everything else kept.
+        $env = (string) file_get_contents($this->envFile);
+        $this->assertStringNotContainsString('DEMO_KEY', $env);
+        $this->assertStringContainsString('OTHER=kept', $env);
+        $this->assertStringContainsString('DEPLOYMENT_UUID=dep-uuid-1234', $env);
+        $this->assertFalse(session('demo_key_accepted', false));
+    }
+
+    public function test_elevation_aborts_before_touching_anything_when_backup_fails(): void
+    {
+        $this->app->instance(
+            \App\Services\Backup\DatabaseBackupService::class,
+            new class extends \App\Services\Backup\DatabaseBackupService
+            {
+                public function createBackup(?\App\Models\User $creator): array
+                {
+                    return ['ok' => false, 'message' => 'No space left on device.'];
+                }
+            }
+        );
+
+        $school = $this->setupSchool();
+        $user = $this->owner();
+        User::factory()->create(['type' => 'admin', 'username' => 'second_admin']);
+
+        Http::fake(['*/api/v1/enroll' => Http::response($this->snapshot(), 200)]);
+
+        $component = Livewire::actingAs($user)
+            ->test(SetupLicenceForm::class)
+            ->set('elevationCode', 'APEX-2026-ELEVATE')
+            ->call('activateWithExistingData');
+
+        $component->assertHasNoErrors();
+        $this->assertStringContainsString('No space left', (string) $component->get('enrollError'));
+        $this->assertNull(SchoolLicence::query()->where('school_id', $school->id)->value('external_ref'));
+    }
+
+    public function test_live_install_refuses_demo_keys_one_way(): void
+    {
+        $school = $this->setupSchool();
+        config(['controlplane.deployment_uuid' => 'dep-live-1']);
+        SchoolLicence::query()->updateOrCreate(['school_id' => $school->id], [
+            'external_ref' => 'dep-live-1',
+            'provisional' => false,
+        ]);
+
+        $key = $this->mintDemoKey('localhost', now()->addMonth()->toDateString());
+        $verifier = app(\App\Services\DemoKeyVerifier::class);
+
+        $this->assertFalse($verifier->verify($key, 'localhost'));
+
+        // Same key passes on an unlinked install.
+        config(['controlplane.deployment_uuid' => null]);
+        $this->assertTrue($verifier->verify($key, 'localhost'));
+    }
+
     public function test_ping_redeem_option_works_without_wizard(): void
     {
         $this->setupSchool();

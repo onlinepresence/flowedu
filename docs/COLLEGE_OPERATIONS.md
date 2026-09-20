@@ -49,6 +49,19 @@ code") — the offline exit is always present, so there are no dead ends.
 **Reinstall = new code**: each install consumes its own code; wiping and
 reinstalling requires a fresh one from ops.
 
+### Trial-to-live elevation (no demo mode involved)
+
+A trial that already holds real data elevates inside normal setup: when the
+licence step detects existing records (any students, or more than the single
+installing owner account), it offers **Continue with existing data and
+activate** next to guidance-only **Start fresh** (reinstall separately, then
+redeem — not implemented as an action). The primary path takes a database
+backup through the Backup path FIRST and aborts before touching anything if
+it fails; then redeems the code, replaces the licence row, clears
+provisional, and voids any local demo key (`DEMO_KEY` line removed from
+`.env`, key session forgotten). One-way enforced: linked (live) installs
+refuse demo keys outright, with a warning-level log.
+
 Linked installs (`DEPLOYMENT_UUID` set and matching the row) render the
 licence step **read-only** ("Managed by ControlDesk"); provisional installs
 keep local editing badged **PROVISIONAL**; installs with neither behave

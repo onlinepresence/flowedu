@@ -52,6 +52,25 @@ final class LicenceEnrollmentService
         return 'pending';
     }
 
+    /**
+     * Trial-with-real-data detection for the elevation screen: a school row
+     * exists plus real records beyond the installing owner account (extra
+     * users or any students).
+     */
+    public function hasExistingData(?School $school = null): bool
+    {
+        $school ??= School::current();
+        if ($school === null) {
+            return false;
+        }
+
+        if (\App\Models\Student::query()->exists()) {
+            return true;
+        }
+
+        return \App\Models\User::query()->count() > 1;
+    }
+
     public function isLinked(?School $school = null): bool
     {
         $uuid = trim((string) config('controlplane.deployment_uuid'));

@@ -53,6 +53,14 @@ final class DemoKeyVerifier
             return ['ok' => false, 'reason' => self::REASON_INVALID];
         }
 
+        // One-way street: live (linked) installs refuse demo keys outright,
+        // whatever the key looks like. Elevation never flows back to demo.
+        if ($this->isLiveInstall()) {
+            Log::warning('demo.key.refused_live', ['host' => $host]);
+
+            return ['ok' => false, 'reason' => self::REASON_INVALID];
+        }
+
         if ($this->looksLikeBareToken($candidate)) {
             Log::info('demo.key.rejected', ['reason' => self::REASON_WRONG_DOOR, 'host' => $host]);
 
@@ -145,6 +153,19 @@ final class DemoKeyVerifier
     public function verify(string $code, ?string $host = null): bool
     {
         return $this->check($code, $host)['ok'];
+    }
+
+    /**
+     * Live = linked install (deployment UUID configured and on the licence
+     * row). Demo keys are refused there unconditionally: one-way street.
+     */
+    private function isLiveInstall(): bool
+    {
+        try {
+            return app(\App\Services\ControlPlane\LicenceEnrollmentService::class)->isLinked();
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     /**
