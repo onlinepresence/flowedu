@@ -47,13 +47,13 @@ class TeacherMessagesPage extends Component
         if (!$this->isLicensed) {
             $row = $licenceService->getLicenceRow();
             $maxStudents = (int) ($row['max_active_students'] ?? 0);
-            $band = 'tier_1';
-            foreach (config('licence.student_pricing_bands', []) as $key => $b) {
-                if ($maxStudents >= $b['min'] && ($b['max'] === null || $maxStudents <= $b['max'])) {
-                    $band = $key;
-                    break;
-                }
-            }
+            $band = match (true) {
+                $maxStudents <= 500 => '1-500',
+                $maxStudents <= 1000 => '501-1000',
+                $maxStudents <= 2000 => '1001-2000',
+                $maxStudents <= 3500 => '2001-3500',
+                default => '3500+',
+            };
             $this->pricingDetails = $licenceService->modulePrice('messaging', $band);
         }
 

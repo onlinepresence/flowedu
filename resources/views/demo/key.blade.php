@@ -81,8 +81,8 @@
                     <button
                         type="submit"
                         :disabled="! valid"
-                        :class="valid ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700 cursor-not-allowed'"
-                        class="flex w-full items-center justify-center rounded-lg px-6 py-3 text-base font-bold text-white shadow-lg shadow-emerald-600/20 transition"
+                        :class="valid ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20' : 'bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-300 cursor-not-allowed'"
+                        class="flex w-full items-center justify-center rounded-lg px-6 py-3 text-base font-bold transition"
                     >
                         Continue to demo
                     </button>

@@ -66,70 +66,77 @@ class LicenceSettingsPage extends Component
         }
     }
 
+    /**
+     * Pricing preview driven by the LIVE core_pricing math (the same
+     * QuoteCalculationService the landing quotes use), so installers never
+     * see numbers disagreeing with ops.
+     */
     public function getPricingPreview(SchoolLicenceService $licenceService): array
     {
         $maxStudents = $this->max_active_students === '' ? 0 : (int) $this->max_active_students;
 
-        // Find band
-        $bandKey = 'tier_1';
-        foreach (config('licence.student_pricing_bands', []) as $key => $band) {
-            $min = $band['min'];
-            $max = $band['max'];
-            if ($maxStudents >= $min && ($max === null || $maxStudents <= $max)) {
-                $bandKey = $key;
-                break;
-            }
-        }
+        $bandKey = match (true) {
+            $maxStudents <= 500 => '1-500',
+            $maxStudents <= 1000 => '501-1000',
+            $maxStudents <= 2000 => '1001-2000',
+            $maxStudents <= 3500 => '2001-3500',
+            default => '3500+',
+        };
 
-        $multiplier = config("licence.student_pricing_bands.{$bandKey}.multiplier", 1.0);
-        $bandLabel = config("licence.student_pricing_bands.{$bandKey}.label", 'Standard');
-
-        // Core pricing
-        $coreBase = (float) config('licence.pricing.core.base_annual', 12000.00);
-        $coreSetup = (float) config('licence.pricing.core.implementation_fee', 3500.00);
-        $coreAnnual = $coreBase * $multiplier;
-
-        // Modules pricing
-        $modulesAnnual = 0.0;
-        $modulesSetup = 0.0;
-        $activeModulesCount = 0;
-        $totalModulesCount = count($this->moduleStates);
-
+        $modules = [];
         foreach ($this->moduleStates as $moduleKey => $enabled) {
-            if ($enabled) {
-                $activeModulesCount++;
-                $pricing = $licenceService->modulePrice($moduleKey, $bandKey);
-                $modulesAnnual += $pricing['annual_fee'];
-                $modulesSetup += $pricing['setup_fee'];
+            if ($enabled && isset(config('licence.modules', [])[$moduleKey])) {
+                $modules[] = $moduleKey;
             }
         }
 
-        // Discount
-        $discount = 0.0;
-        if ($activeModulesCount === $totalModulesCount && $totalModulesCount > 0) {
-            $rate = (float) config('licence.pricing.discounts.all_modules_rate', 0.20);
-            $discount = $modulesAnnual * $rate;
+        $quote = \App\Services\QuoteCalculationService::calculate([
+            'student_band' => $bandKey,
+            'modules' => $modules,
+            'hosting_setup' => 'none',
+            'config_setup' => '0',
+            'migration' => '0',
+            'admin_training' => 0,
+            'teacher_training' => 0,
+            'onsite_training' => 0,
+            'founding_client' => '0',
+            'send_client_receipt' => '0',
+        ]);
+
+        if (! empty($quote['is_custom'])) {
+            return [
+                'band_label' => $quote['band_label'] ?? '3,500+ Students',
+                'multiplier' => 0.0,
+                'core_annual' => 0.0,
+                'core_setup' => 0.0,
+                'modules_annual' => 0.0,
+                'modules_setup' => 0.0,
+                'discount' => 0.0,
+                'hosting' => 0.0,
+                'total_annual' => 0.0,
+                'total_setup' => 0.0,
+                'grand_total' => 0.0,
+                'active_modules_count' => count($modules),
+                'total_modules_count' => count(config('licence.modules', [])),
+                'is_custom' => true,
+            ];
         }
-
-        $hosting = (float) config('licence.pricing.hosting.annual_fee', 1500.00);
-
-        $totalAnnual = $coreAnnual + $modulesAnnual - $discount + $hosting;
-        $totalSetup = $coreSetup + $modulesSetup;
 
         return [
-            'band_label' => $bandLabel,
-            'multiplier' => $multiplier,
-            'core_annual' => $coreAnnual,
-            'core_setup' => $coreSetup,
-            'modules_annual' => $modulesAnnual,
-            'modules_setup' => $modulesSetup,
-            'discount' => $discount,
-            'hosting' => $hosting,
-            'total_annual' => $totalAnnual,
-            'total_setup' => $totalSetup,
-            'grand_total' => $totalAnnual + $totalSetup,
-            'active_modules_count' => $activeModulesCount,
-            'total_modules_count' => $totalModulesCount,
+            'band_label' => $quote['band_label'] ?? '',
+            'multiplier' => (float) ($quote['multiplier'] ?? 1.0),
+            'core_annual' => (float) ($quote['core_renewal_final'] ?? 0.0),
+            'core_setup' => (float) ($quote['core_upfront_final'] ?? 0.0),
+            'modules_annual' => (float) ($quote['modules_renew_final'] ?? 0.0),
+            'modules_setup' => (float) ($quote['modules_onetime_final'] ?? 0.0),
+            'discount' => (float) ($quote['bundle_discount_renew'] ?? 0.0),
+            'hosting' => (float) ($quote['hosting_setup_fee'] ?? 0.0),
+            'total_annual' => (float) ($quote['renew_total'] ?? 0.0),
+            'total_setup' => (float) ($quote['upfront_total'] ?? 0.0),
+            'grand_total' => (float) ($quote['renew_total'] ?? 0.0) + (float) ($quote['upfront_total'] ?? 0.0),
+            'active_modules_count' => count($modules),
+            'total_modules_count' => count(config('licence.modules', [])),
+            'is_custom' => false,
         ];
     }
 

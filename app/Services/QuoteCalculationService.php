@@ -22,7 +22,7 @@ class QuoteCalculationService
             return [
                 'is_custom' => true,
                 'band_label' => '3,500+ Students',
-                'currency' => config('licence.pricing.currency', 'GHS'),
+                'currency' => config('licence.currency', 'GHS'),
             ];
         }
 
@@ -193,7 +193,7 @@ class QuoteCalculationService
             // Totals
             'upfront_total' => $upfrontTotal,
             'renew_total' => $renewTotal,
-            'currency' => config('licence.pricing.currency', 'GHS'),
+            'currency' => config('licence.currency', 'GHS'),
         ];
     }
 }

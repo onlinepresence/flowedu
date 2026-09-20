@@ -209,7 +209,7 @@
                             <div class="mt-2 border-t border-gray-200/50 pt-2 flex items-center justify-between text-xs text-gray-400 dark:border-gray-700/50">
                                 <span>{{ __('Base annual price') }}</span>
                                 <span class="font-semibold font-mono text-gray-700 dark:text-gray-300">
-                                    {{ number_format((float)$feat['base_price'], 2) }} {{ config('licence.pricing.currency', 'GHS') }}
+                                    {{ number_format((float)$feat['base_price'], 2) }} {{ config('licence.currency', 'GHS') }}
                                 </span>
                             </div>
                         </div>
@@ -279,40 +279,40 @@
                     <div class="flex justify-between">
                         <span>{{ __('Core Annual Fee') }}:</span>
                         <span class="font-mono text-purple-900 dark:text-purple-200">
-                            {{ number_format((float)$pricingPreview['core_annual'], 2) }} {{ config('licence.pricing.currency', 'GHS') }}
+                            {{ number_format((float)$pricingPreview['core_annual'], 2) }} {{ config('licence.currency', 'GHS') }}
                         </span>
                     </div>
                     <div class="flex justify-between">
                         <span>{{ __('Modules Annual (x:count)', ['count' => $pricingPreview['active_modules_count']]) }}:</span>
                         <span class="font-mono text-purple-900 dark:text-purple-200">
-                            {{ number_format((float)$pricingPreview['modules_annual'], 2) }} {{ config('licence.pricing.currency', 'GHS') }}
+                            {{ number_format((float)$pricingPreview['modules_annual'], 2) }} {{ config('licence.currency', 'GHS') }}
                         </span>
                     </div>
                     @if($pricingPreview['discount'] > 0)
                         <div class="flex justify-between text-green-600 dark:text-green-400 font-semibold">
                             <span>{{ __('Bundle Discount (:pct%)', ['pct' => rtrim(rtrim(number_format($bundleRate * 100, 2), '0'), '.')]) }}:</span>
                             <span class="font-mono">
-                                -{{ number_format((float)$pricingPreview['discount'], 2) }} {{ config('licence.pricing.currency', 'GHS') }}
+                                -{{ number_format((float)$pricingPreview['discount'], 2) }} {{ config('licence.currency', 'GHS') }}
                             </span>
                         </div>
                     @endif
                     <div class="flex justify-between">
                         <span>{{ __('Hosting Fee (Annual)') }}:</span>
                         <span class="font-mono text-purple-900 dark:text-purple-200">
-                            {{ number_format((float)$pricingPreview['hosting'], 2) }} {{ config('licence.pricing.currency', 'GHS') }}
+                            {{ number_format((float)$pricingPreview['hosting'], 2) }} {{ config('licence.currency', 'GHS') }}
                         </span>
                     </div>
                     <div class="border-t border-purple-200/50 my-2 dark:border-purple-800/50"></div>
                     <div class="flex justify-between font-bold text-sm text-purple-950 dark:text-purple-200">
                         <span>{{ __('Total Annual recurring') }}:</span>
                         <span class="font-mono">
-                            {{ number_format((float)$pricingPreview['total_annual'], 2) }} {{ config('licence.pricing.currency', 'GHS') }}
+                            {{ number_format((float)$pricingPreview['total_annual'], 2) }} {{ config('licence.currency', 'GHS') }}
                         </span>
                     </div>
                     <div class="flex justify-between text-purple-800/80 dark:text-purple-400/80">
                         <span>{{ __('Total Setup & onboarding') }}:</span>
                         <span class="font-mono">
-                            {{ number_format((float)$pricingPreview['total_setup'], 2) }} {{ config('licence.pricing.currency', 'GHS') }}
+                            {{ number_format((float)$pricingPreview['total_setup'], 2) }} {{ config('licence.currency', 'GHS') }}
                         </span>
                     </div>
                 </div>

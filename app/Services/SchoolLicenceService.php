@@ -136,18 +136,22 @@ class SchoolLicenceService
         return (int) $m;
     }
 
-    public function modulePrice(string $moduleKey, string $band = 'tier_1'): array
+    /**
+     * Live per-module pricing, mirroring QuoteCalculationService: one-time =
+     * base_price x band multiplier, renewal = renewal_base x multiplier.
+     * Bands are '1-500' style (core_pricing); unknown bands fall back to 1.0.
+     */
+    public function modulePrice(string $moduleKey, string $band = '1-500'): array
     {
-        $multiplier = config("licence.student_pricing_bands.{$band}.multiplier", 1.0);
-        $basePrice = config("licence.modules.{$moduleKey}.base_price", 3000.00);
-        $annualFee = $basePrice * $multiplier;
-        $setupFee = 500.00 * $multiplier;
+        $multiplier = (float) (config('licence.module_pricing.multipliers', [])[$band] ?? 1.0);
+        $basePrice = (float) (config("licence.modules.{$moduleKey}.base_price", 0.0));
+        $renewalBase = (float) (config("licence.modules.{$moduleKey}.renewal_base", 0.0));
 
         return [
-            'annual_fee' => $annualFee,
-            'setup_fee' => $setupFee,
+            'annual_fee' => $renewalBase * $multiplier,
+            'setup_fee' => $basePrice * $multiplier,
             'multiplier' => $multiplier,
-            'band_label' => config("licence.student_pricing_bands.{$band}.label", 'Standard'),
+            'band_label' => config('licence.core_pricing.'.$band.'.label', 'Standard'),
         ];
     }
 

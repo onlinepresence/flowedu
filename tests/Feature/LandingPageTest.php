@@ -243,7 +243,23 @@ class LandingPageTest extends TestCase
             'challenges.cloudflare.com/*' => \Illuminate\Support\Facades\Http::response(['success' => false], 200),
         ]);
 
-        $this->postJson(route('quote-request'), ['cf-turnstile-response' => 'bogus'])
+        $this->postJson(route('quote-request'), [
+            'college_name' => 'Accra College of Education',
+            'name' => 'Ebenezer Boateng',
+            'role' => 'Registrar',
+            'phone' => '0249100268',
+            'email' => 'ebenezer@accra.edu.gh',
+            'student_band' => '1-500',
+            'hosting_setup' => 'self_hosted',
+            'config_setup' => '0',
+            'migration' => '0',
+            'admin_training' => 0,
+            'teacher_training' => 0,
+            'onsite_training' => 0,
+            'founding_client' => '0',
+            'send_client_receipt' => '0',
+            'cf-turnstile-response' => 'bogus',
+        ])
             ->assertStatus(422)
             ->assertJsonPath('errors.cf-turnstile-response.0', 'Spam check failed. Please confirm you are human and try again.');
     }

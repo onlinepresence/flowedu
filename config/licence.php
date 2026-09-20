@@ -33,8 +33,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Pricing Configuration
+    | Display currency (live)
     |--------------------------------------------------------------------------
+    */
+    'currency' => 'GHS',
+
+    /*
+    |--------------------------------------------------------------------------
+    | DEPRECATED Pricing Configuration — do not read; use core_pricing
+    |--------------------------------------------------------------------------
+    |
+    | The `pricing` (core/hosting/modules/discounts) and
+    | `student_pricing_bands` sections below are stale superseded by
+    | `core_pricing` + `module_pricing` (the QuoteCalculationService math
+    | ops actually quotes from). Keys are kept (read-only) so any forgotten
+    | reader keeps working; removal is a later cleanup. `currency` moved to
+    | the live `licence.currency` key above.
+    |
     */
     'pricing' => [
         'currency' => 'GHS',
@@ -55,8 +70,13 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Student Band Multipliers
+    | DEPRECATED Student Band Multipliers — do not read; use core_pricing
     |--------------------------------------------------------------------------
+    |
+    | Superseded by `core_pricing` bands ('1-500' style) + `module_pricing`
+    | multipliers. Kept (read-only) so any forgotten reader keeps working;
+    | removal is a later cleanup.
+    |
     */
     'student_pricing_bands' => [
         'tier_1' => [
