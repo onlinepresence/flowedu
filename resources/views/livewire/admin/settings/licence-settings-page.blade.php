@@ -1,37 +1,20 @@
 <div class="mx-auto max-w-5xl space-y-6">
-    <!-- Header title -->
+    <!-- Header title (redundant in linked mode: the layout title above already says it) -->
+    @unless($isLinked)
     <div class="flex items-center justify-between border-b border-gray-200 pb-4 dark:border-gray-700">
         <div>
             <h1 class="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{{ __('Licence & Subscription Settings') }}</h1>
             <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('Manage Core features and modular extensions for this installation.') }}</p>
         </div>
     </div>
+    @endunless
 
     @if($isLinked)
-        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-6 dark:border-emerald-900/50 dark:bg-emerald-950/20">
-            <h2 class="flex items-center gap-2 text-base font-bold text-emerald-900 dark:text-emerald-200">
-                <i class="fa-solid fa-circle-check"></i>
-                {{ __('Managed by ControlDesk') }}
-            </h2>
-            <p class="mt-2 text-sm text-emerald-800 dark:text-emerald-300">
-                {{ __('This install is enrolled (ref: :ref). Licence terms come from the control plane and cannot be changed here.', ['ref' => $external_ref]) }}
-            </p>
-            <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-3">
-                <div>
-                    <dt class="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">{{ __('Max students') }}</dt>
-                    <dd class="font-bold text-emerald-950 dark:text-emerald-100">{{ $max_active_students !== '' ? $max_active_students : __('No limit') }}</dd>
-                </div>
-                <div>
-                    <dt class="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">{{ __('Licence start') }}</dt>
-                    <dd class="font-bold text-emerald-950 dark:text-emerald-100">{{ $licence_start ?? '—' }}</dd>
-                </div>
-                <div>
-                    <dt class="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">{{ __('Support until') }}</dt>
-                    <dd class="font-bold text-emerald-950 dark:text-emerald-100">{{ $support_until ?? '—' }}</dd>
-                </div>
-            </dl>
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-100">
+            <i class="fa-solid fa-circle-check mr-2"></i>{{ __('Managed by ControlDesk (ref: :ref). Values below come from the control plane and are frozen.', ['ref' => $external_ref]) }}
         </div>
-    @else
+    @endif
+    @php($locked = $isLinked)
     @if($isProvisional)
         <p>
             <span class="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">{{ __('PROVISIONAL LICENCE') }}</span>
@@ -74,8 +57,8 @@
                                     </div>
                                 @else
                                     <!-- Toggle Switch -->
-                                    <label class="relative inline-flex cursor-pointer items-center">
-                                        <input type="checkbox" wire:model.live="coreStates.{{ $key }}" class="peer sr-only">
+                                    <label class="relative inline-flex {{ $locked ?? false ? 'cursor-not-allowed' : 'cursor-pointer' }} items-center">
+                                        <input type="checkbox" wire:model.live="coreStates.{{ $key }}" class="peer sr-only" @disabled($locked ?? false)>
                                         <div class="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-purple-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none dark:bg-gray-700"></div>
                                     </label>
                                 @endif
@@ -97,8 +80,8 @@
                             <div class="mb-3 space-y-1">
                                 <div class="flex items-center justify-between">
                                     <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ __($feat['label']) }}</span>
-                                    <label class="relative inline-flex cursor-pointer items-center">
-                                        <input type="checkbox" wire:model.live="moduleStates.{{ $key }}" class="peer sr-only">
+                                    <label class="relative inline-flex {{ $locked ?? false ? 'cursor-not-allowed' : 'cursor-pointer' }} items-center">
+                                        <input type="checkbox" wire:model.live="moduleStates.{{ $key }}" class="peer sr-only" @disabled($locked ?? false)>
                                         <div class="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-purple-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none dark:bg-gray-700"></div>
                                     </label>
                                 </div>
@@ -124,12 +107,12 @@
                 <div class="grid gap-6 sm:grid-cols-2">
                     <div>
                         <label for="licence-start" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">{{ __('Licence start date') }}</label>
-                        <input wire:model="licence_start" id="licence-start" type="date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white text-sm" />
+                        <input wire:model="licence_start" id="licence-start" type="date" @disabled($locked ?? false) class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white text-sm disabled:opacity-70" />
                         @error('licence_start') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label for="support-until" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">{{ __('Support expiration date') }}</label>
-                        <input wire:model="support_until" id="support-until" type="date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white text-sm" />
+                        <input wire:model="support_until" id="support-until" type="date" @disabled($locked ?? false) class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white text-sm disabled:opacity-70" />
                         @error('support_until') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
                 </div>
@@ -147,12 +130,12 @@
                 <div class="space-y-4">
                     <div>
                         <label for="max-students" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">{{ __('Max Active Students') }}</label>
-                        <input wire:model.live="max_active_students" id="max-students" type="number" min="0" placeholder="{{ __('No limit') }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white text-sm" />
+                        <input wire:model.live="max_active_students" id="max-students" type="number" min="0" placeholder="{{ __('No limit') }}" @disabled($locked ?? false) class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white text-sm disabled:opacity-70" />
                         @error('max_active_students') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label for="external-ref" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">{{ __('Reference / Invoice ID') }}</label>
-                        <input wire:model="external_ref" id="external-ref" type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white text-sm" />
+                        <input wire:model="external_ref" id="external-ref" type="text" @disabled($locked ?? false) class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white text-sm disabled:opacity-70" />
                         @error('external_ref') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
                 </div>
@@ -216,9 +199,13 @@
                 </div>
 
                 <div class="mt-6 border-t border-purple-200/60 pt-4 dark:border-purple-800/60">
-                    <x-college-form-submit target="save" class="w-full justify-center">
-                        {{ __('Save licensing') }}
-                    </x-college-form-submit>
+                    @if($locked ?? false)
+                        <p class="text-center text-xs text-gray-500 dark:text-gray-400">{{ __('Frozen by ControlDesk — no changes can be saved.') }}</p>
+                    @else
+                        <x-college-form-submit target="save" class="w-full justify-center">
+                            {{ __('Save licensing') }}
+                        </x-college-form-submit>
+                    @endif
                     <a href="{{ route('admin.dashboard') }}" wire:navigate class="mt-2 inline-flex w-full justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
                         {{ __('Cancel') }}
                     </a>
@@ -226,6 +213,5 @@
             </div>
         </div>
     </form>
-    @endif
 
 </div>

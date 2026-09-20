@@ -260,13 +260,6 @@ class LicenceEnrollmentTest extends TestCase
         $this->assertStringContainsString('expired', (string) $expiredCall->get('enrollError'));
     }
 
-    private function getLastEnrollError(User $user): ?string
-    {
-        $component = Livewire::actingAs($user)->test(SetupLicenceForm::class);
-
-        return $component->get('enrollError') ?: null;
-    }
-
     public function test_linked_install_renders_read_only_and_blocks_save(): void
     {
         $school = $this->setupSchool();
@@ -276,13 +269,20 @@ class LicenceEnrollmentTest extends TestCase
             'external_ref' => 'dep-linked-1',
             'provisional' => false,
             'max_active_students' => 100,
+            'module_finance' => true,
         ]);
         putenv('DEPLOYMENT_UUID=dep-linked-1');
 
+        // Old form design restored: full catalog with server values,
+        // every input frozen (disabled).
         Livewire::actingAs($user)
             ->test(\App\Livewire\Admin\Settings\LicenceSettingsPage::class)
             ->assertSee('Managed by ControlDesk')
-            ->assertDontSee('Save licensing');
+            ->assertDontSee('Save licensing')
+            ->assertSee('Core Academic System')
+            ->assertSee('Modular Extensions')
+            ->assertSee('Financial Portal')
+            ->assertSee('disabled');
 
         Livewire::actingAs($user)
             ->test(\App\Livewire\Admin\Settings\LicenceSettingsPage::class)
@@ -291,7 +291,11 @@ class LicenceEnrollmentTest extends TestCase
 
         Livewire::actingAs($user)
             ->test(SetupLicenceForm::class)
-            ->assertSee('Managed by ControlDesk');
+            ->assertSee('Managed by ControlDesk')
+            ->assertSee('Core Academic System')
+            ->assertSee('Financial Portal')
+            ->assertSee('disabled')
+            ->assertDontSee('Continue to faculties');
     }
 
     public function test_env_write_failure_shows_manual_lines(): void
