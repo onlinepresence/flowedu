@@ -335,9 +335,14 @@ final class DemoKeyVerifier
             return null;
         }
 
-        $decoded = base64_decode($raw, true);
+        // ControlDesk prints hex; accept it verbatim. Legacy base64 still works.
+        if (strlen($raw) === 2 * SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES && ctype_xdigit($raw)) {
+            $decoded = hex2bin($raw);
+        } else {
+            $decoded = base64_decode($raw, true);
+        }
 
-        return $decoded !== false && strlen($decoded) === SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES
+        return is_string($decoded) && strlen($decoded) === SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES
             ? $decoded
             : null;
     }
