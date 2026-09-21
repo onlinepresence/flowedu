@@ -31,8 +31,10 @@ return [
     | Demo key (hosted instance bypass)
     |--------------------------------------------------------------------------
     |
-    | When non-empty, requests bypass the demo key-entry screen entirely.
-    | Otherwise visitors must enter a key once per session (see DemoKeyVerifier).
+    | When set to a decodable value (opaque encoded single token written by
+    | the key screen, or legacy plaintext), requests bypass the key-entry
+    | screen and hydrate the session flag. Otherwise visitors must enter a
+    | key once per session (see DemoKeyVerifier).
     |
     */
     'demo_key' => env('DEMO_KEY'),

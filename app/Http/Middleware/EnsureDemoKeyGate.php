@@ -17,7 +17,10 @@ final class EnsureDemoKeyGate
      * Single-connection demo key gate.
      *
      * - Production (APP_DEMO unset/false): pass through untouched.
-     * - Demo with DEMO_KEY env set: bypass entirely (hosted instance lives here).
+     * - Demo with a decodable DEMO_KEY env value (opaque encoded single
+     *   token, or legacy plaintext): bypass and hydrate the session flag so
+     *   the pass lasts with the browser session. Corrupt encoded values do
+     *   not bypass — the key screen returns instead.
      * - Demo without env key: require session('demo_key_accepted') from a prior
      *   key entry; otherwise render the branded key-entry screen (403-style)
      *   and render nothing else.
@@ -32,8 +35,11 @@ final class EnsureDemoKeyGate
         // (AppServiceProvider also forces at boot for non-request contexts).
         config(['mail.default' => 'log']);
 
-        $envKey = (string) (config('college.demo_key') ?? '');
-        if (trim($envKey) !== '') {
+        if (DemoKeyVerifier::hasStoredKey(config('college.demo_key'))) {
+            if ($request->hasSession() && $request->session()->get('demo_key_accepted', false) !== true) {
+                $request->session()->put('demo_key_accepted', true);
+            }
+
             return $next($request);
         }
 

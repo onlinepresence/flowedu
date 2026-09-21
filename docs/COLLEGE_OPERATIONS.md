@@ -177,7 +177,16 @@ check). [`routes/console.php`](../routes/console.php) registers it
 (`demo-refresh-monthly`, monthly on the 1st at 03:00) ONLY when `APP_DEMO` is true —
 never unconditionally. There is no public HTTP reset.
 
-Key rotation = issue new signed keys (old ones lapse at their `exp`); change
+On success the entry persists before redirect: the plain value (document-JSON
+input → compact canonical document string; bare-code input verified online →
+the code itself) is encoded to a single opaque `DEMO_KEY` token in `.env`
+(via `EnvWriter`, verified write) so the stored value is not guessable, and the
+verified document is cached (`demo.cached_key_document` for offline rechecks).
+Each hit with a decodable env value hydrates the session flag, so the pass
+rides the browser session. Precedence: env bypass first, then session, then
+cached document. A failed `.env` write never blocks a valid key — session-only
+pass plus a one-time warning. Heartbeat/wrong-door tokens are never persisted.
+Key rotation = change the `DEMO_KEY` value (old keys lapse at their `exp`); change
 `DEMO_KEY` to rotate the hosted bypass.
 
 ## Queue workers

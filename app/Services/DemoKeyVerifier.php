@@ -56,10 +56,18 @@ final class DemoKeyVerifier
 
     public const CACHE_KEY = 'demo.cached_key_document';
 
+    public const ENV_PREFIX_ENC = 'enc:';
+
+    public const ENV_PREFIX_B64 = 'b64:';
+
     /**
      * Check either input shape.
      *
-     * @return array{ok: bool, reason: string}
+     * On success the verified document is returned in hand when one exists
+     * (pasted input, fresh online response, or offline cache fallback) so
+     * callers can persist durability layers without re-parsing.
+     *
+     * @return array{ok: bool, reason: string, document: ?array}
      */
     public function check(string $code, ?string $host = null): array
     {
@@ -68,7 +76,7 @@ final class DemoKeyVerifier
         if ($candidate === '') {
             Log::info('demo.key.rejected', ['reason' => self::REASON_INVALID]);
 
-            return ['ok' => false, 'reason' => self::REASON_INVALID];
+            return ['ok' => false, 'reason' => self::REASON_INVALID, 'document' => null];
         }
 
         // One-way street: live (linked) installs refuse demo keys outright,
@@ -76,7 +84,7 @@ final class DemoKeyVerifier
         if ($this->isLiveInstall()) {
             Log::warning('demo.key.refused_live', ['host' => $host]);
 
-            return ['ok' => false, 'reason' => self::REASON_INVALID];
+            return ['ok' => false, 'reason' => self::REASON_INVALID, 'document' => null];
         }
 
         $document = $this->parseDocument($candidate);
@@ -87,7 +95,7 @@ final class DemoKeyVerifier
         if ($this->looksLikeBareToken($candidate)) {
             Log::info('demo.key.rejected', ['reason' => self::REASON_WRONG_DOOR, 'host' => $host]);
 
-            return ['ok' => false, 'reason' => self::REASON_WRONG_DOOR];
+            return ['ok' => false, 'reason' => self::REASON_WRONG_DOOR, 'document' => null];
         }
 
         return $this->checkBareCode($candidate, $host);
@@ -105,7 +113,7 @@ final class DemoKeyVerifier
      * Verify an already-parsed document offline. Shared by pasted input,
      * freshly fetched documents, and the offline cache fallback.
      *
-     * @return array{ok: bool, reason: string}
+     * @return array{ok: bool, reason: string, document: ?array}
      */
     public function checkDocument(array $document, ?string $host = null, bool $fromCache = false): array
     {
@@ -116,21 +124,21 @@ final class DemoKeyVerifier
         if (! is_array($payload) || ! is_string($signatureHex) || $signatureHex === '' || $algorithm !== 'ed25519') {
             Log::info('demo.key.rejected', ['reason' => self::REASON_INVALID, 'host' => $host]);
 
-            return ['ok' => false, 'reason' => self::REASON_INVALID];
+            return ['ok' => false, 'reason' => self::REASON_INVALID, 'document' => null];
         }
 
         $key = $this->publicKey();
         if ($key === null) {
             Log::warning('demo.key.unconfigured', ['host' => $host]);
 
-            return ['ok' => false, 'reason' => self::REASON_UNCONFIGURED];
+            return ['ok' => false, 'reason' => self::REASON_UNCONFIGURED, 'document' => null];
         }
 
         $signature = $this->hexDecode($signatureHex);
         if ($signature === null) {
             Log::info('demo.key.rejected', ['reason' => self::REASON_INVALID, 'host' => $host]);
 
-            return ['ok' => false, 'reason' => self::REASON_INVALID];
+            return ['ok' => false, 'reason' => self::REASON_INVALID, 'document' => null];
         }
 
         try {
@@ -142,7 +150,7 @@ final class DemoKeyVerifier
         if ($valid !== true) {
             Log::warning('demo.key.tamper_suspect', ['host' => $host]);
 
-            return ['ok' => false, 'reason' => self::REASON_INVALID];
+            return ['ok' => false, 'reason' => self::REASON_INVALID, 'document' => null];
         }
 
         $today = now()->toDateString();
@@ -153,7 +161,7 @@ final class DemoKeyVerifier
         if (! $neverExpires && (! is_string($exp) || $exp === '' || $exp < $today)) {
             Log::info('demo.key.rejected', ['reason' => self::REASON_EXPIRED, 'host' => $host]);
 
-            return ['ok' => false, 'reason' => self::REASON_EXPIRED];
+            return ['ok' => false, 'reason' => self::REASON_EXPIRED, 'document' => null];
         }
 
         // Issued-in-the-future beyond a day of leeway: either the server
@@ -162,7 +170,7 @@ final class DemoKeyVerifier
         if (is_string($iat) && $iat !== '' && $iat > now()->addDay()->toDateString()) {
             Log::warning('demo.key.clock_suspect', ['host' => $host, 'issued_at' => $iat]);
 
-            return ['ok' => false, 'reason' => self::REASON_CLOCK_SKEW];
+            return ['ok' => false, 'reason' => self::REASON_CLOCK_SKEW, 'document' => null];
         }
 
         // Host binding enforced only when present on both sides.
@@ -173,7 +181,7 @@ final class DemoKeyVerifier
             if (! in_array(strtolower($host), $bound, true)) {
                 Log::info('demo.key.rejected', ['reason' => self::REASON_HOST_MISMATCH, 'host' => $host]);
 
-                return ['ok' => false, 'reason' => self::REASON_HOST_MISMATCH];
+                return ['ok' => false, 'reason' => self::REASON_HOST_MISMATCH, 'document' => null];
             }
         }
 
@@ -183,7 +191,7 @@ final class DemoKeyVerifier
             Log::info('demo.key.accepted', ['host' => $host, 'exp' => $exp, 'from_cache' => $fromCache]);
         }
 
-        return ['ok' => true, 'reason' => self::REASON_OK];
+        return ['ok' => true, 'reason' => self::REASON_OK, 'document' => $document];
     }
 
     /**
@@ -191,7 +199,7 @@ final class DemoKeyVerifier
      * failure falls back to the locally cached document; no cache means
      * the key screen, as always.
      *
-     * @return array{ok: bool, reason: string}
+     * @return array{ok: bool, reason: string, document: ?array}
      */
     public function checkBareCode(string $code, ?string $host = null): array
     {
@@ -199,7 +207,7 @@ final class DemoKeyVerifier
         if ($url === '') {
             Log::info('demo.key.rejected', ['reason' => self::REASON_INVALID, 'host' => $host, 'offline' => true]);
 
-            return ['ok' => false, 'reason' => self::REASON_INVALID];
+            return ['ok' => false, 'reason' => self::REASON_INVALID, 'document' => null];
         }
 
         try {
@@ -220,19 +228,19 @@ final class DemoKeyVerifier
         if (! $response->successful()) {
             $error = (string) $response->json('error', '');
             if ($error === 'expired') {
-                return ['ok' => false, 'reason' => self::REASON_EXPIRED];
+                return ['ok' => false, 'reason' => self::REASON_EXPIRED, 'document' => null];
             }
 
             Log::info('demo.key.rejected', ['reason' => self::REASON_INVALID, 'host' => $host]);
 
-            return ['ok' => false, 'reason' => self::REASON_INVALID];
+            return ['ok' => false, 'reason' => self::REASON_INVALID, 'document' => null];
         }
 
         $document = $response->json();
         if (! is_array($document) || ! isset($document['payload']) || ! is_array($document['payload'])) {
             Log::info('demo.key.rejected', ['reason' => self::REASON_INVALID, 'host' => $host]);
 
-            return ['ok' => false, 'reason' => self::REASON_INVALID];
+            return ['ok' => false, 'reason' => self::REASON_INVALID, 'document' => null];
         }
 
         $this->cacheDocument($document);
@@ -244,7 +252,7 @@ final class DemoKeyVerifier
      * Offline fallback: verify whatever document was cached from the last
      * good online check. No cache = the key screen stays.
      *
-     * @return array{ok: bool, reason: string}
+     * @return array{ok: bool, reason: string, document: ?array}
      */
     public function checkCachedDocument(?string $host = null): array
     {
@@ -252,10 +260,72 @@ final class DemoKeyVerifier
         if ($cached === null) {
             Log::info('demo.key.rejected', ['reason' => self::REASON_INVALID, 'host' => $host, 'offline' => true]);
 
-            return ['ok' => false, 'reason' => self::REASON_INVALID];
+            return ['ok' => false, 'reason' => self::REASON_INVALID, 'document' => null];
         }
 
         return $this->checkDocument($cached, $host, true);
+    }
+
+    /**
+     * Encode a verified plain value (canonical document or bare code) as a
+     * single opaque .env-safe token. Encrypted via the app key so the stored
+     * value is not guessable; falls back to base64 only if encryption is
+     * unavailable. Prefixes keep legacy plaintext readable.
+     */
+    public static function encodeForEnv(string $plain): string
+    {
+        $plain = trim($plain);
+
+        try {
+            return self::ENV_PREFIX_ENC.encrypt($plain);
+        } catch (\Throwable $e) {
+            return self::ENV_PREFIX_B64.base64_encode($plain);
+        }
+    }
+
+    /**
+     * Decode a stored DEMO_KEY value back to its plain form. Legacy
+     * plaintext (no prefix) passes through; corrupt prefixed values yield
+     * null so callers fall back to the key screen instead of bypassing.
+     */
+    public static function decodeStoredKey(?string $stored): ?string
+    {
+        $candidate = trim((string) $stored);
+        if ($candidate === '') {
+            return null;
+        }
+
+        if (str_starts_with($candidate, self::ENV_PREFIX_ENC)) {
+            try {
+                $plain = decrypt(substr($candidate, strlen(self::ENV_PREFIX_ENC)));
+            } catch (\Throwable $e) {
+                return null;
+            }
+            $plain = trim((string) $plain);
+
+            return $plain === '' ? null : $plain;
+        }
+
+        if (str_starts_with($candidate, self::ENV_PREFIX_B64)) {
+            $decoded = base64_decode(substr($candidate, strlen(self::ENV_PREFIX_B64)), true);
+            if (! is_string($decoded)) {
+                return null;
+            }
+            $decoded = trim($decoded);
+
+            return $decoded === '' ? null : $decoded;
+        }
+
+        return $candidate;
+    }
+
+    /**
+     * Whether a stored DEMO_KEY value counts as present (decodable and
+     * non-empty). Corrupt encoded values do not count.
+     */
+    public static function hasStoredKey(?string $stored): bool
+    {
+        return self::decodeStoredKey($stored) !== null;
     }
 
     /**
@@ -347,7 +417,11 @@ final class DemoKeyVerifier
             : null;
     }
 
-    private function cacheDocument(array $document): void
+    /**
+     * Persist the last verified document for offline rechecks
+     * (Setting demo.cached_key_document). Idempotent; never throws.
+     */
+    public function cacheDocument(array $document): void
     {
         try {
             Setting::query()->updateOrCreate(

@@ -88,13 +88,14 @@ if (app()->environment('testing', 'local')) {
 
 require __DIR__.'/auth.php';
 
-// Single-connection demo key gate (session only; DEMO_KEY env bypasses entirely).
+// Single-connection demo key gate (session immediate pass; opaque encoded DEMO_KEY
+// env value bypasses + hydrates session; verified document cached for offline rechecks).
 Route::get('/demo/key', function () {
     if (! (bool) config('college.demo_mode', false)) {
         abort(404);
     }
 
-    if (trim((string) (config('college.demo_key') ?? '')) !== '') {
+    if (\App\Services\DemoKeyVerifier::hasStoredKey(config('college.demo_key'))) {
         return redirect()->route('login');
     }
 
@@ -109,9 +110,68 @@ Route::post('/demo/key', function (\Illuminate\Http\Request $request, \App\Servi
     $code = (string) $request->input('code', '');
     $check = $verifier->check($code, $request->getHost());
 
-    if ($check['ok']) {
+    if (($check['ok'] ?? false) === true) {
+        // Belt-and-braces: wrong-door tokens never reach any write path,
+        // even though the verifier already fails them (ok === false).
+        if (($check['reason'] ?? null) === \App\Services\DemoKeyVerifier::REASON_WRONG_DOOR) {
+            return redirect()->route('demo.key.show')->with(
+                'demo_key_error',
+                __('That looks like a ControlDesk heartbeat token — those belong in .env as CONTROL_PLANE_TOKEN, not here. Use your demo key instead.')
+            );
+        }
+
         $request->session()->put('demo_key_accepted', true);
         $request->session()->forget('demo_key_error');
+
+        $trimmed = trim($code);
+        /** @var array|null $document */
+        $document = $check['document'] ?? null;
+        $isDocumentInput = $trimmed !== '' && str_starts_with($trimmed, '{') && is_array($document);
+
+        // Durability layer (2): cache the verified document so offline
+        // rechecks survive restarts. Fresh online fetches already cached
+        // inside the verifier; re-caching here is idempotent.
+        if (is_array($document)) {
+            try {
+                $verifier->cacheDocument($document);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        // Durability layer (1): persist DEMO_KEY for env bypass on reboot.
+        // Plain value first (document JSON -> compact canonical document
+        // string; bare code verified online -> the code itself), then encoded
+        // to a single opaque .env-safe token so the stored value is not
+        // guessable. Re-verifies online on boot; offline falls back to the
+        // cached document above.
+        $persistValue = $isDocumentInput
+            ? \App\Services\DemoKeyVerifier::canonicalJson($document)
+            : $trimmed;
+
+        if ($persistValue !== '') {
+            $storedValue = \App\Services\DemoKeyVerifier::encodeForEnv($persistValue);
+
+            try {
+                $written = \App\Support\EnvWriter::write(['DEMO_KEY' => $storedValue]);
+            } catch (\Throwable $e) {
+                report($e);
+                $written = ['ok' => false, 'path' => (string) config('controlplane.env_path', base_path('.env'))];
+            }
+
+            if (! ($written['ok'] ?? false)) {
+                \Illuminate\Support\Facades\Log::warning('demo.key.persist-failed', [
+                    'path' => $written['path'] ?? null,
+                ]);
+
+                return redirect()->intended(route('login'))->with(
+                    'demo_key_warning',
+                    __('key accepted for this session only — could not persist; rotation/reboot will ask again')
+                );
+            }
+
+            config(['college.demo_key' => $storedValue]);
+        }
 
         return redirect()->intended(route('login'));
     }

@@ -12,6 +12,25 @@ class DemoSingleConnectionTest extends TestCase
     use CreatesTestSchool;
     use RefreshDatabase;
 
+    private string $envFile;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Never touch the real .env: EnvWriter honours this override.
+        $this->envFile = tempnam(sys_get_temp_dir(), 'demo-env-');
+        file_put_contents($this->envFile, "APP_NAME=Test\n");
+        config(['controlplane.env_path' => $this->envFile]);
+    }
+
+    protected function tearDown(): void
+    {
+        @unlink($this->envFile);
+
+        parent::tearDown();
+    }
+
     public function test_prod_path_identical_with_flag_off(): void
     {
         config(['college.demo_mode' => false]);
@@ -302,5 +321,126 @@ class DemoSingleConnectionTest extends TestCase
         $source = (string) file_get_contents(app_path('Console/Commands/DemoRefreshCommand.php'));
         $this->assertStringNotContainsString('does not contain "demo"', $source);
         $this->assertStringNotContainsStringIgnoringCase('stripos', $source);
+    }
+
+    public function test_key_entry_persists_env_and_cache_on_document_success(): void
+    {
+        config(['college.demo_mode' => true]);
+        config(['college.demo_key' => null]);
+        $this->createTestSchool();
+
+        [$doc] = $this->mintDocument('localhost', now()->addMonth()->toDateString());
+        $code = (string) json_encode($doc);
+        $expectedEnvValue = DemoKeyVerifier::canonicalJson($doc);
+
+        $logs = new \Tests\Support\RecordingLogger();
+        \Illuminate\Support\Facades\Log::swap($logs);
+
+        $this->post('/demo/key', ['code' => $code])->assertRedirect(route('login'));
+
+        $this->assertTrue(session('demo_key_accepted', false));
+
+        $env = (string) file_get_contents($this->envFile);
+        $this->assertMatchesRegularExpression('/^DEMO_KEY=\S+$/m', $env);
+        preg_match('/^DEMO_KEY=(.*)$/m', $env, $m);
+        $this->assertSame($expectedEnvValue, DemoKeyVerifier::decodeStoredKey($m[1] ?? null));
+        $this->assertStringNotContainsString($expectedEnvValue, $env);
+        $this->assertStringNotContainsString($doc['signature'], $env);
+
+        $cached = \App\Models\Setting::query()->where('setting_key', DemoKeyVerifier::CACHE_KEY)->value('setting_value');
+        $this->assertNotNull($cached);
+        $this->assertSame($doc['signature'], (array) json_decode((string) $cached, true) !== [] ? json_decode((string) $cached, true)['signature'] : null);
+
+        $haystack = (string) json_encode($logs->records);
+        $this->assertStringNotContainsString($doc['signature'], $haystack);
+        $this->assertStringNotContainsString($expectedEnvValue, $haystack);
+    }
+
+    public function test_key_entry_bare_code_persists_code_itself(): void
+    {
+        config(['college.demo_mode' => true]);
+        config(['college.demo_key' => null]);
+        config(['controlplane.url' => 'https://control.test']);
+        $this->createTestSchool();
+
+        [$doc] = $this->mintDocument('localhost', now()->addMonth()->toDateString());
+        \Illuminate\Support\Facades\Http::fake([
+            '*/api/v1/demo-keys/verify' => \Illuminate\Support\Facades\Http::response($doc, 200),
+        ]);
+
+        $logs = new \Tests\Support\RecordingLogger();
+        \Illuminate\Support\Facades\Log::swap($logs);
+
+        $this->post('/demo/key', ['code' => 'SOME-BARE-CODE-123'])->assertRedirect(route('login'));
+
+        $this->assertTrue(session('demo_key_accepted', false));
+
+        $env = (string) file_get_contents($this->envFile);
+        $this->assertMatchesRegularExpression('/^DEMO_KEY=\S+$/m', $env);
+        preg_match('/^DEMO_KEY=(.*)$/m', $env, $m);
+        $this->assertSame('SOME-BARE-CODE-123', DemoKeyVerifier::decodeStoredKey($m[1] ?? null));
+        $this->assertStringNotContainsString('DEMO_KEY=SOME-BARE-CODE-123', $env);
+
+        $this->assertNotNull(
+            \App\Models\Setting::query()->where('setting_key', DemoKeyVerifier::CACHE_KEY)->value('setting_value')
+        );
+
+        $haystack = (string) json_encode($logs->records);
+        $this->assertStringNotContainsString('SOME-BARE-CODE-123', $haystack);
+        $this->assertStringNotContainsString($doc['signature'], $haystack);
+    }
+
+    public function test_key_entry_falls_back_to_session_only_when_env_unwritable(): void
+    {
+        config(['college.demo_mode' => true]);
+        config(['college.demo_key' => null]);
+        config(['controlplane.env_path' => sys_get_temp_dir().'/no-such-dir-'.uniqid().'/missing.env']);
+        $this->createTestSchool();
+
+        [$doc] = $this->mintDocument('localhost', now()->addMonth()->toDateString());
+        $code = (string) json_encode($doc);
+
+        $logs = new \Tests\Support\RecordingLogger();
+        \Illuminate\Support\Facades\Log::swap($logs);
+
+        $response = $this->post('/demo/key', ['code' => $code]);
+        $response->assertRedirect(route('login'));
+
+        // Valid key is never blocked by a filesystem problem.
+        $this->assertTrue(session('demo_key_accepted', false));
+        $this->assertSame(
+            'key accepted for this session only — could not persist; rotation/reboot will ask again',
+            (string) session('demo_key_warning')
+        );
+
+        // Cache durability still lands (DB-backed) even when .env cannot.
+        $this->assertNotNull(
+            \App\Models\Setting::query()->where('setting_key', DemoKeyVerifier::CACHE_KEY)->value('setting_value')
+        );
+
+        $haystack = (string) json_encode($logs->records);
+        $this->assertStringNotContainsString($doc['signature'], $haystack);
+        $this->assertStringNotContainsString($code, $haystack);
+    }
+
+    public function test_key_entry_never_persists_wrong_door_token(): void
+    {
+        config(['college.demo_mode' => true]);
+        config(['college.demo_key' => null]);
+        $this->createTestSchool();
+
+        $token = 'tok-secret-0123456789abcdefABCDEF0123456789ab';
+
+        $this->post('/demo/key', ['code' => $token])->assertRedirect(route('demo.key.show'));
+
+        $this->assertFalse(session('demo_key_accepted', false));
+
+        $env = (string) file_get_contents($this->envFile);
+        $this->assertStringNotContainsString('DEMO_KEY', $env);
+        $this->assertStringNotContainsString($token, $env);
+
+        $this->assertNull(
+            \App\Models\Setting::query()->where('setting_key', DemoKeyVerifier::CACHE_KEY)->value('setting_value')
+        );
     }
 }
