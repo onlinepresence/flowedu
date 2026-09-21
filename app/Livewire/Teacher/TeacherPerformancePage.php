@@ -15,12 +15,12 @@ use Livewire\Component;
 class TeacherPerformancePage extends Component
 {
     public string|int $selectedSessionId = 'all';
-    
+
     public string $selectedSemester = 'all';
 
     public function mount(): void
     {
-        $session = AcademicSession::query()->where('is_active', true)->first();
+        $session = AcademicSession::query()->where('is_current', true)->first();
         if ($session !== null) {
             $this->selectedSessionId = (string) $session->id;
         }
@@ -29,15 +29,15 @@ class TeacherPerformancePage extends Component
     public function render(): View
     {
         $teacher = auth()->user()?->teacher;
-        
+
         $sessions = AcademicSession::query()->orderBy('name', 'desc')->get();
-        
+
         $resultCount = 0;
         $avgScore = null;
         $passRate = 0.0;
         $topCourse = null;
         $topCourseAvg = null;
-        
+
         $gradeDistribution = [
             'A' => ['count' => 0, 'percentage' => 0.0],
             'B+' => ['count' => 0, 'percentage' => 0.0],
@@ -74,7 +74,7 @@ class TeacherPerformancePage extends Component
             $resultCount = $resultsQuery->count();
             if ($resultCount > 0) {
                 $avgScore = (float) $resultsQuery->whereNotNull('score')->avg('score');
-                
+
                 $passCount = (clone $resultsQuery)->where('score', '>=', 50.0)->count();
                 $passRate = ($passCount / $resultCount) * 100;
             }

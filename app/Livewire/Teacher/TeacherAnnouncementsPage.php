@@ -85,7 +85,7 @@ class TeacherAnnouncementsPage extends Component
             ->where('course_id', $this->courseId)
             ->first();
 
-        $sessionId = $asg ? $asg->session_id : AcademicSession::query()->where('is_active', true)->value('id');
+        $sessionId = $asg ? $asg->session_id : AcademicSession::query()->where('is_current', true)->value('id');
         if (!$sessionId) {
             $sessionId = AcademicSession::query()->orderByDesc('id')->value('id');
         }

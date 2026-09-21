@@ -16,7 +16,7 @@ class TeacherCoursesPage extends Component
     {
         $teacher = auth()->user()?->teacher;
 
-        $activeSession = AcademicSession::query()->where('is_active', true)->first();
+        $activeSession = AcademicSession::query()->where('is_current', true)->first();
         if ($activeSession === null) {
             $activeSession = AcademicSession::query()->orderByDesc('id')->first();
         }

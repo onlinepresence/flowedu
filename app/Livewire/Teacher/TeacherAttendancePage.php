@@ -83,7 +83,7 @@ class TeacherAttendancePage extends Component
             return;
         }
 
-        $activeSession = AcademicSession::query()->where('is_active', true)->first();
+        $activeSession = AcademicSession::query()->where('is_current', true)->first();
         if ($activeSession === null) {
             $activeSession = AcademicSession::query()->orderByDesc('id')->first();
         }
@@ -183,7 +183,7 @@ class TeacherAttendancePage extends Component
             return null;
         }
 
-        $activeSession = AcademicSession::query()->where('is_active', true)->first();
+        $activeSession = AcademicSession::query()->where('is_current', true)->first();
         if ($activeSession === null) {
             $activeSession = AcademicSession::query()->orderByDesc('id')->first();
         }
