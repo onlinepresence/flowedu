@@ -11,7 +11,8 @@ use App\Support\EnvWriter;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Licence enrollment for the setup wizard gate + daily redemption retry.
+ * Licence enrollment for the setup wizard gate + daily redemption retry +
+ * daily heartbeat sync.
  *
  * Three exits: redeem a code against ControlDesk, continue offline
  * (provisional core-only row, optional pending code for later retry), or
@@ -210,6 +211,163 @@ final class LicenceEnrollmentService
      */
     public function applySnapshot(School $school, array $snapshot): void
     {
+        $fields = $this->snapshotFields($snapshot);
+
+        SchoolLicence::query()->updateOrCreate(['school_id' => $school->id], $fields);
+
+        app(\App\Services\SchoolLicenceService::class)->refresh();
+    }
+
+    /**
+     * Heartbeat merge: central truth with GRANT∧PREFERENCE for unlocked core
+     * flags (effective = central AND local), modules frozen to the central
+     * grant. Central false always wins; a local core-off survives a central
+     * true; a central-off kills a local-on. Absent central core keys default
+     * like applySnapshot, so central silence preserves the local value.
+     */
+    public function applyHeartbeatSnapshot(School $school, array $snapshot): void
+    {
+        $row = $school->licence()->first();
+        $fields = $this->snapshotFields($snapshot);
+
+        if ($row !== null) {
+            foreach (config('licence.core_features', []) as $key => $feat) {
+                if (($feat['locked'] ?? false) || ! isset($feat['db_column'])) {
+                    continue;
+                }
+                $col = $feat['db_column'];
+                $fields[$col] = (bool) ($fields[$col] ?? true) && (bool) $row->$col;
+            }
+        }
+
+        SchoolLicence::query()->updateOrCreate(['school_id' => $school->id], $fields);
+
+        app(\App\Services\SchoolLicenceService::class)->refresh();
+    }
+
+    /**
+     * Daily heartbeat sync (scheduled 04:30, after the retry job): linked
+     * installs only (UUID+token present). POSTs the heartbeat via the
+     * existing ping path and merges any attached snapshot with
+     * GRANT∧PREFERENCE. No-op when unlinked, provisional (the retry job owns
+     * those), or file-managed (licence_key set). Failures are silent — info
+     * log, cached row keeps serving — and the scheduler keeps running.
+     * Always returns true.
+     */
+    public function syncHeartbeat(): bool
+    {
+        try {
+            $school = School::current();
+            if ($school === null) {
+                return true;
+            }
+
+            $row = $school->licence()->first();
+            if ($row === null || (bool) $row->provisional) {
+                return true;
+            }
+
+            if (trim((string) $row->licence_key) !== '') {
+                return true;
+            }
+
+            if (! $this->isLinked($school)) {
+                return true;
+            }
+
+            $uuid = trim((string) config('controlplane.deployment_uuid'));
+            $token = (string) config('controlplane.token', '');
+            if ($uuid === '' || trim($token) === '') {
+                return true;
+            }
+
+            $result = $this->client->ping($uuid, $token);
+            if (($result['status'] ?? null) !== 'ok') {
+                Log::info('controlplane.heartbeat-sync-deferred', ['status' => $result['status'] ?? 'unknown']);
+
+                return true;
+            }
+
+            if (isset($result['snapshot']) && is_array($result['snapshot'])) {
+                $incoming = trim((string) ($result['snapshot']['deployment_uuid'] ?? ''));
+                if ($incoming !== '' && $incoming !== $uuid) {
+                    Log::info('controlplane.heartbeat-sync-deployment-mismatch', ['school_id' => $school->id]);
+
+                    return true;
+                }
+
+                $this->applyHeartbeatSnapshot($school, $result['snapshot']);
+            }
+
+            $counts = [];
+            try {
+                $payload = $this->client->heartbeatPayload($uuid);
+                $counts = is_array($payload['counts'] ?? null) ? $payload['counts'] : [];
+            } catch (\Throwable $e) {
+                $counts = [];
+            }
+
+            Log::info('controlplane.heartbeat-synced', ['school_id' => $school->id, 'counts' => $counts]);
+
+            return true;
+        } catch (\Throwable $e) {
+            report($e);
+
+            return true;
+        }
+    }
+
+    /**
+     * Daily silent retry: redeem the parked code whenever network appears.
+     * No pending code (or no school) = quiet no-op, no network touched.
+     */
+    public function retryPending(): bool
+    {
+        $code = trim((string) Setting::query()->where('setting_key', self::PENDING_CODE_KEY)->value('setting_value'));
+        if ($code === '') {
+            return true;
+        }
+
+        $school = School::current();
+        if ($school === null) {
+            return true;
+        }
+
+        $result = $this->client->enroll($code);
+        if (($result['status'] ?? null) !== 'ok') {
+            Log::info('controlplane.pending-retry-deferred', ['status' => $result['status'] ?? 'unknown']);
+
+            return true;
+        }
+
+        $this->applySnapshot($school, $result['snapshot']);
+
+        EnvWriter::write([
+            'DEPLOYMENT_UUID' => (string) $result['snapshot']['deployment_uuid'],
+            'CONTROL_PLANE_TOKEN' => (string) ($result['snapshot']['control_plane_token'] ?? ''),
+        ]);
+
+        $this->clearPendingCode();
+
+        Log::info('controlplane.pending-retry-redeemed', ['school_id' => $school->id]);
+
+        return true;
+    }
+
+    public function clearPendingCode(): void
+    {
+        Setting::query()->where('setting_key', self::PENDING_CODE_KEY)->delete();
+    }
+
+    /**
+     * Map a snapshot to school_licences fields (central truth, overwriting).
+     * Shared by applySnapshot and applyHeartbeatSnapshot so enrollment and
+     * heartbeat can never disagree on dates, caps, tier notes or modules.
+     *
+     * @return array<string, mixed>
+     */
+    private function snapshotFields(array $snapshot): array
+    {
         $lic = is_array($snapshot['licence'] ?? null) ? $snapshot['licence'] : [];
 
         $fields = [
@@ -253,51 +411,7 @@ final class LicenceEnrollmentService
                 : (bool) ($feat['default'] ?? false);
         }
 
-        SchoolLicence::query()->updateOrCreate(['school_id' => $school->id], $fields);
-
-        app(\App\Services\SchoolLicenceService::class)->refresh();
-    }
-
-    /**
-     * Daily silent retry: redeem the parked code whenever network appears.
-     * No pending code (or no school) = quiet no-op, no network touched.
-     */
-    public function retryPending(): bool
-    {
-        $code = trim((string) Setting::query()->where('setting_key', self::PENDING_CODE_KEY)->value('setting_value'));
-        if ($code === '') {
-            return true;
-        }
-
-        $school = School::current();
-        if ($school === null) {
-            return true;
-        }
-
-        $result = $this->client->enroll($code);
-        if (($result['status'] ?? null) !== 'ok') {
-            Log::info('controlplane.pending-retry-deferred', ['status' => $result['status'] ?? 'unknown']);
-
-            return true;
-        }
-
-        $this->applySnapshot($school, $result['snapshot']);
-
-        EnvWriter::write([
-            'DEPLOYMENT_UUID' => (string) $result['snapshot']['deployment_uuid'],
-            'CONTROL_PLANE_TOKEN' => (string) ($result['snapshot']['control_plane_token'] ?? ''),
-        ]);
-
-        $this->clearPendingCode();
-
-        Log::info('controlplane.pending-retry-redeemed', ['school_id' => $school->id]);
-
-        return true;
-    }
-
-    public function clearPendingCode(): void
-    {
-        Setting::query()->where('setting_key', self::PENDING_CODE_KEY)->delete();
+        return $fields;
     }
 
     private function cleanDate(mixed $value): ?string

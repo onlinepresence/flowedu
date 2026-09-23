@@ -70,6 +70,20 @@ exactly as before. Heartbeats go to `POST {CONTROL_PLANE_URL}/api/v1/heartbeats`
 counts{students, teachers, users}, modules_in_use[]}`. Test without the
 wizard: `php artisan controlplane:ping --redeem CODE`.
 
+### Daily heartbeat sync
+
+`licence-heartbeat-sync` runs daily at 04:30, after `licence-retry-pending`
+(04:00). Linked installs only (`DEPLOYMENT_UUID` + `CONTROL_PLANE_TOKEN`
+present and the row carrying the UUID): it POSTs the heartbeat through the
+existing ping path and merges any attached snapshot with GRANT∧PREFERENCE —
+effective = central grant AND local preference. Central false always wins;
+a local core-off survives a central true; a central-off kills a local-on;
+modules stay frozen to the central grant (local module edits are impossible
+on linked installs). No-op when unlinked, provisional (the retry job owns
+those), or file-managed (`licence_key` set). Offline/network failure defers
+silently (info log, cached row keeps serving, scheduler keeps running).
+Receipt is logged at info with counts only — the token is never logged.
+
 ## Sales leads (landing quote → ControlDesk)
 
 Every landing quote submit ALSO posts
@@ -113,7 +127,7 @@ Defined in [`routes/console.php`](../routes/console.php). Production crontab sho
 * * * * * cd /path/to/new-college && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-Tasks: evaluation maintenance (hourly), semester status (hourly), auto-promotion (monthly on the 15th at 03:00), licence redemption retry (daily at 04:00; silent no-op without a parked code). Manual run: `php artisan college:maintenance`. Manual heartbeat: `php artisan controlplane:ping [--redeem CODE]`.
+Tasks: evaluation maintenance (hourly), semester status (hourly), auto-promotion (monthly on the 15th at 03:00), licence redemption retry (daily at 04:00; silent no-op without a parked code), heartbeat sync (daily at 04:30; linked installs only). Manual run: `php artisan college:maintenance`. Manual heartbeat: `php artisan controlplane:ping [--redeem CODE]`.
 
 ## Demo (single-connection)
 

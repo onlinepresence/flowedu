@@ -534,4 +534,176 @@ class LicenceEnrollmentTest extends TestCase
             SchoolLicence::query()->value('external_ref')
         );
     }
+
+    /**
+     * Seed a linked install (UUID+token configured, row carrying the UUID).
+     */
+    private function linkSchool(School $school, array $rowOverrides = []): void
+    {
+        config(['controlplane.deployment_uuid' => 'dep-uuid-1234']);
+        config(['controlplane.token' => 'tok-secret-5678']);
+
+        SchoolLicence::query()->updateOrCreate(['school_id' => $school->id], array_merge([
+            'external_ref' => 'dep-uuid-1234',
+            'provisional' => false,
+            'licence_key' => null,
+            'max_active_students' => 100,
+            'core_timetable' => true,
+            'core_attendance' => true,
+            'core_memos' => true,
+            'core_impersonation' => true,
+            'module_finance' => false,
+            'module_reports' => false,
+        ], $rowOverrides));
+    }
+
+    /**
+     * Heartbeat-attached snapshot in the internal shape the ping path
+     * passes through to applySnapshot.
+     */
+    private function heartbeatSnapshot(array $licenceOverrides = []): array
+    {
+        return [
+            'deployment_uuid' => 'dep-uuid-1234',
+            'licence' => array_merge([
+                'package_tier' => 'complete',
+                'max_active_students' => 350,
+                'starts_at' => now()->toDateString(),
+                'expires_at' => '2027-09-18',
+                'core' => [],
+                'modules' => ['finance' => true],
+            ], $licenceOverrides),
+        ];
+    }
+
+    public function test_heartbeat_sync_applies_central_change(): void
+    {
+        $school = $this->setupSchool();
+        $this->linkSchool($school, ['module_finance' => false, 'max_active_students' => 100]);
+
+        Http::fake(['*/api/v1/heartbeats' => Http::response(
+            ['status' => 'ok', 'snapshot' => $this->heartbeatSnapshot()], 200
+        )]);
+
+        $logs = new \Tests\Support\RecordingLogger();
+        \Illuminate\Support\Facades\Log::swap($logs);
+
+        $this->assertTrue(app(LicenceEnrollmentService::class)->syncHeartbeat());
+
+        $row = SchoolLicence::query()->where('school_id', $school->id)->firstOrFail();
+        $this->assertTrue((bool) $row->module_finance);
+        $this->assertSame(350, $row->max_active_students);
+        $this->assertSame('dep-uuid-1234', $row->external_ref);
+        $this->assertFalse((bool) $row->provisional);
+
+        // Receipt logged with counts only — the token never appears.
+        $haystack = (string) json_encode($logs->records);
+        $this->assertStringNotContainsString('tok-secret-5678', $haystack);
+    }
+
+    public function test_heartbeat_sync_keeps_local_core_off(): void
+    {
+        $school = $this->setupSchool();
+        $this->linkSchool($school, ['core_timetable' => false, 'module_finance' => false]);
+
+        $snapshot = $this->heartbeatSnapshot(['core' => ['timetable' => true]]);
+        Http::fake(['*/api/v1/heartbeats' => Http::response(
+            ['status' => 'ok', 'snapshot' => $snapshot], 200
+        )]);
+
+        $this->assertTrue(app(LicenceEnrollmentService::class)->syncHeartbeat());
+
+        $row = SchoolLicence::query()->where('school_id', $school->id)->firstOrFail();
+        // Central true + local false stays false; modules still follow central.
+        $this->assertFalse((bool) $row->core_timetable);
+        $this->assertTrue((bool) $row->module_finance);
+    }
+
+    public function test_heartbeat_sync_central_off_kills_local_on(): void
+    {
+        $school = $this->setupSchool();
+        $this->linkSchool($school, ['core_memos' => true]);
+
+        $snapshot = $this->heartbeatSnapshot(['core' => ['memos' => false]]);
+        Http::fake(['*/api/v1/heartbeats' => Http::response(
+            ['status' => 'ok', 'snapshot' => $snapshot], 200
+        )]);
+
+        $this->assertTrue(app(LicenceEnrollmentService::class)->syncHeartbeat());
+
+        $row = SchoolLicence::query()->where('school_id', $school->id)->firstOrFail();
+        $this->assertFalse((bool) $row->core_memos);
+    }
+
+    public function test_heartbeat_sync_offline_keeps_cache(): void
+    {
+        $school = $this->setupSchool();
+        $this->linkSchool($school, ['module_finance' => false, 'core_memos' => true]);
+
+        Http::fake(function () {
+            throw new \Illuminate\Http\Client\ConnectionException('down');
+        });
+
+        // Prime the serving cache the way a running app would hold it.
+        app(\App\Services\SchoolLicenceService::class)->getLicenceRow();
+
+        $this->assertTrue(app(LicenceEnrollmentService::class)->syncHeartbeat());
+
+        $row = SchoolLicence::query()->where('school_id', $school->id)->firstOrFail();
+        $this->assertFalse((bool) $row->module_finance);
+        $this->assertTrue((bool) $row->core_memos);
+        $this->assertSame(100, $row->max_active_students);
+    }
+
+    public function test_heartbeat_sync_skips_unlinked(): void
+    {
+        $school = $this->setupSchool();
+        config(['controlplane.deployment_uuid' => 'dep-uuid-1234']);
+        config(['controlplane.token' => 'tok-secret-5678']);
+        SchoolLicence::query()->updateOrCreate(['school_id' => $school->id], [
+            'external_ref' => 'dep-other-9999',
+            'provisional' => false,
+            'licence_key' => null,
+            'module_finance' => false,
+        ]);
+
+        Http::fake(['*/api/v1/heartbeats' => Http::response(
+            ['status' => 'ok', 'snapshot' => $this->heartbeatSnapshot()], 200
+        )]);
+
+        $this->assertTrue(app(LicenceEnrollmentService::class)->syncHeartbeat());
+
+        Http::assertNothingSent();
+        $this->assertFalse((bool) SchoolLicence::query()->where('school_id', $school->id)->value('module_finance'));
+    }
+
+    public function test_heartbeat_sync_skips_provisional(): void
+    {
+        $school = $this->setupSchool();
+        $this->linkSchool($school, ['provisional' => true, 'external_ref' => null, 'module_finance' => false]);
+
+        Http::fake(['*/api/v1/heartbeats' => Http::response(
+            ['status' => 'ok', 'snapshot' => $this->heartbeatSnapshot()], 200
+        )]);
+
+        $this->assertTrue(app(LicenceEnrollmentService::class)->syncHeartbeat());
+
+        Http::assertNothingSent();
+        $this->assertFalse((bool) SchoolLicence::query()->where('school_id', $school->id)->value('module_finance'));
+    }
+
+    public function test_heartbeat_sync_skips_file_managed(): void
+    {
+        $school = $this->setupSchool();
+        $this->linkSchool($school, ['licence_key' => 'FILE-KEY-1', 'module_finance' => false]);
+
+        Http::fake(['*/api/v1/heartbeats' => Http::response(
+            ['status' => 'ok', 'snapshot' => $this->heartbeatSnapshot()], 200
+        )]);
+
+        $this->assertTrue(app(LicenceEnrollmentService::class)->syncHeartbeat());
+
+        Http::assertNothingSent();
+        $this->assertFalse((bool) SchoolLicence::query()->where('school_id', $school->id)->value('module_finance'));
+    }
 }

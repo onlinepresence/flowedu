@@ -37,6 +37,17 @@ Schedule::call(fn () => app(\App\Services\ControlPlane\LicenceEnrollmentService:
     ->name('licence-retry-pending');
 
 /*
+| Daily heartbeat sync: linked installs only (UUID+token). POSTs the heartbeat
+| via the existing ping path and merges central truth with GRANT∧PREFERENCE
+| (central false wins; local core-off survives; modules frozen). Runs after
+| the retry job; silent no-op when unlinked, provisional, or file-managed,
+| and silent info-logged deferral when offline.
+*/
+Schedule::call(fn () => app(\App\Services\ControlPlane\LicenceEnrollmentService::class)->syncHeartbeat())
+    ->dailyAt('04:30')
+    ->name('licence-heartbeat-sync');
+
+/*
 | Single-connection demo refresh: registered monthly ONLY when APP_DEMO is true
 | at schedule-registration time (never unconditional). The command itself
 | re-checks the same env flag before touching the database.
