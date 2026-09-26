@@ -692,6 +692,68 @@ class LicenceEnrollmentTest extends TestCase
         $this->assertFalse((bool) SchoolLicence::query()->where('school_id', $school->id)->value('module_finance'));
     }
 
+    public function test_grant_badges_reflect_granted_vs_ungranted(): void
+    {
+        $school = $this->setupSchool();
+        $user = $this->owner();
+        $this->linkSchool($school);
+
+        $snapshot = $this->heartbeatSnapshot(['core' => ['timetable' => true, 'memos' => false]]);
+        Http::fake(['*/api/v1/heartbeats' => Http::response(
+            ['status' => 'ok', 'snapshot' => $snapshot], 200
+        )]);
+        $this->assertTrue(app(LicenceEnrollmentService::class)->syncHeartbeat());
+
+        $component = Livewire::actingAs($user)->test(\App\Livewire\Admin\Settings\LicenceSettingsPage::class);
+
+        $grants = $component->viewData('coreGrants');
+        $this->assertTrue($grants['timetable']);
+        $this->assertFalse($grants['memos']);
+        $this->assertTrue($component->viewData('showGrantBadges'));
+
+        $component->assertSee('On your plan', false)
+            ->assertSee('Not included — contact ops', false);
+    }
+
+    public function test_grant_badges_hidden_when_not_linked(): void
+    {
+        $school = $this->setupSchool();
+        $user = $this->owner();
+        SchoolLicence::query()->updateOrCreate(['school_id' => $school->id], [
+            'provisional' => true,
+            'external_ref' => null,
+            'core_timetable' => true,
+            'core_memos' => false,
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(\App\Livewire\Admin\Settings\LicenceSettingsPage::class)
+            ->assertDontSee('On your plan', false)
+            ->assertDontSee('Not included', false);
+    }
+
+    public function test_saving_inside_grant_unaffected(): void
+    {
+        $school = $this->setupSchool();
+        $user = $this->owner();
+        $this->linkSchool($school);
+
+        Http::fake(['*/api/v1/heartbeats' => Http::response(
+            ['status' => 'ok', 'snapshot' => $this->heartbeatSnapshot()], 200
+        )]);
+        $this->assertTrue(app(LicenceEnrollmentService::class)->syncHeartbeat());
+
+        Livewire::actingAs($user)
+            ->test(\App\Livewire\Admin\Settings\LicenceSettingsPage::class)
+            ->set('coreStates.attendance', false)
+            ->call('saveCoreFeatures')
+            ->assertHasNoErrors();
+
+        $row = SchoolLicence::query()->where('school_id', $school->id)->firstOrFail();
+        $this->assertFalse((bool) $row->core_attendance);
+        $this->assertSame('dep-uuid-1234', $row->external_ref);
+    }
+
     public function test_heartbeat_sync_skips_file_managed(): void
     {
         $school = $this->setupSchool();

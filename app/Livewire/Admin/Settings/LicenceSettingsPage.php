@@ -229,7 +229,7 @@ class LicenceSettingsPage extends Component
         CollegeFlash::forNextRequestToo('status', __('Core settings saved.'));
     }
 
-    public function render(SchoolLicenceService $licenceService): View
+    public function render(SchoolLicenceService $licenceService, \App\Services\ControlPlane\LicenceEnrollmentService $enrollment): View
     {
         $preview = $this->getPricingPreview($licenceService);
 
@@ -239,6 +239,10 @@ class LicenceSettingsPage extends Component
             'modulesCatalog' => config('licence.modules', []),
             'isLinked' => $this->isLinked,
             'isProvisional' => $this->isProvisional,
+            // Display truth only: central-grant badges on linked installs.
+            // Saving stays permissive; the merge is untouched.
+            'coreGrants' => $enrollment->centralCoreGrants(),
+            'showGrantBadges' => $this->isLinked,
         ])->layout('components.layouts.admin', [
             'title' => __('Licence settings'),
             'headerTitle' => __('Licence Settings'),

@@ -165,6 +165,12 @@
                                         <span class="inline-flex items-center rounded-md bg-purple-50 px-1.5 py-0.5 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-700/10 dark:bg-purple-500/10 dark:text-purple-400 dark:ring-purple-500/20">
                                             <i class="fa-solid fa-lock mr-1 text-[10px]"></i>{{ __('Always Included') }}
                                         </span>
+                                    @elseif (($showGrantBadges ?? false))
+                                        @if (($coreGrants[$key] ?? true))
+                                            <span class="inline-flex items-center rounded-md bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-700/10 dark:bg-emerald-500/10 dark:text-emerald-400 dark:ring-emerald-500/20">{{ __('On your plan') }}</span>
+                                        @else
+                                            <span class="inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-700/10 dark:bg-amber-500/10 dark:text-amber-400 dark:ring-amber-500/20">{{ __('Not included — contact ops') }}</span>
+                                        @endif
                                     @endif
                                 </div>
                                 <p class="text-xs text-gray-500 dark:text-gray-400">{{ __($feat['description']) }}</p>
@@ -175,9 +181,9 @@
                                         <i class="fa-solid fa-check text-sm"></i>
                                     </div>
                                 @else
-                                    <!-- Toggle Switch -->
-                                    <label class="relative inline-flex cursor-pointer items-center">
-                                        <input type="checkbox" wire:model.live="coreStates.{{ $key }}" class="peer sr-only">
+                                    <!-- Toggle Switch (display truth: ungranted boxes disabled at render on linked installs; saving stays permissive) -->
+                                    <label class="relative inline-flex items-center {{ ($showGrantBadges ?? false) && ! ($coreGrants[$key] ?? true) ? 'cursor-not-allowed opacity-60' : 'cursor-pointer' }}">
+                                        <input type="checkbox" wire:model.live="coreStates.{{ $key }}" class="peer sr-only" @disabled(($showGrantBadges ?? false) && ! ($coreGrants[$key] ?? true))>
                                         <div class="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-purple-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none dark:bg-gray-700"></div>
                                     </label>
                                 @endif

@@ -24,6 +24,8 @@ final class LicenceEnrollmentService
 {
     public const PENDING_CODE_KEY = 'controlplane.pending_code';
 
+    public const LAST_GRANT_KEY = 'licence.last_central_grant';
+
     public function __construct(
         private readonly ControlPlaneClient $client,
         private readonly LicenceFileVerifier $verifier,
@@ -215,6 +217,8 @@ final class LicenceEnrollmentService
 
         SchoolLicence::query()->updateOrCreate(['school_id' => $school->id], $fields);
 
+        $this->recordCentralGrant($snapshot);
+
         app(\App\Services\SchoolLicenceService::class)->refresh();
     }
 
@@ -242,7 +246,48 @@ final class LicenceEnrollmentService
 
         SchoolLicence::query()->updateOrCreate(['school_id' => $school->id], $fields);
 
+        $this->recordCentralGrant($snapshot);
+
         app(\App\Services\SchoolLicenceService::class)->refresh();
+    }
+
+    /**
+     * Last known central grant per unlocked core key, for display truth
+     * (plan badges). Prefers the recorded heartbeat/enrollment snapshot;
+     * falls back to the local row, which linked installs seed from central.
+     *
+     * @return array<string, bool>
+     */
+    public function centralCoreGrants(?School $school = null): array
+    {
+        $grants = null;
+        try {
+            $raw = Setting::query()->where('setting_key', self::LAST_GRANT_KEY)->value('setting_value');
+            $decoded = is_string($raw) ? json_decode($raw, true) : null;
+            $grants = is_array($decoded) ? $decoded : null;
+        } catch (\Throwable $e) {
+            $grants = null;
+        }
+
+        $school ??= School::current();
+        $row = $school?->licence()->first();
+
+        $out = [];
+        foreach (config('licence.core_features', []) as $key => $feat) {
+            if (($feat['locked'] ?? false) || ! isset($feat['db_column'])) {
+                continue;
+            }
+            if (is_array($grants) && array_key_exists($key, $grants)) {
+                $out[$key] = (bool) $grants[$key];
+            } elseif ($row !== null) {
+                $col = $feat['db_column'];
+                $out[$key] = (bool) $row->$col;
+            } else {
+                $out[$key] = (bool) ($feat['default'] ?? true);
+            }
+        }
+
+        return $out;
     }
 
     /**
@@ -357,6 +402,41 @@ final class LicenceEnrollmentService
     public function clearPendingCode(): void
     {
         Setting::query()->where('setting_key', self::PENDING_CODE_KEY)->delete();
+    }
+
+    /**
+     * Remember the snapshot's central core grant for display truth. Never
+     * throws; a missed recording just leaves the previous grant (or the
+     * local-row fallback) in place.
+     */
+    private function recordCentralGrant(array $snapshot): void
+    {
+        try {
+            $lic = is_array($snapshot['licence'] ?? null) ? $snapshot['licence'] : [];
+            $coreFlags = is_array($lic['core'] ?? null) ? $lic['core'] : [];
+
+            $grants = [];
+            foreach (config('licence.core_features', []) as $key => $feat) {
+                if (($feat['locked'] ?? false) || ! isset($feat['db_column'])) {
+                    continue;
+                }
+                $grants[$key] = array_key_exists($key, $coreFlags)
+                    ? (bool) $coreFlags[$key]
+                    : (bool) ($feat['default'] ?? true);
+            }
+
+            Setting::query()->updateOrCreate(
+                ['setting_key' => self::LAST_GRANT_KEY],
+                [
+                    'setting_value' => json_encode($grants, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+                    'data_type' => 'json',
+                    'category' => 'licence',
+                    'description' => 'Last known central core-feature grant (display truth for plan badges).',
+                ]
+            );
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     /**

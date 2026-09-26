@@ -400,14 +400,19 @@ class SetupLicenceForm extends Component
     public function render(SchoolLicenceService $licenceService, LicenceEnrollmentService $enrollment): View
     {
         $preview = $this->getPricingPreview($licenceService);
+        $choice = $enrollment->choiceState();
 
         return view('livewire.admin.setup.setup-licence-form', [
             'pricingPreview' => $preview,
             'coreCatalog' => config('licence.core_features', []),
             'modulesCatalog' => config('licence.modules', []),
-            'enrollmentChoice' => $enrollment->choiceState(),
+            'enrollmentChoice' => $choice,
             'hasExistingData' => $enrollment->hasExistingData(),
             'bundleRate' => (float) config('licence.bundle_discount', 0.12),
+            // Display truth only: central-grant badges on linked installs.
+            // Saving stays permissive; the merge is untouched.
+            'coreGrants' => $enrollment->centralCoreGrants(),
+            'showGrantBadges' => $choice === 'linked',
         ])->layout('components.layouts.admin', ['title' => __('Package & licence')]);
     }
 
