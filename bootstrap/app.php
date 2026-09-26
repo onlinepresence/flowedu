@@ -14,6 +14,7 @@ use App\Http\Middleware\EnsureTeacherOnboarded;
 use App\Http\Middleware\EnsureTeacherSetupGate;
 use App\Http\Middleware\EnsureUserActive;
 use App\Http\Middleware\EnsureUserType;
+use App\Http\Middleware\RequirePasswordChange;
 use App\Http\Middleware\EnsureDemoKeyGate;
 use App\Http\Middleware\ExtendUserFlash;
 use Illuminate\Foundation\Application;
@@ -43,6 +44,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'college.teacher-setup-gate' => EnsureTeacherSetupGate::class,
             'college.student-ready' => EnsureStudentReady::class,
             'college.teacher-permission' => \App\Http\Middleware\EnsureTeacherPermission::class,
+            'password.changed' => RequirePasswordChange::class,
         ]);
 
         $middleware->web(prepend: [
@@ -52,6 +54,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             EnsureDemoKeyGate::class,
             EnsureUserActive::class,
+            RequirePasswordChange::class,
             ExtendUserFlash::class,
         ]);
     })

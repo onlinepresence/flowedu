@@ -29,6 +29,8 @@ final class CreateTeacherUser
                 ]);
                 if (isset($data['password']) && $data['password'] !== '') {
                     $user->password = Hash::make($data['password']);
+                    // Re-provisioned by someone else: must pick their own secret.
+                    $user->must_change_password = true;
                 }
                 $user->save();
 
@@ -65,6 +67,8 @@ final class CreateTeacherUser
                     'type' => 'teacher',
                     'user_secret' => Str::random(64),
                     'active' => (bool) ($data['active'] ?? true),
+                    // Provisioned by someone else: the invitee must pick their own secret.
+                    'must_change_password' => true,
                 ]);
 
                 $teacher = Teacher::query()->create([

@@ -43,6 +43,8 @@ final class CreateAdminUser
                 'type' => 'admin',
                 'user_secret' => Str::random(64),
                 'active' => (bool) ($data['active'] ?? true),
+                // Provisioned by someone else: the invitee must pick their own secret.
+                'must_change_password' => true,
             ]);
 
             $admin = Admin::query()->create([

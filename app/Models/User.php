@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Gate;
     'email_verified_at',
     'type',
     'password',
+    'must_change_password',
     'user_secret',
     'active',
     'staff_leave_type_id',
@@ -37,8 +38,19 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'active' => 'boolean',
+            'must_change_password' => 'boolean',
             'staff_leave_type_id' => 'integer',
         ];
+    }
+
+    /**
+     * Forced password change: provisioned accounts (seeded admin, invitees,
+     * admin resets) must pick their own secret first. Cleared only by a
+     * self-initiated change, never by admin edits.
+     */
+    public function requiresPasswordChange(): bool
+    {
+        return (bool) ($this->must_change_password ?? false);
     }
 
     public function staffLeaveType(): BelongsTo

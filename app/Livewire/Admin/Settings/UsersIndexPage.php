@@ -171,6 +171,8 @@ class UsersIndexPage extends Component
             'type' => $validated['createType'],
             'active' => (bool) $validated['createActive'],
             'password' => Hash::make($validated['createPassword']),
+            // Provisioned by someone else: the invitee must pick their own secret.
+            'must_change_password' => true,
         ]);
 
         $this->collegeToast(__('User created.'));
@@ -238,8 +240,10 @@ class UsersIndexPage extends Component
         $user = User::query()->findOrFail($userId);
         Gate::authorize('sendPasswordResetForUserSettings', $user);
 
-        // Reset the password directly to Password@1
+        // Reset the password directly to Password@1; the owner must pick
+        // their own secret next login (flag set, never cleared here).
         $user->password = \Illuminate\Support\Facades\Hash::make('Password@1');
+        $user->must_change_password = true;
         $user->save();
 
         $email = $user->email;

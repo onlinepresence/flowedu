@@ -28,8 +28,11 @@ new class extends Component
             throw $e;
         }
 
+        // Self-initiated change: the only path that clears the forced-change
+        // flag. Admin edits and resets elsewhere never clear it.
         Auth::user()->update([
             'password' => Hash::make($validated['password']),
+            'must_change_password' => false,
         ]);
 
         $this->reset('current_password', 'password', 'password_confirmation');

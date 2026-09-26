@@ -110,6 +110,18 @@ ControlDesk. The public form carries Cloudflare Turnstile armor
 
 **Stop route:** `POST` [`impersonation.stop`](../routes/web.php) — requires an active impersonation session (any user type while banner is shown).
 
+## Forced password change
+
+Accounts provisioned by someone else (seeded admin, invitees, admin resets to
+a known temporary password) carry `users.must_change_password`. [`RequirePasswordChange`](../app/Http/Middleware/RequirePasswordChange.php)
+(alias `password.changed`, on the authenticated web group) redirects flagged
+users to the change screen (`GET`/`PUT` [`password.change`](../routes/auth.php))
+on every request except profile, password update, logout and the change screen
+itself (Livewire/JSON callers get 403, with a narrow allow-list for the logout
+button and the profile password form). The flag clears only on a
+self-initiated change — the change screen or the profile password form;
+admin creates, edits and resets set (never clear) it.
+
 ## Two kinds of “down”
 
 | Mechanism | Config / command | Behaviour |
