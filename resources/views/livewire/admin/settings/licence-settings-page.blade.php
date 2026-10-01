@@ -6,10 +6,9 @@
     @endif
     @php($locked = $isLinked)
     @if($isProvisional)
-        <p>
-            <span class="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">{{ __('PROVISIONAL LICENCE') }}</span>
-            <span class="ml-2 text-xs text-gray-500 dark:text-gray-400">{{ __('Core-only until ControlDesk redemption succeeds.') }}</span>
-        </p>
+        <div class="rounded-xl border border-dotted border-amber-400 bg-amber-100 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/60 dark:bg-amber-950/40 dark:text-amber-100">
+            <i class="fa-solid fa-triangle-exclamation mr-2"></i><span class="font-bold">{{ __('PROVISIONAL LICENCE') }}</span>{{ __(' — Core-only until ControlDesk redemption succeeds.') }}
+        </div>
     @endif
     @if($errors->has('form'))
         <p class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300" role="alert">
