@@ -19,7 +19,7 @@ new #[Layout('layouts.guest')] class extends Component
             return;
         }
 
-        Auth::user()->sendEmailVerificationNotification();
+        \App\Jobs\SendVerificationEmailJob::dispatch(Auth::id());
 
         Session::flash('status', 'verification-link-sent');
     }

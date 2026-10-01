@@ -26,6 +26,11 @@ class DemoSeedTest extends TestCase
         $this->assertNotNull($licence);
         $this->assertTrue((bool) $licence->module_finance);
         $this->assertTrue((bool) $licence->module_system_admin);
+
+        // Email verification is for live users only: every seeded account
+        // (including admission-intake students) is already verified, so the
+        // verify banner never fires in demo.
+        $this->assertSame(0, \App\Models\User::query()->whereNull('email_verified_at')->count());
     }
 
     public function test_demo_invariants_hold(): void

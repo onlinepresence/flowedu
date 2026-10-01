@@ -48,6 +48,17 @@ Schedule::call(fn () => app(\App\Services\ControlPlane\LicenceEnrollmentService:
     ->name('licence-heartbeat-sync');
 
 /*
+| Queue drain (shared-hosting friendly): the database queue (verification +
+| notification mails) is worked until empty every minute instead of a
+| long-lived daemon. Requires the every-minute cron `php artisan schedule:run`;
+| where a supervisor daemon is available, prefer `queue:work database`.
+*/
+Schedule::command('queue:work database --stop-when-empty --tries=3')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->name('queue-drain-minutely');
+
+/*
 | Single-connection demo refresh: registered monthly ONLY when APP_DEMO is true
 | at schedule-registration time (never unconditional). The command itself
 | re-checks the same env flag before touching the database.

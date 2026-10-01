@@ -80,6 +80,9 @@ new #[Layout('layouts.guest')] class extends Component
 
         event(new Registered($user));
 
+        // Verification goes out queued (database queue drains via scheduler).
+        \App\Jobs\SendVerificationEmailJob::dispatch($user->id);
+
         Auth::login($user);
 
         $target = $type === 'admin'

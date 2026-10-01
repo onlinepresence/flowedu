@@ -1232,6 +1232,7 @@ class DemoDataSeeder extends Seeder
             $user = User::create([
                 'name' => $spec['first'].' '.$spec['surname'],
                 'email' => $spec['email'],
+                'email_verified_at' => $now->toDateTimeString(),
                 'password' => $passwordHash,
                 'type' => 'student',
                 'user_secret' => $this->token(8),

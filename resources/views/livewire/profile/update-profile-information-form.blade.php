@@ -56,7 +56,7 @@ new class extends Component
             return;
         }
 
-        $user->sendEmailVerificationNotification();
+        \App\Jobs\SendVerificationEmailJob::dispatch($user->id);
 
         Session::flash('status', 'verification-link-sent');
     }

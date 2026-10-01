@@ -17,6 +17,16 @@
         ? route('admin.settings.school')
         : null;
     $user = auth()->user();
+    // Post-onboarding verify-email nudge: never during setup wizards.
+    // Done = student approved+activated, teacher onboarded, admin/staff profile complete.
+    $onboardingDone = match ($user->type ?? null) {
+        'student' => $user->student !== null && (bool) $user->student->approved && ! (bool) $user->student->is_new,
+        'teacher' => (bool) ($user->teacher?->is_onboarded ?? false),
+        default => trim((string) ($user->username ?? '')) !== '',
+    };
+    $showEmailVerificationBanner = trim((string) ($user->email ?? '')) !== ''
+        && ! $user->hasVerifiedEmail()
+        && $onboardingDone;
     $displayName = $user->username ?? $user->email;
     $nameParts = preg_split('/\s+/', trim((string) ($user->name ?? '')), -1, PREG_SPLIT_NO_EMPTY) ?: [];
     $initials = $nameParts !== []
@@ -341,6 +351,28 @@
                         </ul>
                     </div>
                 </header>
+
+                @if ($showEmailVerificationBanner)
+                    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100 sm:px-6">
+                        <span>
+                            <i class="fa-solid fa-envelope-circle-check mr-1.5" aria-hidden="true"></i>
+                            @if (session('status') === 'verification-link-sent')
+                                {{ __('A new verification link has been sent to your email address.') }}
+                            @else
+                                {{ __('Please verify your email address to keep your account secure.') }}
+                            @endif
+                        </span>
+                        <form method="post" action="{{ route('verification.send') }}" class="shrink-0">
+                            @csrf
+                            <button
+                                type="submit"
+                                class="rounded-md bg-amber-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-900 dark:bg-amber-600 dark:hover:bg-amber-500"
+                            >
+                                {{ __('Resend verification email') }}
+                            </button>
+                        </form>
+                    </div>
+                @endif
 
                 @if (session()->has('college_impersonator_id'))
                     <div class="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100 sm:px-6">
