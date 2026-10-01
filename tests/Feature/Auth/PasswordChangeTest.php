@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Http\Middleware\RequirePasswordChange;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Livewire\Volt\Volt;
 use Tests\TestCase;
 
@@ -38,6 +40,48 @@ class PasswordChangeTest extends TestCase
             ->postJson('/livewire/update', ['components' => []])
             ->assertForbidden()
             ->assertJsonFragment(['message' => 'Password change required.']);
+    }
+
+    public function test_flagged_users_can_log_out_via_livewire_logout_buttons(): void
+    {
+        $user = User::factory()->create(['must_change_password' => true]);
+
+        // Both logout shells must pass the gate: the portal shell button and
+        // the legacy app-layout navigation dropdown.
+        foreach (['layout.logout-button', 'layout.navigation'] as $component) {
+            $request = Request::create('/livewire/update', 'POST', [
+                'components' => [
+                    [
+                        'snapshot' => json_encode(['memo' => ['name' => $component]]),
+                        'calls' => [['method' => 'logout', 'params' => []]],
+                    ],
+                ],
+            ]);
+            $request->setUserResolver(fn () => $user);
+
+            $response = (new RequirePasswordChange)->handle($request, fn () => response('passed'));
+
+            $this->assertSame('passed', $response->getContent(), "Livewire {$component}::logout should pass the gate.");
+        }
+    }
+
+    public function test_flagged_livewire_navigation_other_methods_stay_blocked(): void
+    {
+        $user = User::factory()->create(['must_change_password' => true]);
+
+        $request = Request::create('/livewire/update', 'POST', [
+            'components' => [
+                [
+                    'snapshot' => json_encode(['memo' => ['name' => 'layout.navigation']]),
+                    'calls' => [['method' => 'somethingElse', 'params' => []]],
+                ],
+            ],
+        ]);
+        $request->setUserResolver(fn () => $user);
+
+        $response = (new RequirePasswordChange)->handle($request, fn () => response('passed'));
+
+        $this->assertSame(403, $response->getStatusCode());
     }
 
     public function test_unflagged_users_are_unaffected(): void

@@ -15,10 +15,14 @@ class RequirePasswordChange
      * self-service password form on the profile page (which clears the flag).
      * Everything else over Livewire stays blocked until THEY change it.
      *
+     * Both logout shells are covered: the portal shell button and the legacy
+     * app-layout navigation dropdown (used by the change screen and profile).
+     *
      * @var array<string, list<string>>
      */
     private const ALLOWED_LIVEWIRE_CALLS = [
         'layout.logout-button' => ['logout'],
+        'layout.navigation' => ['logout'],
         'profile.update-password-form' => ['updatePassword'],
     ];
 
