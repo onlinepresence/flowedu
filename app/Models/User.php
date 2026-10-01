@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 
 #[Fillable([
     'name',
@@ -31,6 +32,17 @@ class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
+
+    protected static function booted(): void
+    {
+        // user_secret is NOT NULL without a DB default (legacy column).
+        // Auto-fill it so no creation path can hit a 1364 error.
+        static::creating(function (User $user): void {
+            if (empty($user->user_secret)) {
+                $user->user_secret = Str::random(64);
+            }
+        });
+    }
 
     protected function casts(): array
     {

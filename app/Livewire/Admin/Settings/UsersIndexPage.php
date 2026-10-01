@@ -12,6 +12,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -171,6 +172,7 @@ class UsersIndexPage extends Component
             'type' => $validated['createType'],
             'active' => (bool) $validated['createActive'],
             'password' => Hash::make($validated['createPassword']),
+            'user_secret' => Str::random(64),
             // Provisioned by someone else: the invitee must pick their own secret.
             'must_change_password' => true,
         ]);
