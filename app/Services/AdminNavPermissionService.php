@@ -48,7 +48,31 @@ final class AdminNavPermissionService
     }
 
     /**
-     * @param  array<string, mixed>  $item
+     * System setup wizard (school, licence, faculties, …) is owner-only.
+     * Non-owner admins keep just their personal setup page; first-time
+     * bootstrap (admin_register session) keeps the full wizard.
+     *
+     * @param  list<array<string, mixed>>  $items
+     * @return list<array<string, mixed>>
+     */
+    public function filterSetupItemsForUser(User $user, array $items): array
+    {
+        if ((bool) session('admin_register', false)) {
+            return $items;
+        }
+
+        if ($user->type === 'admin' && $user->isAdminOwner()) {
+            return $items;
+        }
+
+        return array_values(array_filter(
+            $items,
+            fn ($item): bool => ($item['route'] ?? null) === 'admin.setup.personal'
+        ));
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $items
      */
     private function userMaySeeLeaf(User $user, array $item): bool
     {

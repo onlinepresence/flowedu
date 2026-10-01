@@ -40,6 +40,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'college.school-ready' => EnsureSchoolReady::class,
             'college.departments-exist' => EnsureDepartmentsExist::class,
             'college.valid-admin' => EnsureAdminProfileComplete::class,
+            'college.setup-owner' => \App\Http\Middleware\EnsureSetupOwnerAccess::class,
             'college.valid-teacher' => EnsureTeacherOnboarded::class,
             'college.teacher-setup-gate' => EnsureTeacherSetupGate::class,
             'college.student-ready' => EnsureStudentReady::class,

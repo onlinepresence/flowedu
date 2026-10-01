@@ -179,6 +179,10 @@ class AdminSetupPersonalPage extends Component
 
         UserRole::ensureSystemRoles();
         $ownerRoleId = UserRole::query()->where('name', 'owner')->value('id');
+        // First-time bootstrap only: the very first account becomes owner.
+        // A non-owner completing personal setup must never self-crown —
+        // the owner assigns their role later via the Administrators page.
+        $bootstrap = (bool) session('admin_register', false);
 
         $payload = [
             'lastname' => $this->lastname,
@@ -202,10 +206,12 @@ class AdminSetupPersonalPage extends Component
 
         if ($admin === null) {
             $payload['user_id'] = $user->id;
-            $payload['type'] = $ownerRoleId;
+            if ($bootstrap && $ownerRoleId !== null) {
+                $payload['type'] = $ownerRoleId;
+            }
             $admin = Admin::query()->create($payload);
         } else {
-            if ($admin->type === null && $ownerRoleId !== null) {
+            if ($bootstrap && $admin->type === null && $ownerRoleId !== null) {
                 $payload['type'] = $ownerRoleId;
             }
             $admin->update($payload);
@@ -225,7 +231,11 @@ class AdminSetupPersonalPage extends Component
 
         CollegeFlash::forNextRequestToo('status', __('Your profile has been saved.'));
 
-        if ($this->isSetupFlow) {
+        // Owner bootstrap continues the system wizard; everyone else lands
+        // on their dashboard with a ready account (username set + admin row).
+        // Reload the relation: mount may have cached a null admin row.
+        $user->load('admin.role');
+        if ($this->isSetupFlow && ($bootstrap || $user->isAdminOwner())) {
             $this->redirect(route('admin.setup.school'), navigate: true);
             return;
         }

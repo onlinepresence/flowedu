@@ -50,6 +50,10 @@ class GlobalSearch extends Component
                 ? config('sidebar.admin.setup', [])
                 : config('sidebar.admin.main', []);
 
+            if ($setupMode) {
+                $items = $navPermissions->filterSetupItemsForUser($user, $items);
+            }
+
             if (! $setupMode) {
                 $items = $navPermissions->filterItemsForUser($user, $items);
                 $items = $navLicence->filterAdminNavItems($items);

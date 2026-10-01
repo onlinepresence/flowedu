@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Models\Admin;
 use App\Models\UserRole;
 use Closure;
 use Illuminate\Http\Request;
@@ -25,9 +26,13 @@ class EnsureAdminProfileComplete
         if ($user->type === 'admin') {
             UserRole::ensureSystemRoles();
             $user->loadMissing('admin');
+            // Bootstrap self-healing only: the first account becomes owner
+            // when the system has none yet. Once an owner exists, a null
+            // role stays null (owner assigns roles explicitly) — otherwise
+            // every role-less admin would silently become owner.
             if ($user->admin !== null && $user->admin->type === null) {
                 $ownerId = UserRole::query()->where('name', 'owner')->value('id');
-                if ($ownerId !== null) {
+                if ($ownerId !== null && ! Admin::query()->where('type', $ownerId)->exists()) {
                     $user->admin->update(['type' => $ownerId]);
                 }
             }

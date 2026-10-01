@@ -19,9 +19,18 @@ class AdminSidebar extends Component
         $setupMode = request()->is('admin-setup') || request()->is('admin-setup/*')
             || (bool) session('admin_register', false);
 
-        $items = $setupMode 
-            ? config('sidebar.admin.setup', []) 
+        $items = $setupMode
+            ? config('sidebar.admin.setup', [])
             : config('sidebar.admin.main', []);
+
+        if ($setupMode) {
+            // System setup (school, licence, faculties, …) is owner-only.
+            // Non-owner admins get just their personal setup page.
+            $user = auth()->user();
+            if ($user instanceof User) {
+                $items = $navPermissions->filterSetupItemsForUser($user, $items);
+            }
+        }
 
         $items = $this->translateItems($items);
 
