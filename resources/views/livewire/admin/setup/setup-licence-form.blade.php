@@ -1,136 +1,22 @@
-<div class="mx-auto max-w-5xl space-y-6">
+<div class="space-y-6">
     @if($enrollmentChoice === 'pending')
-        @if($enrollError !== '')
-            <p class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300" role="alert">
-                {{ $enrollError }}
-            </p>
-        @endif
-
-        @if(! empty($manualLines))
-            <div class="rounded-xl border border-amber-200 bg-amber-50 p-6 dark:border-amber-900/50 dark:bg-amber-950/20">
-                <h2 class="text-base font-bold text-amber-900 dark:text-amber-200">{{ __('Licence accepted — one manual step left') }}</h2>
-                <p class="mt-1 text-sm text-amber-800 dark:text-amber-300">
-                    {{ __('The licence row is seeded, but the server settings could not be written. Paste these exact lines into :path, then continue.', ['path' => $manualPath]) }}
-                </p>
-                <pre class="mt-3 overflow-x-auto rounded-lg bg-gray-950 p-4 font-mono text-xs text-green-300">@foreach($manualLines as $line){{ $line }}{{ "\n" }}@endforeach</pre>
-                <button
-                    type="button"
-                    wire:click="continueSetup"
-                    class="mt-4 inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-500 focus:outline-none"
-                >
-                    {{ __('Continue setup') }}
-                </button>
-            </div>
-        @endif
-
-        @if($hasExistingData ?? false)
-            <div class="grid gap-6 lg:grid-cols-2">
-                <!-- Elevation primary: keep data, activate live -->
-                <div class="rounded-xl border-2 border-emerald-200 bg-emerald-50/60 p-6 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/20">
-                    <h2 class="text-base font-bold text-emerald-900 dark:text-emerald-200">{{ __('Continue with existing data and activate') }}</h2>
-                    <p class="mt-1 text-xs text-emerald-800 dark:text-emerald-300">{{ __('For trials already holding real data. Takes a database backup first, then redeems your code, replaces the licence row, clears provisional status and voids any local demo key.') }}</p>
-                    <div class="mt-4 space-y-3">
-                        <div>
-                            <label for="elevation-code" class="block text-xs font-semibold text-emerald-700 uppercase tracking-wider dark:text-emerald-400">{{ __('Enrollment code') }}</label>
-                            <input wire:model="elevationCode" id="elevation-code" type="text" autocomplete="off" placeholder="{{ __('e.g. APEX-2026-XXXX') }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white text-sm font-mono" />
-                            @error('elevationCode') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
-                        </div>
-                        <button
-                            type="button"
-                            wire:click="activateWithExistingData"
-                            wire:loading.attr="disabled"
-                            wire:target="activateWithExistingData"
-                            class="inline-flex w-full justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus:outline-none disabled:opacity-50"
-                        >
-                            <span wire:loading.remove wire:target="activateWithExistingData" class="inline-flex items-center gap-2">
-                                {{ __('Back up & activate with my data') }}
-                            </span>
-                            <span wire:loading.delay.200ms wire:target="activateWithExistingData" wire:loading.class.remove="hidden" class="hidden inline-flex items-center gap-2">
-                                <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
-                                {{ __('Backing up…') }}
-                            </span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Elevation secondary: guidance only, not implemented -->
-                <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                    <h2 class="text-base font-bold text-gray-900 dark:text-white">{{ __('Start fresh') }}</h2>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('Prefer a clean install? Reinstall a fresh copy of FlowEdu, then redeem your code at this same licence step. Nothing on this page wipes data — starting fresh means reinstalling separately.') }}</p>
-                </div>
-            </div>
-        @endif
-
-        <div class="grid gap-6 lg:grid-cols-3">
-            <!-- Exit (a): redeem code -->
-            <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                <h2 class="text-base font-bold text-gray-900 dark:text-white">{{ __('Redeem code now') }}</h2>
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('Enter the enrollment code ops gave you. Needs internet.') }}</p>
-                <div class="mt-4 space-y-3">
-                    <div>
-                        <label for="enroll-code" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">{{ __('Enrollment code') }}</label>
-                        <input wire:model="enrollCode" id="enroll-code" type="text" autocomplete="off" placeholder="{{ __('e.g. APEX-2026-XXXX') }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white text-sm font-mono" />
-                        @error('enrollCode') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
-                    </div>
-                    <button
-                        type="button"
-                        wire:click="redeemCode"
-                        class="inline-flex w-full justify-center rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-purple-500 focus:outline-none"
-                    >
-                        {{ __('Redeem & continue') }}
-                    </button>
-                </div>
-            </div>
-
-            <!-- Exit (b): continue offline -->
-            <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                <h2 class="text-base font-bold text-gray-900 dark:text-white">{{ __('Continue offline') }}</h2>
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('Start with a provisional core-only licence. Optionally leave a code to redeem automatically when online.') }}</p>
-                <div class="mt-4 space-y-3">
-                    <div>
-                        <label for="offline-code" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">{{ __('Code (optional)') }}</label>
-                        <input wire:model="offlineCode" id="offline-code" type="text" autocomplete="off" placeholder="{{ __('Saved for silent retry') }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white text-sm font-mono" />
-                    </div>
-                    <button
-                        type="button"
-                        wire:click="continueOffline"
-                        class="inline-flex w-full justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-                    >
-                        {{ __('Continue offline') }}
-                    </button>
-                </div>
-            </div>
-
-            <!-- Exit (c): import licence file -->
-            <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                <h2 class="text-base font-bold text-gray-900 dark:text-white">{{ __('Import licence file') }}</h2>
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('Paste the signed blob, or pick the file — it is read locally and verified.') }}</p>
-                <div class="mt-4 space-y-3">
-                    <div>
-                        <input
-                            type="file"
-                            accept=".json,.txt,application/json"
-                            x-data
-                            x-on:change="const f = $event.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = (e) => $wire.set('importBlob', e.target.result); r.readAsText(f);"
-                            class="block w-full text-xs text-gray-500 dark:text-gray-400 file:mr-2 file:rounded-md file:border-0 file:bg-purple-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-purple-700 hover:file:bg-purple-100 dark:file:bg-purple-950/40 dark:file:text-purple-300"
-                        />
-                    </div>
-                    <div>
-                        <label for="import-blob" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">{{ __('Signed blob') }}</label>
-                        <textarea wire:model="importBlob" id="import-blob" rows="4" spellcheck="false" placeholder='{"payload": {...}, "signature": "..."}' class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white text-xs font-mono"></textarea>
-                        @error('importBlob') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
-                    </div>
-                    <button
-                        type="button"
-                        wire:click="importLicence"
-                        class="inline-flex w-full justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-                    >
-                        {{ __('Verify & continue') }}
-                    </button>
-                </div>
-            </div>
+    <div class="mx-auto w-full max-w-3xl space-y-6">
+        <div class="text-center">
+            <h1 class="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{{ __('Activate your licence') }}</h1>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ __('Pick a method below — switch anytime before continuing.') }}</p>
         </div>
+        @include('livewire.admin.setup.licence-activation-panels', [
+            'mode' => $mode,
+            'idPrefix' => '',
+            'enrollError' => $enrollError,
+            'manualLines' => $manualLines,
+            'manualPath' => $manualPath,
+            'hasExistingData' => $hasExistingData ?? false,
+            'showContinueSetup' => true,
+        ])
+    </div>
     @else
+    <div class="mx-auto max-w-5xl space-y-6">
     @if($enrollmentChoice === 'linked')
     <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-100">
         <i class="fa-solid fa-circle-check mr-2"></i>{{ __('Managed by ControlDesk (ref: :ref). Modules are frozen to your plan — core settings below can still be changed.', ['ref' => $external_ref]) }}
@@ -356,5 +242,6 @@
             </div>
         </div>
     </form>
+    </div>
     @endif
 </div>

@@ -260,14 +260,9 @@ final class LicenceEnrollmentService
      */
     public function centralCoreGrants(?School $school = null): array
     {
-        $grants = null;
-        try {
-            $raw = Setting::query()->where('setting_key', self::LAST_GRANT_KEY)->value('setting_value');
-            $decoded = is_string($raw) ? json_decode($raw, true) : null;
-            $grants = is_array($decoded) ? $decoded : null;
-        } catch (\Throwable $e) {
-            $grants = null;
-        }
+        $grants = $this->readLastGrant();
+        // Back-compat: early recordings stored the flat core map.
+        $core = is_array($grants) && array_key_exists('core', $grants) ? $grants['core'] : $grants;
 
         $school ??= School::current();
         $row = $school?->licence()->first();
@@ -277,8 +272,8 @@ final class LicenceEnrollmentService
             if (($feat['locked'] ?? false) || ! isset($feat['db_column'])) {
                 continue;
             }
-            if (is_array($grants) && array_key_exists($key, $grants)) {
-                $out[$key] = (bool) $grants[$key];
+            if (is_array($core) && array_key_exists($key, $core)) {
+                $out[$key] = (bool) $core[$key];
             } elseif ($row !== null) {
                 $col = $feat['db_column'];
                 $out[$key] = (bool) $row->$col;
@@ -288,6 +283,87 @@ final class LicenceEnrollmentService
         }
 
         return $out;
+    }
+
+    /**
+     * Last known central grant per module key: which modular extensions sit
+     * inside this install's plan (toggleable) versus outside it (hidden).
+     * Falls back to the local row, which linked installs seed from central.
+     *
+     * @return array<string, bool>
+     */
+    public function centralModuleGrants(?School $school = null): array
+    {
+        $grants = $this->readLastGrant();
+        $modules = is_array($grants) && array_key_exists('modules', $grants) ? $grants['modules'] : null;
+
+        $school ??= School::current();
+        $row = $school?->licence()->first();
+
+        $out = [];
+        foreach (config('licence.modules', []) as $key => $feat) {
+            if (! isset($feat['db_column'])) {
+                continue;
+            }
+            if (is_array($modules) && array_key_exists($key, $modules)) {
+                $out[$key] = (bool) $modules[$key];
+            } elseif ($row !== null) {
+                $col = $feat['db_column'];
+                $out[$key] = (bool) $row->$col;
+            } else {
+                $out[$key] = (bool) ($feat['default'] ?? false);
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Live licence = linked to ControlDesk AND within its dates. Null dates
+     * mean "no expiry recorded". Anything else (provisional, pending,
+     * legacy, expired) is core-only.
+     */
+    public function isLicenceLive(?School $school = null): bool
+    {
+        $school ??= School::current();
+        if (! $this->isLinked($school)) {
+            return false;
+        }
+
+        $row = $school?->licence()->first();
+        if ($row === null) {
+            return false;
+        }
+
+        $today = now()->toDateString();
+
+        foreach (['licence_end', 'support_until'] as $col) {
+            $date = $row->$col;
+            if ($date === null || $date === '') {
+                continue;
+            }
+            $value = $date instanceof \DateTimeInterface ? $date->format('Y-m-d') : (string) $date;
+            if ($value !== '' && $value < $today) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function readLastGrant(): ?array
+    {
+        try {
+            $raw = Setting::query()->where('setting_key', self::LAST_GRANT_KEY)->value('setting_value');
+            $decoded = is_string($raw) ? json_decode($raw, true) : null;
+
+            return is_array($decoded) ? $decoded : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     /**
@@ -405,33 +481,45 @@ final class LicenceEnrollmentService
     }
 
     /**
-     * Remember the snapshot's central core grant for display truth. Never
-     * throws; a missed recording just leaves the previous grant (or the
-     * local-row fallback) in place.
+     * Remember the snapshot's central grant for display truth (which core
+     * features and which modules sit inside the plan). Never throws; a
+     * missed recording just leaves the previous grant (or the local-row
+     * fallback) in place.
      */
     private function recordCentralGrant(array $snapshot): void
     {
         try {
             $lic = is_array($snapshot['licence'] ?? null) ? $snapshot['licence'] : [];
             $coreFlags = is_array($lic['core'] ?? null) ? $lic['core'] : [];
+            $moduleFlags = is_array($lic['modules'] ?? null) ? $lic['modules'] : [];
 
-            $grants = [];
+            $core = [];
             foreach (config('licence.core_features', []) as $key => $feat) {
                 if (($feat['locked'] ?? false) || ! isset($feat['db_column'])) {
                     continue;
                 }
-                $grants[$key] = array_key_exists($key, $coreFlags)
+                $core[$key] = array_key_exists($key, $coreFlags)
                     ? (bool) $coreFlags[$key]
                     : (bool) ($feat['default'] ?? true);
+            }
+
+            $modules = [];
+            foreach (config('licence.modules', []) as $key => $feat) {
+                if (! isset($feat['db_column'])) {
+                    continue;
+                }
+                $modules[$key] = array_key_exists($key, $moduleFlags)
+                    ? (bool) $moduleFlags[$key]
+                    : (bool) ($feat['default'] ?? false);
             }
 
             Setting::query()->updateOrCreate(
                 ['setting_key' => self::LAST_GRANT_KEY],
                 [
-                    'setting_value' => json_encode($grants, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+                    'setting_value' => json_encode(['core' => $core, 'modules' => $modules], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
                     'data_type' => 'json',
                     'category' => 'licence',
-                    'description' => 'Last known central core-feature grant (display truth for plan badges).',
+                    'description' => 'Last known central grant (display truth for plan badges and licensed modules).',
                 ]
             );
         } catch (\Throwable $e) {

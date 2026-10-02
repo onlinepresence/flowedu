@@ -270,7 +270,7 @@ class LicenceEnrollmentTest extends TestCase
         $this->assertStringContainsString('expired', (string) $expiredCall->get('enrollError'));
     }
 
-    public function test_linked_install_renders_read_only_and_blocks_save(): void
+    public function test_linked_live_install_allows_plan_toggles_and_guards_save(): void
     {
         $school = $this->setupSchool();
         $user = $this->owner();
@@ -285,33 +285,35 @@ class LicenceEnrollmentTest extends TestCase
         // $_SERVER entry, which made this test order/machine-dependent.
         config(['controlplane.deployment_uuid' => 'dep-linked-1']);
 
-        // Old form design restored: full catalog with server values,
-        // every input frozen (disabled).
+        // Live plan: granted modules switchable, the rest tucked into a
+        // disabled dropdown, capacity inputs always locked.
         Livewire::actingAs($user)
             ->test(\App\Livewire\Admin\Settings\LicenceSettingsPage::class)
             ->assertSee('Managed by ControlDesk')
-            ->assertDontSee('Save licensing')
+            ->assertSee('Save licensing')
             ->assertSee('Core Academic System')
             ->assertSee('Modular Extensions')
             ->assertSee('Financial Portal')
-            ->assertSee('disabled');
+            ->assertSee('Other modules')
+            ->assertSee('disabled')
+            ->assertSee('Centrally managed');
 
-        Livewire::actingAs($user)
-            ->test(\App\Livewire\Admin\Settings\LicenceSettingsPage::class)
-            ->call('save')
-            ->assertHasErrors(['form']);
-
-        // Core toggles stay editable and persist; modules stay frozen.
+        // Granted toggles persist; ungranted escalation and capacity edits
+        // are ignored server-side.
         Livewire::actingAs($user)
             ->test(\App\Livewire\Admin\Settings\LicenceSettingsPage::class)
             ->set('coreStates.attendance', false)
             ->set('moduleStates.finance', false)
-            ->call('saveCoreFeatures')
+            ->set('moduleStates.reports', true)
+            ->set('max_active_students', '999')
+            ->call('save')
             ->assertHasNoErrors();
 
         $row = SchoolLicence::query()->where('school_id', $school->id)->firstOrFail();
         $this->assertFalse((bool) $row->core_attendance);
-        $this->assertTrue((bool) $row->module_finance);
+        $this->assertFalse((bool) $row->module_finance);
+        $this->assertFalse((bool) $row->module_reports);
+        $this->assertSame(100, $row->max_active_students);
         $this->assertSame('dep-linked-1', $row->external_ref);
 
         Livewire::actingAs($user)
@@ -321,6 +323,120 @@ class LicenceEnrollmentTest extends TestCase
             ->assertSee('Financial Portal')
             ->assertSee('disabled')
             ->assertDontSee('Continue to faculties');
+    }
+
+    public function test_expired_linked_install_is_core_only_with_empty_state(): void
+    {
+        $school = $this->setupSchool();
+        $user = $this->owner();
+        $this->linkSchool($school, [
+            'licence_end' => now()->subDay()->toDateString(),
+            'support_until' => now()->subDay()->toDateString(),
+        ]);
+        config(['controlplane.deployment_uuid' => 'dep-uuid-1234']);
+
+        Livewire::actingAs($user)
+            ->test(\App\Livewire\Admin\Settings\LicenceSettingsPage::class)
+            ->assertSee('LICENCE INACTIVE')
+            ->assertSee('Core Academic System')
+            ->assertSee('Modular extensions unavailable')
+            ->assertSee('Activate licence')
+            ->assertDontSee('Financial Portal');
+
+        // Full saves are blocked until reactivation; core-only saves pass.
+        Livewire::actingAs($user)
+            ->test(\App\Livewire\Admin\Settings\LicenceSettingsPage::class)
+            ->call('save')
+            ->assertHasErrors(['form']);
+
+        Livewire::actingAs($user)
+            ->test(\App\Livewire\Admin\Settings\LicenceSettingsPage::class)
+            ->set('coreStates.attendance', false)
+            ->call('saveCoreFeatures')
+            ->assertHasNoErrors();
+
+        $this->assertFalse((bool) SchoolLicence::query()->where('school_id', $school->id)->value('core_attendance'));
+    }
+
+    public function test_module_grants_split_plan_vs_other(): void
+    {
+        $school = $this->setupSchool();
+        $user = $this->owner();
+        $this->linkSchool($school);
+
+        Http::fake(['*/api/v1/heartbeats' => Http::response(
+            ['status' => 'ok', 'snapshot' => $this->heartbeatSnapshot()], 200
+        )]);
+        $this->assertTrue(app(LicenceEnrollmentService::class)->syncHeartbeat());
+
+        $component = Livewire::actingAs($user)->test(\App\Livewire\Admin\Settings\LicenceSettingsPage::class);
+
+        $this->assertTrue($component->get('isLive'));
+        $this->assertSame(['finance'], array_keys($component->viewData('grantedModules')));
+        $this->assertCount(9, $component->viewData('otherModules'));
+        $this->assertTrue(app(LicenceEnrollmentService::class)->centralModuleGrants()['finance']);
+        $this->assertFalse(app(LicenceEnrollmentService::class)->centralModuleGrants()['reports']);
+    }
+
+    public function test_modal_redeem_activates_and_refreshes_in_place(): void
+    {
+        $school = $this->setupSchool();
+        $user = $this->owner();
+        SchoolLicence::query()->updateOrCreate(['school_id' => $school->id], [
+            'provisional' => true,
+            'external_ref' => null,
+            'module_finance' => false,
+        ]);
+
+        Http::fake([
+            '*/api/v1/enroll' => Http::response($this->snapshot(), 200),
+        ]);
+
+        $component = Livewire::actingAs($user)
+            ->test(\App\Livewire\Admin\Settings\LicenceSettingsPage::class)
+            ->assertSee('Modular extensions unavailable');
+
+        $component
+            ->set('enrollCode', 'APEX-2026-ABCD')
+            ->call('redeemCode')
+            ->assertHasNoErrors()
+            ->assertSee('Financial Portal')
+            ->assertDontSee('Modular extensions unavailable');
+
+        $this->assertTrue($component->get('isLive'));
+
+        $row = SchoolLicence::query()->where('school_id', $school->id)->firstOrFail();
+        $this->assertFalse((bool) $row->provisional);
+        $this->assertSame('dep-uuid-1234', $row->external_ref);
+        $this->assertTrue((bool) $row->module_finance);
+    }
+
+    public function test_wizard_shows_one_mode_at_a_time(): void
+    {
+        $this->setupSchool();
+        $user = $this->owner();
+
+        $component = Livewire::actingAs($user)->test(SetupLicenceForm::class);
+
+        // Switcher always visible; redeem panel first by default.
+        $component
+            ->assertSee('Redeem code')
+            ->assertSee('Import file')
+            ->assertSee('Continue offline')
+            ->assertSee('Redeem & continue')
+            ->assertDontSee('Signed blob')
+            ->assertDontSee('Saved for silent retry');
+
+        $component
+            ->set('mode', 'import')
+            ->assertSee('Signed blob')
+            ->assertSee('Verify & continue')
+            ->assertDontSee('Redeem & continue');
+
+        $component
+            ->set('mode', 'offline')
+            ->assertSee('Saved for silent retry')
+            ->assertDontSee('Signed blob');
     }
 
     public function test_env_write_failure_shows_manual_lines(): void

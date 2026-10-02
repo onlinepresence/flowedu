@@ -1,10 +1,22 @@
 <div class="w-full space-y-6">
-    @if($isLinked)
-        <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-100">
-            <i class="fa-solid fa-circle-check mr-2"></i>{{ __('Managed by ControlDesk (ref: :ref). Modules are frozen to your plan — core settings below can still be changed.', ['ref' => $external_ref]) }}
+    @if(($notice ?? '') !== '')
+        <div class="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700 dark:border-green-900/50 dark:bg-green-950/30 dark:text-green-300" role="status">
+            <i class="fa-solid fa-circle-check mr-2"></i>{{ $notice }}
         </div>
     @endif
-    @php($locked = $isLinked)
+    @if($isLinked && ($isLive ?? false))
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-100">
+            <i class="fa-solid fa-circle-check mr-2"></i>{{ __('Managed by ControlDesk (ref: :ref). Only modules on your plan can be switched on here — core settings below can still be changed.', ['ref' => $external_ref]) }}
+        </div>
+    @elseif($isLinked)
+        <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
+            <i class="fa-solid fa-circle-exclamation mr-2"></i><span class="font-bold">{{ __('LICENCE INACTIVE') }}</span>{{ __(' — your ControlDesk licence has expired or is inactive. Core-only until reactivated.') }}
+        </div>
+    @elseif(! $isProvisional)
+        <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
+            <i class="fa-solid fa-circle-info mr-2"></i>{{ __('This install is not linked to ControlDesk. Activate your licence to unlock modular extensions.') }}
+        </div>
+    @endif
     @if($isProvisional)
         <div class="rounded-xl border border-dotted border-amber-400 bg-amber-100 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/60 dark:bg-amber-950/40 dark:text-amber-100">
             <i class="fa-solid fa-triangle-exclamation mr-2"></i><span class="font-bold">{{ __('PROVISIONAL LICENCE') }}</span>{{ __(' — Core-only until ControlDesk redemption succeeds.') }}
@@ -18,7 +30,7 @@
     <form wire:submit="save" class="grid gap-6 lg:grid-cols-3">
         <!-- Left 2 Cols: Features and Modules -->
         <div class="space-y-6 lg:col-span-2">
-            
+
             <!-- Section A: Core Features -->
             <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                 <div class="mb-4 flex items-center gap-2">
@@ -69,28 +81,86 @@
                     <i class="fa-solid fa-puzzle-piece text-purple-600 dark:text-purple-400 text-lg"></i>
                     <h2 class="text-lg font-bold text-gray-900 dark:text-white">{{ __('Modular Extensions') }}</h2>
                 </div>
-                <div class="grid gap-4 sm:grid-cols-2">
-                    @foreach ($modulesCatalog as $key => $feat)
-                        <div class="relative flex flex-col justify-between rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-700/50 dark:bg-gray-900/40" wire:key="mod-{{ $key }}">
-                            <div class="mb-3 space-y-1">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ __($feat['label']) }}</span>
-                                    <label class="relative inline-flex {{ $locked ?? false ? 'cursor-not-allowed' : 'cursor-pointer' }} items-center">
-                                        <input type="checkbox" wire:model.live="moduleStates.{{ $key }}" class="peer sr-only" @disabled($locked ?? false)>
-                                        <div class="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-purple-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none dark:bg-gray-700"></div>
-                                    </label>
+                @if($isLive ?? false)
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        @foreach ($grantedModules as $key => $feat)
+                            <div class="relative flex flex-col justify-between rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-700/50 dark:bg-gray-900/40" wire:key="mod-{{ $key }}">
+                                <div class="mb-3 space-y-1">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ __($feat['label']) }}</span>
+                                        <label class="relative inline-flex cursor-pointer items-center">
+                                            <input type="checkbox" wire:model.live="moduleStates.{{ $key }}" class="peer sr-only">
+                                            <div class="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-purple-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none dark:bg-gray-700"></div>
+                                        </label>
+                                    </div>
+                                    <p class="text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">{{ __($feat['description']) }}</p>
                                 </div>
-                                <p class="text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">{{ __($feat['description']) }}</p>
+                                <div class="mt-2 border-t border-gray-200/50 pt-2 flex items-center justify-between text-xs text-gray-400 dark:border-gray-700/50">
+                                    <span>{{ __('Base annual price') }}</span>
+                                    <span class="font-semibold font-mono text-gray-700 dark:text-gray-300">
+                                        {{ number_format((float)$feat['base_price'], 2) }} {{ config('licence.currency', 'GHS') }}
+                                    </span>
+                                </div>
                             </div>
-                            <div class="mt-2 border-t border-gray-200/50 pt-2 flex items-center justify-between text-xs text-gray-400 dark:border-gray-700/50">
-                                <span>{{ __('Base annual price') }}</span>
-                                <span class="font-semibold font-mono text-gray-700 dark:text-gray-300">
-                                    {{ number_format((float)$feat['base_price'], 2) }} {{ config('licence.currency', 'GHS') }}
+                        @endforeach
+                    </div>
+                    @if(count($otherModules ?? []) > 0)
+                        <div x-data="{ open: false }" class="mt-4">
+                            <button
+                                type="button"
+                                @click="open = ! open"
+                                :aria-expanded="open"
+                                class="flex w-full items-center justify-between rounded-xl border border-dashed border-gray-300 bg-gray-50/50 px-4 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-200"
+                            >
+                                <span>
+                                    <i class="fa-solid fa-layer-group mr-2 text-gray-400" aria-hidden="true"></i>{{ __('Other modules (:count) — not on your plan', ['count' => count($otherModules)]) }}
                                 </span>
+                                <i class="fa-solid fa-chevron-down text-xs transition-transform" :class="{ 'rotate-180': open }" aria-hidden="true"></i>
+                            </button>
+                            <div x-show="open" x-transition class="mt-3 grid gap-4 sm:grid-cols-2" style="display: none;">
+                                @foreach ($otherModules as $key => $feat)
+                                    <div class="relative flex flex-col justify-between rounded-xl border border-gray-100 bg-gray-50 p-4 opacity-70 dark:border-gray-700/50 dark:bg-gray-900/40" wire:key="mod-other-{{ $key }}">
+                                        <div class="mb-3 space-y-1">
+                                            <div class="flex items-center justify-between gap-2">
+                                                <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ __($feat['label']) }}</span>
+                                                <label class="relative inline-flex cursor-not-allowed items-center">
+                                                    <input type="checkbox" class="peer sr-only" disabled @checked((bool) ($moduleStates[$key] ?? false))>
+                                                    <div class="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-purple-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none dark:bg-gray-700"></div>
+                                                </label>
+                                            </div>
+                                            <p class="text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">{{ __($feat['description']) }}</p>
+                                            <p class="text-[11px] font-medium text-amber-600 dark:text-amber-400">{{ __('Not included — contact ops to add it.') }}</p>
+                                        </div>
+                                        <div class="mt-2 border-t border-gray-200/50 pt-2 flex items-center justify-between text-xs text-gray-400 dark:border-gray-700/50">
+                                            <span>{{ __('Base annual price') }}</span>
+                                            <span class="font-semibold font-mono text-gray-700 dark:text-gray-300">
+                                                {{ number_format((float)$feat['base_price'], 2) }} {{ config('licence.currency', 'GHS') }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                @endforeach
                             </div>
                         </div>
-                    @endforeach
-                </div>
+                    @endif
+                @else
+                    <div class="py-8 text-center">
+                        <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-900">
+                            <i class="fa-solid fa-puzzle-piece text-xl text-gray-400 dark:text-gray-500" aria-hidden="true"></i>
+                        </div>
+                        <h3 class="mt-3 text-sm font-bold text-gray-900 dark:text-white">{{ __('Modular extensions unavailable') }}</h3>
+                        <p class="mx-auto mt-1 max-w-md text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+                            {{ __('Your licence is not active, so only the core system is available. Verify your installation, provide a licence, or reactivate an expired one to unlock modular extensions.') }}
+                        </p>
+                        <button
+                            type="button"
+                            wire:click="openActivationModal"
+                            class="mt-4 inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-purple-500 focus:outline-none"
+                        >
+                            <i class="fa-solid fa-key" aria-hidden="true"></i>
+                            {{ __('Activate licence') }}
+                        </button>
+                    </div>
+                @endif
             </div>
 
             <!-- Section C: Subscription Terms -->
@@ -102,12 +172,12 @@
                 <div class="grid gap-6 sm:grid-cols-2">
                     <div>
                         <label for="licence-start" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">{{ __('Licence start date') }}</label>
-                        <input wire:model="licence_start" id="licence-start" type="date" @disabled($locked ?? false) class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white text-sm disabled:opacity-70" />
+                        <input wire:model="licence_start" id="licence-start" type="date" @disabled($isLinked ?? false) class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white text-sm disabled:opacity-70" />
                         @error('licence_start') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label for="support-until" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">{{ __('Support expiration date') }}</label>
-                        <input wire:model="support_until" id="support-until" type="date" @disabled($locked ?? false) class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white text-sm disabled:opacity-70" />
+                        <input wire:model="support_until" id="support-until" type="date" @disabled($isLinked ?? false) class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white text-sm disabled:opacity-70" />
                         @error('support_until') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
                 </div>
@@ -125,14 +195,13 @@
                 <div class="space-y-4">
                     <div>
                         <label for="max-students" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">{{ __('Max Active Students') }}</label>
-                        <input wire:model.live="max_active_students" id="max-students" type="number" min="0" placeholder="{{ __('No limit') }}" @disabled($locked ?? false) class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white text-sm disabled:opacity-70" />
-                        @error('max_active_students') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        <input wire:model.live="max_active_students" id="max-students" type="number" min="0" placeholder="{{ __('No limit') }}" disabled class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white text-sm disabled:opacity-70" />
                     </div>
                     <div>
                         <label for="external-ref" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">{{ __('Reference / Invoice ID') }}</label>
-                        <input wire:model="external_ref" id="external-ref" type="text" @disabled($locked ?? false) class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white text-sm disabled:opacity-70" />
-                        @error('external_ref') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        <input wire:model="external_ref" id="external-ref" type="text" disabled class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white text-sm disabled:opacity-70" />
                     </div>
+                    <p class="text-[11px] leading-relaxed text-gray-400 dark:text-gray-500">{{ __('Centrally managed — editing returns in a future update.') }}</p>
                 </div>
             </div>
 
@@ -194,7 +263,7 @@
                 </div>
 
                 <div class="mt-6 border-t border-purple-200/60 pt-4 dark:border-purple-800/60">
-                    @if($locked ?? false)
+                    @if(($isLinked ?? false) && ! ($isLive ?? false))
                         <button
                             type="button"
                             wire:click="saveCoreFeatures"
@@ -210,7 +279,7 @@
                                 {{ __('Please wait…') }}
                             </span>
                         </button>
-                        <p class="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">{{ __('Modules frozen by ControlDesk.') }}</p>
+                        <p class="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">{{ __('Core-only until reactivation.') }}</p>
                     @else
                         <x-college-form-submit target="save" class="w-full justify-center">
                             {{ __('Save licensing') }}
@@ -223,5 +292,26 @@
             </div>
         </div>
     </form>
+
+    <x-college.modal name="licence-activation-modal" :title="__('Activate licence')" maxWidth="2xl">
+        @include('livewire.admin.setup.licence-activation-panels', [
+            'mode' => $mode,
+            'idPrefix' => 'modal-',
+            'enrollError' => $enrollError,
+            'manualLines' => $manualLines,
+            'manualPath' => $manualPath,
+            'hasExistingData' => $hasExistingData ?? false,
+            'showContinueSetup' => false,
+        ])
+        <x-slot name="footer">
+            <button
+                type="button"
+                wire:click="$dispatch('close-modal', 'licence-activation-modal')"
+                class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+            >
+                {{ __('Close') }}
+            </button>
+        </x-slot>
+    </x-college.modal>
 
 </div>

@@ -46,6 +46,9 @@ class SetupLicenceForm extends Component
     /** linked|provisional|pending|legacy */
     public string $choice = 'pending';
 
+    /** Activation switcher: redeem|import|offline (one form at a time). */
+    public string $mode = 'redeem';
+
     public function mount(SchoolLicenceService $licenceService, LicenceEnrollmentService $enrollment): void
     {
         if (! session('admin_register')) {
