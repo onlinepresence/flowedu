@@ -36,11 +36,6 @@ Route::middleware(['auth'])->group(function () {
         ->name('college.filepond.process');
     Route::delete('__college/filepond/revert', [FilepondController::class, 'revert'])
         ->name('college.filepond.revert');
-
-    // TEMPORARY admin-only SMTP smoke test (MailTestController + mail-test view).
-    // Delete once emailing is verified on the server.
-    Route::get('__testing/mail', [\App\Http\Controllers\MailTestController::class, 'show'])
-        ->name('testing.mail');
 });
 
 Route::get('/licence-required', function (Request $request, SchoolLicenceService $licenceService) {

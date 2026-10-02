@@ -26,6 +26,15 @@ class SetupHallPage extends Component
 
     public ?int $editingHallId = null;
 
+    public function mount(): void
+    {
+        // Shared page: the setup wizard is owner-gated at the route, the
+        // post-setup Academic page needs its own nav permission.
+        if (request()->routeIs('admin.academic.*')) {
+            abort_unless(auth()->user()?->hasAdminPermission('nav_academic_halls'), 403);
+        }
+    }
+
     public function saveHall(): void
     {
         $this->validate([
@@ -108,8 +117,15 @@ class SetupHallPage extends Component
 
     public function render(): View
     {
+        $isSetup = request()->routeIs('admin.setup.halls');
+        $title = $isSetup ? __('Setup halls') : __('Halls');
+
         return view('livewire.admin.setup.setup-hall-page', [
             'halls' => Hall::query()->orderBy('name')->paginate(15),
-        ])->layout('components.layouts.admin', ['title' => __('Setup halls')]);
+        ])->layout('components.layouts.admin', [
+            'title' => $title,
+            'headerTitle' => $isSetup ? null : $title,
+            'headerDescription' => $isSetup ? null : __('Manage student halls and accommodation costs.'),
+        ]);
     }
 }

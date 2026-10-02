@@ -146,6 +146,7 @@ return [
         'nav_academic_program' => 'Nav: Programs',
         'nav_academic_sessions' => 'Nav: Academic Sessions / Terms',
         'nav_academic_timetable' => 'Nav: Timetable',
+        'nav_academic_halls' => 'Nav: Halls',
 
         // Admin sidebar — Grading
         'nav_grading_points' => 'Nav: Grade Points',
@@ -202,6 +203,7 @@ return [
 
         // Admin sidebar — Tools
         'nav_tools_passport' => 'Nav: Passport validator',
+        'nav_tools_email' => 'Nav: Email composer',
 
         // Admin sidebar — Memos
         'nav_memos' => 'Nav: Memos Inbox & Outbox',
@@ -248,6 +250,7 @@ return [
             'nav_academic_program',
             'nav_academic_sessions',
             'nav_academic_timetable',
+            'nav_academic_halls',
         ],
         'course_management_view' => [
             'nav_academic_faculty',
@@ -255,6 +258,7 @@ return [
             'nav_academic_program',
             'nav_academic_sessions',
             'nav_academic_timetable',
+            'nav_academic_halls',
         ],
         'teacher_management' => [
             'nav_staff_home',

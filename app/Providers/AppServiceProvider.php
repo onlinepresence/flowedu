@@ -89,9 +89,22 @@ class AppServiceProvider extends ServiceProvider
                 'light' => 'images/auth/login-office.jpeg',
                 'dark' => 'images/auth/login-office-dark.jpeg',
             ];
+
+            // Per-school lockup: once a school is active, auth forms carry
+            // its logo + name so users trust the portal is really theirs.
+            $brandSchool = \App\Models\School::current();
+            $schoolReady = $brandSchool !== null && (bool) $brandSchool->ready;
             $view->with([
                 'authHeroLight' => $pair['light'],
                 'authHeroDark' => $pair['dark'],
+                'authBrandLogo' => ($schoolReady && $brandSchool->logo)
+                    ? asset('storage/'.$brandSchool->logo)
+                    : asset('images/flowedu-logo.png'),
+                'authBrandName' => ($schoolReady && trim((string) $brandSchool->name) !== '')
+                    ? $brandSchool->name
+                    : config('app.name'),
+                'authSchoolReady' => $schoolReady,
+                'authSchoolName' => $schoolReady ? $brandSchool->name : null,
             ]);
         });
     }

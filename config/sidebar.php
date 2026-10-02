@@ -36,6 +36,7 @@ return [
                     ['label' => 'Programs', 'route' => 'admin.academic.program', 'permission' => 'nav_academic_program'],
                     ['label' => 'Academic Sessions / Terms', 'route' => 'admin.academic.sessions', 'permission' => 'nav_academic_sessions'],
                     ['label' => 'Timetable', 'route' => 'admin.academic.timetable', 'permission' => 'nav_academic_timetable'],
+                    ['label' => 'Halls', 'route' => 'admin.academic.halls', 'permission' => 'nav_academic_halls'],
                 ],
             ],
             [
@@ -120,6 +121,7 @@ return [
                 'icon' => 'wrench-screwdriver',
                 'children' => [
                     ['label' => 'Passport validator', 'route' => 'tools.passport-validator', 'permission' => 'nav_tools_passport'],
+                    ['label' => 'Email composer', 'route' => 'tools.email', 'permission' => 'nav_tools_email'],
                 ],
             ],
         ],

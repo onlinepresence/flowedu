@@ -146,6 +146,7 @@ Route::middleware($adminApp)->prefix('admin/academic')->group(function () {
     Route::get('program/{program_id}/{form_level}', ProgramManagePage::class)->name('program.manage');
     Route::get('program/{program_id}', ProgramClassesPage::class)->name('program.classes');
     Route::get('sessions', SessionIndex::class)->name('admin.academic.sessions');
+    Route::get('halls', SetupHallPage::class)->name('admin.academic.halls');
     Route::get('timetable', TimetableIndex::class)
         ->middleware('college.licence:timetable')
         ->name('admin.academic.timetable');
@@ -210,6 +211,12 @@ Route::middleware([...$adminApp, 'college.licence:reports'])->prefix('admin/repo
 
 Route::middleware([...$adminApp, 'college.licence:system_admin'])->prefix('tools')->group(function () {
     Route::get('passport-validator', PassportValidatorPage::class)->name('tools.passport-validator');
+});
+
+// Email composer is infrastructure, not a licensed module: owner/system
+// admin only + only when outbound mail is configured (guarded in-page).
+Route::middleware($adminApp)->prefix('tools')->group(function () {
+    Route::get('email', \App\Livewire\Admin\Tools\EmailComposerPage::class)->name('tools.email');
 });
 
 Route::middleware([...$adminApp, 'college.licence:memos'])->prefix('admin/memos')->group(function () {

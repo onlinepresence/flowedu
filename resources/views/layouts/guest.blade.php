@@ -7,6 +7,8 @@
 
         <title>{{ config('app.name', 'Laravel') }}</title>
 
+        <link rel="icon" type="image/png" href="{{ asset('images/flowedu-favicon.png') }}">
+
         <script>
             (function () {
                 try {
@@ -76,6 +78,15 @@
                     </div>
                     <div class="flex items-center justify-center p-6 sm:p-12 md:w-1/2">
                         <div class="w-full">
+                            <div class="mb-6 flex items-center gap-3">
+                                <img src="{{ $authBrandLogo ?? asset('images/flowedu-logo.png') }}" alt="" class="h-11 w-11 shrink-0 rounded-xl object-cover" />
+                                <div class="min-w-0">
+                                    <p class="truncate text-base font-bold text-gray-800 dark:text-gray-100">{{ $authBrandName ?? config('app.name') }}</p>
+                                    @if(! empty($authSchoolReady))
+                                        <p class="truncate text-xs text-gray-500 dark:text-gray-400">{{ __('Secured portal of :school', ['school' => $authSchoolName]) }}</p>
+                                    @endif
+                                </div>
+                            </div>
                             {{ $slot }}
                         </div>
                     </div>

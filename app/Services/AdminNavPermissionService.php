@@ -20,6 +20,12 @@ final class AdminNavPermissionService
      */
     public function filterItemsForUser(User $user, array $items): array
     {
+        // The email composer only exists when outbound mail is configured —
+        // strip it everywhere (sidebar + search index) otherwise.
+        if (! \App\Support\MailSetup::isConfigured()) {
+            $items = $this->removeRoute($items, 'tools.email');
+        }
+
         if ($user->type === 'admin' && ($user->isAdminOwner() || $user->adminRoleSlug() === 'system_admin')) {
             return $items;
         }
@@ -69,6 +75,28 @@ final class AdminNavPermissionService
             $items,
             fn ($item): bool => ($item['route'] ?? null) === 'admin.setup.personal'
         ));
+    }
+
+    /**
+     * Recursively drop a nav item by route name.
+     *
+     * @param  list<array<string, mixed>>  $items
+     * @return list<array<string, mixed>>
+     */
+    private function removeRoute(array $items, string $route): array
+    {
+        $out = [];
+        foreach ($items as $item) {
+            if (($item['route'] ?? null) === $route) {
+                continue;
+            }
+            if (isset($item['children']) && is_array($item['children'])) {
+                $item['children'] = $this->removeRoute($item['children'], $route);
+            }
+            $out[] = $item;
+        }
+
+        return $out;
     }
 
     /**

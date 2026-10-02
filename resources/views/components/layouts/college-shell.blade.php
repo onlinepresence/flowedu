@@ -17,6 +17,14 @@
         ? route('admin.settings.school')
         : null;
     $user = auth()->user();
+    // Brand lockup: school logo/name when set, else the FlowEdu default icon.
+    $brandSchool = \App\Models\School::current();
+    $brandLogoUrl = ($brandSchool && $brandSchool->logo)
+        ? asset('storage/'.$brandSchool->logo)
+        : asset('images/flowedu-logo.png');
+    $brandName = ($brandSchool && trim((string) $brandSchool->name) !== '')
+        ? $brandSchool->name
+        : config('app.name');
     // Post-onboarding verify-email nudge: never during setup wizards.
     // Done = student approved+activated, teacher onboarded, admin/staff profile complete.
     $onboardingDone = match ($user->type ?? null) {
@@ -40,6 +48,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
+        <link rel="icon" type="image/png" href="{{ asset('images/flowedu-favicon.png') }}">
 
         <title>{{ $title ? $title.' — ' : '' }}{{ config('app.name', 'Laravel') }}</title>
 
@@ -179,9 +188,10 @@
                     <a
                         href="{{ url('/') }}"
                         wire:navigate
-                        class="ml-6 text-lg font-bold text-gray-800 dark:text-gray-200"
+                        class="ml-6 flex items-center gap-2.5"
                     >
-                        {{ config('app.name') }}
+                        <img src="{{ $brandLogoUrl }}" alt="" class="h-9 w-9 shrink-0 rounded-lg object-cover" />
+                        <span class="truncate text-lg font-bold text-gray-800 dark:text-gray-200">{{ $brandName }}</span>
                     </a>
                     <div class="mt-6 min-h-0 flex-1 overflow-y-auto">
                         {{ $sidebar }}
