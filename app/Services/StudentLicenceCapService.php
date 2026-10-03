@@ -36,6 +36,11 @@ class StudentLicenceCapService
 
     public function blocksNewAdmissions(): bool
     {
+        // Demo keys are FULL access: never enforce student caps on demo.
+        if ($this->isDemoUnlocked()) {
+            return false;
+        }
+
         if (! $this->licenceService->isEnforcementEnabled()) {
             return false;
         }
@@ -48,6 +53,11 @@ class StudentLicenceCapService
      */
     public function messageIfCannotApproveAnotherStudent(): ?string
     {
+        // Demo keys are FULL access: never enforce student caps on demo.
+        if ($this->isDemoUnlocked()) {
+            return null;
+        }
+
         if (! $this->licenceService->isEnforcementEnabled()) {
             return null;
         }
@@ -73,6 +83,11 @@ class StudentLicenceCapService
      */
     public function dashboardCapNotice(): ?string
     {
+        // Demo keys are FULL access: never enforce student caps on demo.
+        if ($this->isDemoUnlocked()) {
+            return null;
+        }
+
         if (! $this->licenceService->isEnforcementEnabled()) {
             return null;
         }
@@ -99,5 +114,22 @@ class StudentLicenceCapService
         return __('Active student limit (:max) reached — new approvals are blocked until the cap is raised or students are deactivated.', [
             'max' => $max,
         ]);
+    }
+
+    /**
+     * Demo full-access check (same lazy pattern as SchoolLicenceService to
+     * avoid circular singletons). Never throws — failure means locked.
+     */
+    private function isDemoUnlocked(): bool
+    {
+        try {
+            if (! (bool) config('college.demo_mode', false)) {
+                return false;
+            }
+
+            return app(\App\Services\DemoKeyVerifier::class)->isUnlocked();
+        } catch (\Throwable) {
+            return false;
+        }
     }
 }

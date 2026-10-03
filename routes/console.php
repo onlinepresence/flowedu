@@ -48,6 +48,17 @@ Schedule::call(fn () => app(\App\Services\ControlPlane\LicenceEnrollmentService:
     ->name('licence-heartbeat-sync');
 
 /*
+| Demo re-verify: boot (via EnsureDemoKeyGate) + ~24h interval. Re-POSTs the
+| stored demo-XXXXXXXX code when due so revocation bites on the next online
+| check and every hit stamps demo.last_online_check (desk last_used_at stays
+| fresh). Offline copies keep working until expires_at; the call is a quiet
+| no-op when not in demo mode, live-linked, or not yet due.
+*/
+Schedule::call(fn () => app(\App\Services\DemoKeyVerifier::class)->reverifyIfDue())
+    ->dailyAt('05:00')
+    ->name('demo-reverify-daily');
+
+/*
 | Queue drain (shared-hosting friendly): the database queue (verification +
 | notification mails) is worked until empty every minute instead of a
 | long-lived daemon. Requires the every-minute cron `php artisan schedule:run`;

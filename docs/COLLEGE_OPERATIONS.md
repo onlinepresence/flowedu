@@ -55,11 +55,12 @@ A trial that already holds real data elevates inside normal setup: when the
 licence step detects existing records (any students, or more than the single
 installing owner account), it offers **Continue with existing data and
 activate** next to guidance-only **Start fresh** (reinstall separately, then
-redeem — not implemented as an action). The primary path takes a database
-backup through the Backup path FIRST and aborts before touching anything if
-it fails; then redeems the code, replaces the licence row, clears
-provisional, and voids any local demo key (`DEMO_KEY` line removed from
-`.env`, key session forgotten). One-way enforced: linked (live) installs
+redeem — not implemented as an action). The primary path redeems the code,
+replaces the licence row, clears provisional, and voids any local demo key
+(`DEMO_KEY` line removed from `.env`, key session forgotten). No backup step:
+the old synchronous mysqldump hung interactive requests (blocking
+single-threaded servers outright) — take a backup from Backup & Restore
+beforehand if you need one. One-way enforced: linked (live) installs
 refuse demo keys outright, with a warning-level log.
 
 Linked installs (`DEPLOYMENT_UUID` set and matching the row) render the
@@ -154,29 +155,51 @@ No second DB, no runtime connection swapping. Demo vs production is one flag
 
 When `APP_DEMO=true`: demo banner on all pages, demo credentials hint on login,
 mail forced to `log` driver, public registration closed (seeded users only).
-Licence enforcement STAYS ON — the seeded `school_licences` row governs features.
+Demo keys are FULL access by design — a valid demo signature unlocks every
+feature and never enforces student caps (the seeded `school_licences` row is
+ignored while a demo is unlocked).
 
 Key gate: `DEMO_KEY` env bypasses the key-entry screen entirely (the hosted instance
 lives here). Without it, visitors see `GET /demo/key` (403-style, FlowEdu landing
 look, Alpine form, no Livewire) and must enter a key once per session
 (`session('demo_key_accepted')`). The screen takes two inputs: a pasted signed
-document, or a bare code (verified online once, then cached). Validation lives in
+document, or a bare `demo-XXXXXXXX` code (verified online once, then cached).
+Validation lives in
 [`DemoKeyVerifier`](../app/Services/DemoKeyVerifier.php) and is offline-first —
 documents look like
 `{"payload": {"expires_at": "2027-09-18"|null, "host": "demo.example.com"|null,
 "issued_at": "2026-09-19"}, "signature": "<hex ed25519>", "algorithm": "ed25519"}`,
-verified against the baked-in `DEMO_PUBLIC_KEY` with no network involved. A bare
-code is POSTed once to ControlDesk `/api/v1/demo-keys/verify`; the returned
+with deliberately no enabled/modules/caps list. Verified against the single
+ControlDesk key (`CONTROL_PLANE_PUBLIC_KEY` — the same key that verifies live
+licence blobs, see
+[`ControlPlaneKeys`](../app/Services/ControlPlane/ControlPlaneKeys.php); hex or
+base64) with no network involved. A bare
+code is POSTed once to ControlDesk `/api/v1/demo-keys/verify` with
+`{code, app_version, modules_in_use[]}` — telemetry only, never enforcement, so
+the desk sees what the prospect tried; the returned
 document is cached locally (`demo.cached_key_document` setting) and every later
 check — including offline ones — runs against that cached signature. Offline with
 no cache stays on the key screen, as always. A null `expires_at` means NEVER
 (the marketing key): accepted, but logged at warning level so it stays visible.
 Bad signatures (tamper) and issued-in-the-future documents (clock suspect) fail
 into the enforced key screen with a warning-level log; expired, wrong-host and
-malformed keys fail quieter with per-reason screen copy. A bare opaque token
+malformed keys fail quieter with per-reason screen copy. Desk 422 slugs map
+cleanly: `unknown_code` (not recognized), `key_revoked` (revoked),
+`key_expired` (expired). A bare opaque token
 (e.g. a ControlDesk heartbeat token pasted at the wrong door) gets its own error
 telling the visitor those belong in `.env`, not here. Linked (live) installs
-refuse demo keys outright — elevation never flows back to demo.
+refuse demo keys outright — elevation never flows back to demo. Demos never reuse
+the deployment heartbeat token flow (short `demo-XXXXXXXX` codes, not Sanctum
+tokens); convert-to-paid happens desk-side and FlowEdu enrollment just accepts
+the claim code afterwards (voiding any local demo key on elevation).
+
+Re-verify (boot + ~24h): the gate re-POSTs the stored bare code at most once per
+24h (`demo.last_online_check` throttle; daily `demo-reverify-daily` scheduler backs
+it up). Offline failures keep serving the cached document until `expires_at`;
+a definitive revoked answer sticks (`demo.last_verify_status`) and the gate stops
+bypassing until a fresh key lands. Every online hit stamps the check so the
+desk's `last_used_at` stays fresh. Owner/admin users see a trial banner
+(`demo.banner`) with valid-until (`Never` when null) plus host lock when bound.
 
 ### Provisioning the demo DB + user (DDL scoped to it)
 
@@ -191,7 +214,8 @@ FLUSH PRIVILEGES;
 ```
 
 Point the demo host `.env` at it (`DB_DATABASE=flowedu_demo`, `DB_USERNAME=flowedu_demo`),
-set `APP_DEMO=true`, `DEMO_KEY=<signed-key>` and `DEMO_PUBLIC_KEY=<base64-ed25519-pubkey>`,
+set `APP_DEMO=true`, `DEMO_KEY=<signed-key>` and
+`CONTROL_PLANE_PUBLIC_KEY=<hex-ed25519-pubkey>`,
 then `php artisan migrate --force`
 plus `php artisan db:seed --class="Database\Seeders\DemoDataSeeder" --force`.
 
@@ -214,6 +238,12 @@ cached document. A failed `.env` write never blocks a valid key — session-only
 pass plus a one-time warning. Heartbeat/wrong-door tokens are never persisted.
 Key rotation = change the `DEMO_KEY` value (old keys lapse at their `exp`); change
 `DEMO_KEY` to rotate the hosted bypass.
+
+Refresh-safe: the monthly `demo:refresh` wipes every settings row (cached
+document, re-verify stamps, telemetry), but `.env` is untouched — the next
+request re-verifies the stored `DEMO_KEY` (bare codes re-fetch + re-cache
+online; stored documents verify offline directly), so the trial survives the
+wipe with no manual step.
 
 ## Queue workers
 

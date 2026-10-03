@@ -36,5 +36,14 @@
         <env name="COLLEGE_PASSPORT_VALIDATION_ENABLED" value="false"/>
         <env name="APP_DEMO" value="false"/>
         <env name="LANDING_PAGE_ENABLED" value="false"/>
+        <!-- Hermetic licensing/demo env: tests must never inherit ambient
+             developer keys (a real DEMO_KEY in .env would otherwise bypass
+             gates and unlock demos inside tests). Suites set config()
+             explicitly wherever they need a value. -->
+        <env name="DEMO_KEY" value=""/>
+        <env name="CONTROL_PLANE_URL" value=""/>
+        <env name="CONTROL_PLANE_PUBLIC_KEY" value=""/>
+        <env name="DEPLOYMENT_UUID" value=""/>
+        <env name="CONTROL_PLANE_TOKEN" value=""/>
     </php>
 </phpunit>

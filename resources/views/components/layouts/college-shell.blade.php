@@ -362,6 +362,8 @@
                     </div>
                 </header>
 
+                @includeWhen(config('college.demo_mode'), 'demo.banner')
+
                 @if ($showEmailVerificationBanner)
                     <div class="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100 sm:px-6">
                         <span>

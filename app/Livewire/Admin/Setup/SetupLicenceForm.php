@@ -120,27 +120,22 @@ class SetupLicenceForm extends Component
 
     /**
      * Trial-to-live elevation: keep existing data, activate in place.
-     * Auto-backup via the Backup path FIRST, then redeem, then void any
-     * local demo key. Backup failure aborts before anything is touched.
+     * Redeems the code, replaces the licence row, clears provisional, and
+     * voids any local demo key. No backup step: the synchronous mysqldump
+     * hung interactive requests (blocking single-threaded servers outright),
+     * so elevation just activates — take backups from Backup & Restore
+     * beforehand if you need one.
      */
     public function activateWithExistingData(
         LicenceEnrollmentService $enrollment,
-        \App\Services\Backup\DatabaseBackupService $backups,
     ): void {
         $this->resetSubmissionState();
         $this->validate(['elevationCode' => ['required', 'string', 'max:255']]);
 
-        $backup = $backups->createBackup(auth()->user());
-        if (! ($backup['ok'] ?? false)) {
-            $this->enrollError = (string) ($backup['message'] ?? __('Backup failed, so activation stopped before touching anything.'));
-
-            return;
-        }
-
         $result = $enrollment->redeem($this->elevationCode);
 
         if (! ($result['ok'] ?? false)) {
-            $this->enrollError = (string) ($result['message'] ?? __('Enrollment failed. Your data and backup are untouched.'));
+            $this->enrollError = (string) ($result['message'] ?? __('Enrollment failed. Your data is untouched.'));
 
             return;
         }

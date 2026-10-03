@@ -13,6 +13,8 @@ use Symfony\Component\HttpFoundation\Response;
  * Setup-wizard ordering gate: after the school step, later setup steps
  * require a licence choice (redeemed/imported UUID or provisional flag).
  * Ready schools pass untouched, so existing installs see zero change.
+ * A valid demo trial also passes: full access by design, so setup must
+ * never dead-end on a demo install waiting for a ControlDesk link.
  */
 class EnsureLicenceEnrolled
 {
@@ -22,6 +24,15 @@ class EnsureLicenceEnrolled
 
         if ($school === null || $school->ready) {
             return $next($request);
+        }
+
+        try {
+            if ((bool) config('college.demo_mode', false)
+                && app(\App\Services\DemoKeyVerifier::class)->isUnlocked($request->getHost())) {
+                return $next($request);
+            }
+        } catch (\Throwable) {
+            // Lookup failure means locked — fall through to the licence choice.
         }
 
         $row = $school->licence()->first();

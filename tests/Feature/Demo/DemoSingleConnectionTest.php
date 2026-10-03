@@ -90,7 +90,7 @@ class DemoSingleConnectionTest extends TestCase
             $public = sodium_crypto_sign_publickey($keypair);
         }
 
-        config(['college.demo_public_key' => base64_encode($public)]);
+        config(['controlplane.public_key' => base64_encode($public)]);
 
         $payload = ['expires_at' => $exp, 'host' => $host, 'issued_at' => $iat ?? now()->toDateString()];
         $message = DemoKeyVerifier::canonicalJson($payload);
@@ -290,12 +290,12 @@ class DemoSingleConnectionTest extends TestCase
 
     public function test_verifier_rejects_everything_when_unconfigured(): void
     {
-        config(['college.demo_public_key' => null]);
+        config(['controlplane.public_key' => null]);
         $verifier = app(DemoKeyVerifier::class);
 
         [$doc] = $this->mintDocument('demo.example.com', now()->addMonth()->toDateString());
         // mintDocument sets the config; clear it again to simulate no key.
-        config(['college.demo_public_key' => null]);
+        config(['controlplane.public_key' => null]);
 
         $code = (string) json_encode($doc);
         $this->assertSame(DemoKeyVerifier::REASON_UNCONFIGURED, $verifier->check($code, 'demo.example.com')['reason']);

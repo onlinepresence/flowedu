@@ -17,10 +17,19 @@ final class EnsureDemoKeyGate
      * Single-connection demo key gate.
      *
      * - Production (APP_DEMO unset/false): pass through untouched.
-     * - Demo with a decodable DEMO_KEY env value (opaque encoded single
-     *   token, or legacy plaintext): bypass and hydrate the session flag so
-     *   the pass lasts with the browser session. Corrupt encoded values do
-     *   not bypass — the key screen returns instead.
+     * - Demo key routes + /up always pass (otherwise the key screen itself
+     *   would redirect).
+     * - Boot + ~24h re-verify: when a stored DEMO_KEY exists, the verifier
+     *   re-POSTs the bare code at most once per 24h (throttled via
+     *   demo.last_online_check). Offline failures keep serving the cached
+     *   document until expires_at; a definitive revoked answer sticks and
+     *   the gate stops bypassing until a fresh key lands. Every online hit
+     *   stamps the check so the desk's last_used_at stays fresh.
+     * - Demo with a valid unlock (cached/stored document verifies, or an
+     *   ops-trusted env bare code pending its first online verify):
+     *   bypass and hydrate the session flag so the pass lasts with the
+     *   browser session. Corrupt, expired, host-mismatched or revoked keys
+     *   do not bypass — the key screen returns instead.
      * - Demo without env key: require session('demo_key_accepted') from a prior
      *   key entry; otherwise render the branded key-entry screen (403-style)
      *   and render nothing else.
@@ -35,19 +44,31 @@ final class EnsureDemoKeyGate
         // (AppServiceProvider also forces at boot for non-request contexts).
         config(['mail.default' => 'log']);
 
-        if (DemoKeyVerifier::hasStoredKey(config('college.demo_key'))) {
-            if ($request->hasSession() && $request->session()->get('demo_key_accepted', false) !== true) {
-                $request->session()->put('demo_key_accepted', true);
-            }
-
+        if ($request->routeIs('demo.key.*') || $request->is('up')) {
             return $next($request);
+        }
+
+        // Boot + ~24h re-verify (throttled, never throws, never blocks on
+        // network failure). Revocation sticks via isRevoked().
+        try {
+            $this->verifier->reverifyIfDue($request->getHost());
+        } catch (\Throwable) {
+            // Telemetry/re-verify must never break navigation.
+        }
+
+        try {
+            if ($this->verifier->isUnlocked($request->getHost())) {
+                if ($request->hasSession() && $request->session()->get('demo_key_accepted', false) !== true) {
+                    $request->session()->put('demo_key_accepted', true);
+                }
+
+                return $next($request);
+            }
+        } catch (\Throwable) {
+            // Lookup failure means locked — fall through to the key screen.
         }
 
         if ($request->hasSession() && $request->session()->get('demo_key_accepted', false) === true) {
-            return $next($request);
-        }
-
-        if ($request->routeIs('demo.key.*') || $request->is('up')) {
             return $next($request);
         }
 

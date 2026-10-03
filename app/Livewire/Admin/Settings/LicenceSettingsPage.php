@@ -32,6 +32,14 @@ class LicenceSettingsPage extends Component
 
     public bool $isLive = false;
 
+    /**
+     * Valid demo trial (full access by design). Display-only: enforcement is
+     * bypassed centrally (SchoolLicenceService + student caps), so this flag
+     * only swaps the page copy — "not linked / licence not active" states
+     * must never show while a demo is unlocked.
+     */
+    public bool $isDemo = false;
+
     public string $notice = '';
 
     /** Activation modal switcher: redeem|import|offline (one form at a time). */
@@ -78,6 +86,7 @@ class LicenceSettingsPage extends Component
         $this->isLinked = $enrollment->isLinked($school);
         $this->isProvisional = ! $this->isLinked && (bool) $school->licence()->value('provisional');
         $this->isLive = $enrollment->isLicenceLive($school);
+        $this->isDemo = $this->resolveDemoUnlocked();
 
         $licenceService->refresh();
         $row = $licenceService->getLicenceRow();
@@ -308,27 +317,21 @@ class LicenceSettingsPage extends Component
     }
 
     /**
-     * Modal elevation: back up first, then redeem, keeping existing data.
+     * Modal elevation: redeem the code, keeping existing data. No backup
+     * step (see SetupLicenceForm): a synchronous mysqldump inside the
+     * request hung interactive pages, so activation just activates.
      */
     public function activateWithExistingData(
         SchoolLicenceService $licenceService,
         \App\Services\ControlPlane\LicenceEnrollmentService $enrollment,
-        \App\Services\Backup\DatabaseBackupService $backups,
     ): void {
         $this->resetSubmissionState();
         $this->validate(['elevationCode' => ['required', 'string', 'max:255']]);
 
-        $backup = $backups->createBackup(auth()->user());
-        if (! ($backup['ok'] ?? false)) {
-            $this->enrollError = (string) ($backup['message'] ?? __('Backup failed, so activation stopped before touching anything.'));
-
-            return;
-        }
-
         $result = $enrollment->redeem($this->elevationCode);
 
         if (! ($result['ok'] ?? false)) {
-            $this->enrollError = (string) ($result['message'] ?? __('Enrollment failed. Your data and backup are untouched.'));
+            $this->enrollError = (string) ($result['message'] ?? __('Enrollment failed. Your data is untouched.'));
 
             return;
         }
@@ -435,17 +438,29 @@ class LicenceSettingsPage extends Component
         $grants = $this->isLinked ? $enrollment->centralModuleGrants() : [];
 
         // Live installs split modules into plan (toggleable) vs the rest
-        // (hidden in a disabled dropdown). Inactive installs render neither —
+        // (hidden in a disabled dropdown). Demo trials show every module as
+        // granted (full access by design). Inactive installs render neither —
         // the empty state takes the section instead.
         $grantedModules = [];
         $otherModules = [];
-        if ($this->isLive) {
+        if ($this->isDemo) {
+            $grantedModules = $modulesCatalog;
+        } elseif ($this->isLive) {
             foreach ($modulesCatalog as $key => $feat) {
                 if (($grants[$key] ?? false) === true) {
                     $grantedModules[$key] = $feat;
                 } else {
                     $otherModules[$key] = $feat;
                 }
+            }
+        }
+
+        $demoStatus = null;
+        if ($this->isDemo) {
+            try {
+                $demoStatus = app(\App\Services\DemoKeyVerifier::class)->demoStatus();
+            } catch (\Throwable) {
+                $demoStatus = null;
             }
         }
 
@@ -458,6 +473,8 @@ class LicenceSettingsPage extends Component
             'isLinked' => $this->isLinked,
             'isProvisional' => $this->isProvisional,
             'isLive' => $this->isLive,
+            'isDemo' => $this->isDemo,
+            'demoStatus' => $demoStatus,
             // Display truth only: central-grant badges on linked installs.
             // Saving stays permissive; the merge is untouched.
             'coreGrants' => $enrollment->centralCoreGrants(),
@@ -468,5 +485,21 @@ class LicenceSettingsPage extends Component
             'headerTitle' => __('Licence Settings'),
             'headerDescription' => __('View active features, modules, student limitations, and pricing details of your licence.'),
         ]);
+    }
+
+    /**
+     * Demo full-access check (lazy, never throws — failure means locked).
+     */
+    private function resolveDemoUnlocked(): bool
+    {
+        try {
+            if (! (bool) config('college.demo_mode', false)) {
+                return false;
+            }
+
+            return app(\App\Services\DemoKeyVerifier::class)->isUnlocked();
+        } catch (\Throwable) {
+            return false;
+        }
     }
 }

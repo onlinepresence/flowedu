@@ -88,8 +88,9 @@ if (app()->environment('testing', 'local')) {
 
 require __DIR__.'/auth.php';
 
-// Single-connection demo key gate (session immediate pass; opaque encoded DEMO_KEY
-// env value bypasses + hydrates session; verified document cached for offline rechecks).
+// Single-connection demo key gate (full-access trial: valid signature unlocks
+// everything; opaque encoded DEMO_KEY env value bypasses + hydrates session;
+// verified document cached for offline rechecks; boot + ~24h online re-verify).
 Route::get('/demo/key', function () {
     if (! (bool) config('college.demo_mode', false)) {
         abort(404);
@@ -118,6 +119,13 @@ Route::post('/demo/key', function (\Illuminate\Http\Request $request, \App\Servi
                 'demo_key_error',
                 __('That looks like a ControlDesk heartbeat token — those belong in .env as CONTROL_PLANE_TOKEN, not here. Use your demo key instead.')
             );
+        }
+
+        // Fresh key clears any stuck revocation from the previous key.
+        try {
+            $verifier->clearRevocation();
+        } catch (\Throwable $e) {
+            report($e);
         }
 
         $request->session()->put('demo_key_accepted', true);
@@ -176,13 +184,9 @@ Route::post('/demo/key', function (\Illuminate\Http\Request $request, \App\Servi
         return redirect()->intended(route('login'));
     }
 
-    $copy = match ($check['reason']) {
-        \App\Services\DemoKeyVerifier::REASON_EXPIRED => __('That key has expired — ask ops for a fresh one.'),
-        \App\Services\DemoKeyVerifier::REASON_WRONG_DOOR => __('That looks like a ControlDesk heartbeat token — those belong in .env as CONTROL_PLANE_TOKEN, not here. Use your demo key instead.'),
-        \App\Services\DemoKeyVerifier::REASON_HOST_MISMATCH => __('That key was issued for a different host.'),
-        \App\Services\DemoKeyVerifier::REASON_CLOCK_SKEW => __('That key is not valid yet — the server clock may be off. Ask ops for a fresh key.'),
-        default => __('That key did not look right. Check it and try again.'),
-    };
+    // Desk 422 slugs map cleanly: unknown_code (not recognized), key_revoked
+    // (revoked), key_expired (expired); tamper/malformed stay generic.
+    $copy = \App\Services\DemoKeyVerifier::errorCopy((string) ($check['reason'] ?? ''));
 
     return redirect()->route('demo.key.show')->with('demo_key_error', $copy);
 })->name('demo.key.store');

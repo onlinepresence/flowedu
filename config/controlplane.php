@@ -23,11 +23,14 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Licence-file public key (base64-encoded 32-byte ed25519 key)
+    | ControlDesk public key (the single ed25519 key)
     |--------------------------------------------------------------------------
     |
-    | Verifies imported licence blobs. Set CONTROL_PLANE_PUBLIC_KEY from ops;
-    | when empty, file import reports that no key is configured.
+    | Verifies imported licence blobs AND signed demo-key documents (one
+    | keypair signs both — see ControlPlaneKeys). Set
+    | CONTROL_PLANE_PUBLIC_KEY from ops. Hex (as printed by ControlDesk)
+    | or base64. When empty, file import and demo-key entry both report
+    | that no key is configured.
     |
     */
     'public_key' => env('CONTROL_PLANE_PUBLIC_KEY'),

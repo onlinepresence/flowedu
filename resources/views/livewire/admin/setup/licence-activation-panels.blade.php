@@ -67,7 +67,7 @@
         @if($hasExistingData ?? false)
             <div class="rounded-xl border-2 border-emerald-200 bg-emerald-50/60 p-6 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/20">
                 <h2 class="text-base font-bold text-emerald-900 dark:text-emerald-200">{{ __('Continue with existing data and activate') }}</h2>
-                <p class="mt-1 text-xs text-emerald-800 dark:text-emerald-300">{{ __('For installs already holding real data. Takes a database backup first, then redeems your code and clears provisional status.') }}</p>
+                <p class="mt-1 text-xs text-emerald-800 dark:text-emerald-300">{{ __('For installs already holding real data. Redeems your code and clears provisional status — your records stay as they are.') }}</p>
                 <div class="mt-4 space-y-3">
                     <div>
                         <label for="{{ $idPrefix }}elevation-code" class="block text-xs font-semibold text-emerald-700 uppercase tracking-wider dark:text-emerald-400">{{ __('Enrollment code') }}</label>
@@ -82,11 +82,11 @@
                         class="inline-flex w-full justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus:outline-none disabled:opacity-50"
                     >
                         <span wire:loading.remove wire:target="activateWithExistingData" class="inline-flex items-center gap-2">
-                            {{ __('Back up & activate with my data') }}
+                            {{ __('Activate with my data') }}
                         </span>
                         <span wire:loading.delay.200ms wire:target="activateWithExistingData" wire:loading.class.remove="hidden" class="hidden inline-flex items-center gap-2">
                             <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
-                            {{ __('Backing up…') }}
+                            {{ __('Activating…') }}
                         </span>
                     </button>
                 </div>

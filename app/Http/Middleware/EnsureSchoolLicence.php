@@ -22,6 +22,11 @@ class EnsureSchoolLicence
         }
 
         if ($this->licenceService->can($feature)) {
+            // Demo telemetry (read-only): record feature keys the prospect
+            // actually opened so the next online demo-verify carries
+            // modules_in_use[] as sales intel. Never enforcement.
+            $this->recordDemoUse($feature);
+
             return $next($request);
         }
 
@@ -30,5 +35,18 @@ class EnsureSchoolLicence
         return redirect()
             ->route('licence.required', ['feature' => $feature])
             ->with('system_message', $message);
+    }
+
+    private function recordDemoUse(string $feature): void
+    {
+        try {
+            if (! (bool) config('college.demo_mode', false)) {
+                return;
+            }
+
+            app(\App\Services\DemoKeyVerifier::class)->recordModuleUse($feature);
+        } catch (\Throwable) {
+            // Telemetry must never break navigation.
+        }
     }
 }

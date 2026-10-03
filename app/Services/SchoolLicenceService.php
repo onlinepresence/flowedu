@@ -75,6 +75,12 @@ class SchoolLicenceService
 
     public function can(string $feature): bool
     {
+        // Demo keys are FULL access by design: a valid demo signature unlocks
+        // every feature, no per-module gating. Telemetry only, never limits.
+        if ($this->isDemoUnlocked()) {
+            return true;
+        }
+
         if (! $this->isEnforcementEnabled()) {
             return true;
         }
@@ -292,5 +298,24 @@ class SchoolLicenceService
             ['school_id' => $school->id],
             $fields
         );
+    }
+
+    /**
+     * Demo full-access check: valid demo signature unlocks everything and
+     * never enforces student caps. Lazy app() lookup avoids a circular
+     * singleton with DemoKeyVerifier (which reads the licence row for
+     * live-install detection). Never throws — lookup failure means locked.
+     */
+    private function isDemoUnlocked(): bool
+    {
+        try {
+            if (! (bool) config('college.demo_mode', false)) {
+                return false;
+            }
+
+            return app(\App\Services\DemoKeyVerifier::class)->isUnlocked();
+        } catch (\Throwable) {
+            return false;
+        }
     }
 }

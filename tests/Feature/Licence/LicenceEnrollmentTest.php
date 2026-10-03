@@ -511,7 +511,7 @@ class LicenceEnrollmentTest extends TestCase
         if ($secret === null) {
             $keypair = sodium_crypto_sign_keypair();
             $secret = sodium_crypto_sign_secretkey($keypair);
-            config(['college.demo_public_key' => base64_encode(sodium_crypto_sign_publickey($keypair))]);
+            config(['controlplane.public_key' => base64_encode(sodium_crypto_sign_publickey($keypair))]);
         }
 
         $payload = ['expires_at' => $exp, 'host' => $host, 'issued_at' => now()->toDateString()];
@@ -547,14 +547,8 @@ class LicenceEnrollmentTest extends TestCase
             ->assertSee('Reinstall a fresh copy');
     }
 
-    public function test_elevation_activates_with_backup_first_and_voids_demo_key(): void
+    public function test_elevation_activates_and_voids_demo_key(): void
     {
-        $this->app->bind(
-            \App\Services\Backup\DatabaseBackupService::class,
-            \Tests\Support\FakeDatabaseBackupService::class
-        );
-        \Illuminate\Support\Facades\Storage::fake('local');
-
         $school = $this->setupSchool();
         $user = $this->owner();
         User::factory()->create(['type' => 'admin', 'username' => 'second_admin']);
@@ -572,9 +566,6 @@ class LicenceEnrollmentTest extends TestCase
             ->assertHasNoErrors()
             ->assertRedirect(route('admin.setup.faculties', absolute: false));
 
-        // Backup ran first via the Backup path.
-        $this->assertSame(1, \App\Models\Backup::query()->count());
-
         // Licence replaced, provisional cleared.
         $row = SchoolLicence::query()->where('school_id', $school->id)->firstOrFail();
         $this->assertSame('dep-uuid-1234', $row->external_ref);
@@ -588,24 +579,16 @@ class LicenceEnrollmentTest extends TestCase
         $this->assertFalse(session('demo_key_accepted', false));
     }
 
-    public function test_elevation_aborts_before_touching_anything_when_backup_fails(): void
+    public function test_elevation_redeem_failure_leaves_everything_untouched(): void
     {
-        $this->app->instance(
-            \App\Services\Backup\DatabaseBackupService::class,
-            new class extends \App\Services\Backup\DatabaseBackupService
-            {
-                public function createBackup(?\App\Models\User $creator): array
-                {
-                    return ['ok' => false, 'message' => 'No space left on device.'];
-                }
-            }
-        );
-
         $school = $this->setupSchool();
         $user = $this->owner();
         User::factory()->create(['type' => 'admin', 'username' => 'second_admin']);
 
-        Http::fake(['*/api/v1/enroll' => Http::response($this->snapshot(), 200)]);
+        file_put_contents($this->envFile, "APP_NAME=Test\nDEMO_KEY=old-demo-key\nOTHER=kept\n");
+        session(['demo_key_accepted' => true]);
+
+        Http::fake(['*/api/v1/enroll' => Http::response(['message' => 'nope', 'error' => 'unknown_code'], 422)]);
 
         $component = Livewire::actingAs($user)
             ->test(SetupLicenceForm::class)
@@ -613,8 +596,13 @@ class LicenceEnrollmentTest extends TestCase
             ->call('activateWithExistingData');
 
         $component->assertHasNoErrors();
-        $this->assertStringContainsString('No space left', (string) $component->get('enrollError'));
+        $this->assertStringContainsString('fresh code', (string) $component->get('enrollError'));
         $this->assertNull(SchoolLicence::query()->where('school_id', $school->id)->value('external_ref'));
+
+        // Failed elevation never voids the local demo key.
+        $env = (string) file_get_contents($this->envFile);
+        $this->assertStringContainsString('DEMO_KEY=old-demo-key', $env);
+        $this->assertTrue(session('demo_key_accepted', false));
     }
 
     public function test_live_install_refuses_demo_keys_one_way(): void

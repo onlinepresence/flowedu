@@ -12,8 +12,8 @@ namespace App\Services\ControlPlane;
  *
  * The signature is a detached ed25519 signature over the canonical JSON of
  * "payload" (recursive key sort, no escaping of slashes/unicode), verified
- * with the baked-in public key (CONTROL_PLANE_PUBLIC_KEY, base64 of the
- * 32-byte raw key). Date validity: expires_at must be today or later.
+ * with the single ControlDesk public key (CONTROL_PLANE_PUBLIC_KEY — the same
+ * key that verifies demo-key documents; hex or base64). Date validity: expires_at must be today or later.
  */
 final class LicenceFileVerifier
 {
@@ -36,8 +36,8 @@ final class LicenceFileVerifier
             return $this->fail(__('No licence public key is configured on this install. Ask ops to configure one, then import again.'));
         }
 
-        $signature = base64_decode($decoded['signature'], true);
-        if ($signature === false) {
+        $signature = ControlPlaneKeys::decodeSignature($decoded['signature']);
+        if ($signature === null) {
             return $this->fail(__('That file has a malformed signature. Ask ops for a fresh licence file.'));
         }
 
@@ -69,36 +69,14 @@ final class LicenceFileVerifier
 
     public function canonicalJson(mixed $value): string
     {
-        if (is_array($value)) {
-            if (array_is_list($value)) {
-                $value = array_map($this->canonicalJson(...), $value);
-
-                return '['.implode(',', $value).']';
-            }
-            ksort($value);
-            $parts = [];
-            foreach ($value as $k => $v) {
-                $parts[] = json_encode((string) $k, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE).':'.$this->canonicalJson($v);
-            }
-
-            return '{'.implode(',', $parts).'}';
-        }
-
-        return (string) json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        return ControlPlaneKeys::canonicalJson($value);
     }
 
     private function publicKey(): ?string
     {
-        $raw = trim((string) config('controlplane.public_key'));
-        if ($raw === '') {
-            return null;
-        }
-
-        $decoded = base64_decode($raw, true);
-
-        return $decoded !== false && strlen($decoded) === SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES
-            ? $decoded
-            : null;
+        // Single source (see ControlPlaneKeys): the same key verifies
+        // licence blobs and demo-key documents.
+        return ControlPlaneKeys::publicKeyRaw();
     }
 
     private function fail(string $error): array

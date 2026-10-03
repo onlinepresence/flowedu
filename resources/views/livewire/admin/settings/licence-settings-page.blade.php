@@ -4,7 +4,25 @@
             <i class="fa-solid fa-circle-check mr-2"></i>{{ $notice }}
         </div>
     @endif
-    @if($isLinked && ($isLive ?? false))
+    @if(($isDemo ?? false))
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-100">
+            <i class="fa-solid fa-circle-check mr-2"></i>{{ __('Demo trial — full access. Every module is unlocked; no ControlDesk link needed.') }}
+            @php
+                $demoBannerHosts = [];
+                if (is_array($demoStatus ?? null)) {
+                    $rawHost = ($demoStatus ?? [])['host'] ?? null;
+                    $demoBannerHosts = is_array($rawHost)
+                        ? array_values(array_filter(array_map('strval', $rawHost)))
+                        : (is_string($rawHost) && trim($rawHost) !== '' ? [trim($rawHost)] : []);
+                }
+            @endphp
+            @if(is_array($demoStatus ?? null) && ! (($demoStatus ?? [])['never'] ?? true) && trim((string) (($demoStatus ?? [])['expires_at'] ?? '')) !== '')
+                <span class="font-semibold">{{ __('Valid until :date', ['date' => ($demoStatus ?? [])['expires_at']]) }}</span>@if($demoBannerHosts !== []). {{ __('Locked to :hosts', ['hosts' => implode(', ', $demoBannerHosts)]) }}@endif
+            @elseif(is_array($demoStatus ?? null) && (($demoStatus ?? [])['never'] ?? false))
+                <span class="font-semibold">{{ __('No expiry.') }}</span>
+            @endif
+        </div>
+    @elseif($isLinked && ($isLive ?? false))
         <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-100">
             <i class="fa-solid fa-circle-check mr-2"></i>{{ __('Managed by ControlDesk (ref: :ref). Only modules on your plan can be switched on here — core settings below can still be changed.', ['ref' => $external_ref]) }}
         </div>
@@ -12,7 +30,7 @@
         <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
             <i class="fa-solid fa-circle-exclamation mr-2"></i><span class="font-bold">{{ __('LICENCE INACTIVE') }}</span>{{ __(' — your ControlDesk licence has expired or is inactive. Core-only until reactivated.') }}
         </div>
-    @elseif(! $isProvisional)
+    @elseif(! $isProvisional && ! ($isDemo ?? false))
         <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
             <i class="fa-solid fa-circle-info mr-2"></i>{{ __('This install is not linked to ControlDesk. Activate your licence to unlock modular extensions.') }}
         </div>
@@ -81,7 +99,7 @@
                     <i class="fa-solid fa-puzzle-piece text-purple-600 dark:text-purple-400 text-lg"></i>
                     <h2 class="text-lg font-bold text-gray-900 dark:text-white">{{ __('Modular Extensions') }}</h2>
                 </div>
-                @if($isLive ?? false)
+                @if(($isLive ?? false) || ($isDemo ?? false))
                     <div class="grid gap-4 sm:grid-cols-2">
                         @foreach ($grantedModules as $key => $feat)
                             <div class="relative flex flex-col justify-between rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-700/50 dark:bg-gray-900/40" wire:key="mod-{{ $key }}">
