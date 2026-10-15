@@ -979,6 +979,41 @@ class LicenceEnrollmentTest extends TestCase
         );
     }
 
+    public function test_ping_reports_demo_trial_without_uuid(): void
+    {
+        $this->setupSchool();
+
+        $key = $this->mintDemoKey('localhost', now()->addMonth()->toDateString());
+        app(\App\Services\DemoKeyVerifier::class)->cacheDocument(json_decode($key, true));
+
+        $this->artisan('controlplane:ping')
+            ->assertSuccessful()
+            ->expectsOutputToContain('Demo trial active')
+            ->expectsOutputToContain('Valid until:');
+    }
+
+    public function test_ping_fails_with_guidance_when_nothing_held(): void
+    {
+        $this->setupSchool();
+
+        $this->artisan('controlplane:ping')
+            ->assertFailed()
+            ->expectsOutputToContain('no demo trial');
+    }
+
+    public function test_ping_redeem_accepts_demo_document(): void
+    {
+        $this->setupSchool();
+
+        $key = $this->mintDemoKey('localhost', now()->addMonth()->toDateString());
+
+        $this->artisan('controlplane:ping', ['--redeem' => $key])
+            ->assertSuccessful()
+            ->expectsOutputToContain('Demo accepted');
+
+        $this->assertTrue(app(\App\Services\DemoKeyVerifier::class)->isUnlocked());
+    }
+
     /**
      * Seed a linked install (UUID+token configured, row carrying the UUID).
      */

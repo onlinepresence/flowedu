@@ -97,7 +97,10 @@ keep local editing badged **PROVISIONAL**; installs with neither behave
 exactly as before. Heartbeats go to `POST {CONTROL_PLANE_URL}/api/v1/heartbeats`
 (Bearer token) with `{deployment_uuid, product: "flowedu", app_version,
 counts{students, teachers, users}, modules_in_use[]}`. Test without the
-wizard: `php artisan controlplane:ping --redeem CODE`.
+wizard: `php artisan controlplane:ping --redeem CODE`. The command is
+universal: `--redeem` accepts a claim code, demo document/code, or licence
+file; without it, linked installs heartbeat and demo installs report trial
+status plus a forced online re-check (revocation bites on demand).
 
 ### Daily heartbeat sync
 
