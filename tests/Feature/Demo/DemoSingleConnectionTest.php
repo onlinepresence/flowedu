@@ -330,6 +330,32 @@ class DemoSingleConnectionTest extends TestCase
         $this->assertFalse($verifier->verify('{"payload": "nope"}', 'demo.example.com'));
     }
 
+    public function test_verifier_tolerates_url_forms_of_the_bound_host(): void
+    {
+        $verifier = app(DemoKeyVerifier::class);
+
+        // Ops sometimes mints "https://school.edu.gh/app" while request
+        // hosts never carry a scheme — both must match the same install.
+        [$doc] = $this->mintDocument('https://SCHEME.EXAMPLE.COM/some/path?x=1', now()->addMonth()->toDateString());
+        $code = (string) json_encode($doc);
+
+        $this->assertTrue($verifier->verify($code, 'scheme.example.com'));
+        $this->assertTrue($verifier->verify($code, 'SCHEME.EXAMPLE.COM'));
+
+        // Bare and dotted forms match too; other hosts still rejected.
+        [$bare] = $this->mintDocument('scheme.example.com.', now()->addMonth()->toDateString());
+        $this->assertTrue($verifier->verify((string) json_encode($bare), 'scheme.example.com'));
+        $this->assertSame(DemoKeyVerifier::REASON_HOST_MISMATCH, $verifier->check($code, 'other.example.com')['reason']);
+
+        // Present-but-unparseable host fails closed — never degrades into an
+        // unbound pass.
+        [$garbage] = $this->mintDocument('http://', now()->addMonth()->toDateString());
+        $this->assertSame(DemoKeyVerifier::REASON_INVALID, $verifier->check((string) json_encode($garbage), 'anywhere.example.com')['reason']);
+
+        // Null request host (console/queue contexts) skips binding.
+        $this->assertTrue($verifier->verify($code, null));
+    }
+
     public function test_verifier_rejects_everything_when_unconfigured(): void
     {
         config(['controlplane.public_key' => null]);

@@ -217,15 +217,39 @@ final class DemoKeyVerifier
 
         // Host binding enforced only when present on both sides. The binding
         // lives inside the signed payload; nothing outside it is trusted.
-        $issuedHost = $payload['host'] ?? null;
-        if ($host !== null && $host !== '' && $issuedHost !== null && $issuedHost !== '') {
-            $bound = is_array($issuedHost) ? $issuedHost : [$issuedHost];
-            $bound = array_map(static fn ($h): string => strtolower((string) $h), $bound);
-            if (! in_array(strtolower($host), $bound, true)) {
-                Log::info('demo.key.rejected', ['reason' => self::REASON_HOST_MISMATCH, 'host' => $host]);
-
-                return ['ok' => false, 'reason' => self::REASON_HOST_MISMATCH, 'document' => null];
+        // Both sides normalize to bare hostnames: ops sometimes mints
+        // "https://school.edu.gh" while request hosts never carry a scheme.
+        // Array payloads (legacy) bind to any listed host. A claimed but
+        // unparseable host fails closed (invalid) — it must never degrade
+        // into an unbound pass; only true null/blank means "any host".
+        $issuedHosts = $payload['host'] ?? null;
+        $issuedHosts = is_array($issuedHosts) ? $issuedHosts : [$issuedHosts];
+        $bound = [];
+        $misissued = false;
+        foreach ($issuedHosts as $candidate) {
+            if ($candidate === null) {
+                continue;
             }
+            if (is_string($candidate) && trim($candidate) === '') {
+                continue;
+            }
+            $normalized = $this->normalizeHostValue($candidate);
+            if ($normalized !== null) {
+                $bound[] = $normalized;
+            } else {
+                $misissued = true;
+            }
+        }
+        $requestHost = $this->normalizeHostValue($host);
+        if ($misissued && $bound === []) {
+            Log::info('demo.key.rejected', ['reason' => self::REASON_INVALID, 'host' => $host]);
+
+            return ['ok' => false, 'reason' => self::REASON_INVALID, 'document' => null];
+        }
+        if ($requestHost !== null && $bound !== [] && ! in_array($requestHost, $bound, true)) {
+            Log::info('demo.key.rejected', ['reason' => self::REASON_HOST_MISMATCH, 'host' => $host]);
+
+            return ['ok' => false, 'reason' => self::REASON_HOST_MISMATCH, 'document' => null];
         }
 
         if ($neverExpires) {
@@ -728,6 +752,49 @@ final class DemoKeyVerifier
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    /**
+     * Bare-hostname normalization for host binding: strips schemes, paths,
+     * queries and ports, lowercases, trims trailing dots. "https://School
+     * .edu.gh/app" and "school.edu.gh" compare equal; null/empty stays
+     * null (unbound). Never throws.
+     */
+    private function normalizeHostValue(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $host = trim($value);
+        if ($host === '') {
+            return null;
+        }
+
+        try {
+            if (str_contains($host, '://')) {
+                $parsed = parse_url($host, PHP_URL_HOST);
+                if (! is_string($parsed) || trim($parsed) === '') {
+                    return null;
+                }
+                $host = $parsed;
+            } else {
+                $cut = strtok($host, '/?#');
+                $host = $cut === false ? '' : $cut;
+                // Strip :port (single colon only — leaves IPv6 literals alone).
+                if (substr_count($host, ':') === 1) {
+                    $before = strtok($host, ':');
+                    $host = $before === false ? '' : $before;
+                }
+            }
+        } catch (\Throwable) {
+            return null;
+        }
+
+        $host = strtolower(trim($host));
+        $host = rtrim($host, '.');
+
+        return $host === '' ? null : $host;
     }
 
     /**
