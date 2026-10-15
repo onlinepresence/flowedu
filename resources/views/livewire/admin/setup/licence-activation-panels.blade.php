@@ -124,7 +124,7 @@
 @elseif(($mode ?? '') === 'import')
     <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800" role="tabpanel">
         <h2 class="text-base font-bold text-gray-900 dark:text-white">{{ __('Import licence file') }}</h2>
-        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('Paste the signed blob, or pick the file — it is read locally and verified.') }}</p>
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('Paste the signed blob, a demo document, or a demo code — or pick the file. It is read locally and verified; demos start a trial instead.') }}</p>
         <div class="mt-4 space-y-3">
             <div>
                 <input

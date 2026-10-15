@@ -209,6 +209,13 @@ class SetupLicenceForm extends Component
             return;
         }
 
+        if (! empty($result['demo'])) {
+            CollegeFlash::forNextRequestToo('status', __('Demo accepted — you have full trial access. Continue with your setup.'));
+            $this->redirect(route('admin.setup.faculties'), navigate: true);
+
+            return;
+        }
+
         CollegeFlash::forNextRequestToo('status', __('Licence file accepted. Continue with your setup.'));
         $this->redirect(route('admin.setup.faculties'), navigate: true);
     }

@@ -178,12 +178,21 @@ final class LicenceEnrollmentService
 
     /**
      * Exit (c): import a signed licence file blob, then seed like redeem.
+     * Demo documents (signed payload with kind === 'demo') are accepted here
+     * too: they route to the demo verifier and unlock a trial WITHOUT
+     * seeding any licence row. The kind is read from inside the signed
+     * payload, so it cannot be smuggled onto a licence file without
+     * breaking that file's signature.
      */
     public function importFile(string $blob, ?School $school = null): array
     {
         $school ??= School::current();
         if ($school === null) {
             return ['ok' => false, 'message' => __('Set up the school profile first, then import the file.')];
+        }
+
+        if ($this->looksLikeDemoDocument($blob) || $this->looksLikeDemoCode($blob)) {
+            return $this->acceptDemoDocument($blob);
         }
 
         $checked = $this->verifier->verify($blob);
@@ -204,6 +213,142 @@ final class LicenceEnrollmentService
         }
 
         return ['ok' => true];
+    }
+
+    /**
+     * Peek inside the signed payload for the demo marker. Licence exports
+     * never carry kind, so only genuine Desk demo documents match.
+     */
+    private function looksLikeDemoDocument(string $blob): bool
+    {
+        $decoded = json_decode(trim($blob), true);
+
+        return is_array($decoded)
+            && is_array($decoded['payload'] ?? null)
+            && (($decoded['payload']['kind'] ?? null) === 'demo');
+    }
+
+    /**
+     * Minted demo codes (demo-XXXXXXXX from ControlDesk) as pasted by hand.
+     * The verifier does the real authorization (online fetch + signature);
+     * this only routes. Anything else falls through to claim-code redeem,
+     * which returns a proper unknown-code error for typos.
+     */
+    private function looksLikeDemoCode(string $blob): bool
+    {
+        $trimmed = trim($blob);
+
+        return $trimmed !== ''
+            && ! str_starts_with($trimmed, '{')
+            && (bool) preg_match('/^demo-[a-z0-9]{4,64}$/i', $trimmed);
+    }
+
+    /**
+     * Accept a pasted demo document at the import exit: full demo
+     * verification (signature, expiry, host, live-install refusal) with the
+     * same durability as the /demo/key screen. Seeds NOTHING — no licence
+     * row, no deployment link — so a trial can never masquerade as an
+     * enrollment.
+     *
+     * @return array{ok: bool, message?: string, demo?: bool}
+     */
+    private function acceptDemoDocument(string $blob): array
+    {
+        $verifier = app(\App\Services\DemoKeyVerifier::class);
+
+        $host = null;
+        try {
+            $host = request()->getHost();
+        } catch (\Throwable) {
+        }
+
+        $check = $verifier->check($blob, $host);
+        if (($check['ok'] ?? false) !== true) {
+            return ['ok' => false, 'message' => $verifier::errorCopy((string) ($check['reason'] ?? ''))];
+        }
+
+        try {
+            $verifier->clearRevocation();
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        try {
+            session()->put('demo_key_accepted', true);
+            session()->forget('demo_key_error');
+        } catch (\Throwable) {
+        }
+
+        $document = $check['document'] ?? null;
+        if (is_array($document)) {
+            try {
+                $verifier->cacheDocument($document);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+
+            try {
+                $stored = $verifier::encodeForEnv($verifier::canonicalJson($document));
+                if ((EnvWriter::write(['DEMO_KEY' => $stored])['ok'] ?? false) === true) {
+                    config(['college.demo_key' => $stored]);
+                }
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        Log::info('controlplane.import.demo_accepted', [
+            'host' => $host,
+            'exp' => is_array($document) ? ($document['payload']['expires_at'] ?? null) : null,
+        ]);
+
+        return ['ok' => true, 'demo' => true];
+    }
+
+    /**
+     * Universal activation for the single-field UI: paste a claim code, a
+     * demo document, a bare demo-XXXXXXXX code, or a licence file blob —
+     * each routes to its own flow. With $fresh, existing business records
+     * are cleared FIRST (local-only, keeper-safe) so a failed activation
+     * never consumes a one-time code on a dirty slate.
+     *
+     * @return array{ok: bool, message?: string, demo?: bool, manual_lines?: list<string>, path?: string, refreshed?: bool, cleared_total?: int}
+     */
+    public function activate(string $input, bool $fresh = false, ?School $school = null, ?int $keeperId = null): array
+    {
+        $school ??= School::current();
+        if ($school === null) {
+            return ['ok' => false, 'message' => __('Set up the school profile first, then activate.')];
+        }
+
+        $trimmed = trim($input);
+        if ($trimmed === '') {
+            return ['ok' => false, 'message' => __('Paste your enrollment code, demo key, or licence file, then activate.')];
+        }
+
+        $clearedTotal = 0;
+        if ($fresh) {
+            if ($keeperId === null) {
+                return ['ok' => false, 'message' => __('Sign in again, then activate.')];
+            }
+
+            $refreshed = app(\App\Services\ActivationDataRefreshService::class)->refresh($school, $keeperId);
+            if (! ($refreshed['ok'] ?? false)) {
+                return ['ok' => false, 'message' => (string) ($refreshed['message'] ?? __('Could not clear existing records.'))];
+            }
+            $clearedTotal = (int) ($refreshed['total'] ?? 0);
+        }
+
+        $result = str_starts_with($trimmed, '{') || $this->looksLikeDemoCode($trimmed)
+            ? $this->importFile($trimmed, $school)
+            : $this->redeem($trimmed, $school);
+
+        if (($result['ok'] ?? false) === true && $fresh) {
+            $result['refreshed'] = true;
+            $result['cleared_total'] = $clearedTotal;
+        }
+
+        return $result;
     }
 
     /**

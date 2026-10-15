@@ -43,6 +43,22 @@ three-exit gate — later setup steps redirect back until one is chosen:
   `{"payload": {...}, "signature": "<base64 ed25519>"}`. Verified against the
   baked-in public key (`CONTROL_PLANE_PUBLIC_KEY`) plus date validity
   (`expires_at` must be today or later); seeds the row exactly like (a).
+  Demo documents (`payload.kind === "demo"`, signed by the same Desk key)
+  and bare `demo-XXXXXXXX` codes are accepted at this same box: they verify
+  through the demo path and unlock a trial WITHOUT seeding any row or link.
+
+### Universal activation + fresh slate (settings licence page)
+
+System Settings → Licence shows ONE activation field: paste a claim code, a
+demo document/code, or a licence file — the backend routes each to its flow
+(`LicenceEnrollmentService::activate()`; the signed `kind` decides, never
+the file extension). A **Start fresh** switch clears existing business
+records FIRST (one transaction; the signed-in owner, the school profile,
+the licence row and settings survive; uploaded files on disk and queued jobs
+are kept), then activates — so a failed activation never consumes a
+one-time code on a dirty slate. Without the switch, data is untouched.
+Elevation (activate with existing data) keeps records by definition and
+voids any local demo key one-way.
 
 Expired/consumed/unrecognized codes get human messages ("ask ops for a fresh
 code") — the offline exit is always present, so there are no dead ends.

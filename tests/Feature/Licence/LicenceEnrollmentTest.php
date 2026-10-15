@@ -13,6 +13,7 @@ use App\Models\UserRole;
 use App\Services\ControlPlane\LicenceEnrollmentService;
 use Database\Seeders\AdminSystemSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -368,6 +369,249 @@ class LicenceEnrollmentTest extends TestCase
         $this->assertSame(now()->addYear()->toDateString(), $row->support_until->format('Y-m-d'));
     }
 
+    /**
+     * A demo document pasted at the import exit unlocks a trial WITHOUT
+     * seeding any licence row or deployment link — the old "no deployment
+     * identity" dead-end is gone.
+     */
+    public function test_import_accepts_demo_document_as_trial(): void
+    {
+        $school = $this->setupSchool();
+        $user = $this->owner();
+
+        $key = $this->mintDemoKey('localhost', now()->addMonth()->toDateString());
+
+        Livewire::actingAs($user)
+            ->test(SetupLicenceForm::class)
+            ->set('importBlob', $key)
+            ->call('importLicence')
+            ->assertHasNoErrors()
+            ->assertRedirect(route('admin.setup.faculties', absolute: false));
+
+        // Trial, not enrollment: the row stays unlinked.
+        $this->assertNull(SchoolLicence::query()->where('school_id', $school->id)->value('external_ref'));
+
+        // And the demo actually unlocks through the normal licence service.
+        $this->assertTrue(app(\App\Services\SchoolLicenceService::class)->can('finance'));
+        $this->assertTrue((bool) session('demo_key_accepted', false));
+    }
+
+    /**
+     * Tampered and expired demo documents fail at the import exit with demo
+     * copy — and seed nothing.
+     */
+    public function test_import_rejects_bad_demo_documents(): void
+    {
+        $school = $this->setupSchool();
+        $user = $this->owner();
+
+        $tampered = json_decode($this->mintDemoKey('localhost', now()->addMonth()->toDateString()), true);
+        $tampered['payload']['host'] = 'evil.example.com';
+        $bad = Livewire::actingAs($user)
+            ->test(SetupLicenceForm::class)
+            ->set('importBlob', json_encode($tampered))
+            ->call('importLicence')
+            ->assertHasNoErrors();
+        $this->assertStringContainsString('did not look right', (string) $bad->get('enrollError'));
+
+        $expired = Livewire::actingAs($user)
+            ->test(SetupLicenceForm::class)
+            ->set('importBlob', $this->mintDemoKey('localhost', now()->subDay()->toDateString()))
+            ->call('importLicence')
+            ->assertHasNoErrors();
+        $this->assertStringContainsString('expired', (string) $expired->get('enrollError'));
+
+        $this->assertNull(SchoolLicence::query()->where('school_id', $school->id)->value('external_ref'));
+        $this->assertFalse((bool) session('demo_key_accepted', false));
+    }
+
+    /**
+     * Universal activate() routes every input type: claim codes redeem,
+     * demo documents and bare demo codes unlock trials, licence files seed.
+     */
+    public function test_activate_routes_every_input_type(): void
+    {
+        $school = $this->setupSchool();
+        $keeper = $this->owner();
+        $service = app(LicenceEnrollmentService::class);
+
+        // NOTE: Http::fake() merges stubs with first-match priority, so one
+        // routing fake serves the whole test (see ControlPlaneClientTest).
+        // One keypair serves both demo steps (mintDemoKey configures it).
+        $docJson = $this->mintDemoKey('localhost', now()->addMonth()->toDateString());
+        $onlineDoc = json_decode($docJson, true);
+        $body = $this->snapshot();
+        $status = 200;
+        Http::fake(function ($request) use (&$body, &$status, $onlineDoc) {
+            if (str_ends_with($request->url(), '/api/v1/demo-keys/verify')) {
+                return Http::response($onlineDoc, 200);
+            }
+
+            return Http::response($body, $status);
+        });
+
+        // Claim code -> redeem -> row seeded.
+        $redeemed = $service->activate('APEX-2026-ABCD', false, $school, $keeper->id);
+        $this->assertTrue((bool) ($redeemed['ok'] ?? false));
+        $this->assertArrayNotHasKey('demo', $redeemed);
+        $this->assertSame('dep-uuid-1234', SchoolLicence::query()->where('school_id', $school->id)->value('external_ref'));
+
+        // Demo document -> trial, row untouched.
+        $trial = $service->activate($docJson, false, $school, $keeper->id);
+        $this->assertTrue((bool) ($trial['ok'] ?? false));
+        $this->assertTrue((bool) ($trial['demo'] ?? false));
+        $this->assertSame('dep-uuid-1234', SchoolLicence::query()->where('school_id', $school->id)->value('external_ref'));
+
+        // Bare demo code -> online Desk verify -> trial.
+        $bare = $service->activate('demo-QWERTY123', false, $school, $keeper->id);
+        $this->assertTrue((bool) ($bare['ok'] ?? false));
+        $this->assertTrue((bool) ($bare['demo'] ?? false));
+
+        // Garbage -> redeem failure, nothing seeded.
+        $body = ['message' => 'nope', 'error' => 'unknown_code'];
+        $status = 422;
+        $bad = $service->activate('NOT-A-CODE', false, $school, $keeper->id);
+        $this->assertFalse((bool) ($bad['ok'] ?? false));
+        $this->assertNotEmpty((string) ($bad['message'] ?? ''));
+    }
+
+    /**
+     * Fresh-start activation clears business records but keeps the keeper
+     * login, the school, the just-seeded licence row, and settings.
+     */
+    public function test_activate_fresh_clears_but_keeps_owner_school_licence(): void
+    {
+        $school = $this->setupSchool();
+        $keeper = $this->owner();
+        $this->seedBusinessData($school, $keeper);
+
+        Http::fake(['*/api/v1/enroll' => Http::response($this->snapshot(), 200)]);
+
+        $result = app(LicenceEnrollmentService::class)->activate('APEX-2026-ABCD', true, $school, $keeper->id);
+
+        $this->assertTrue((bool) ($result['ok'] ?? false));
+        $this->assertTrue((bool) ($result['refreshed'] ?? false));
+        $this->assertGreaterThan(0, (int) ($result['cleared_total'] ?? 0));
+
+        // Keeper survives; everyone else is gone.
+        $this->assertSame([$keeper->id], User::query()->pluck('id')->all());
+        $this->assertSame(1, Admin::query()->where('user_id', $keeper->id)->count());
+
+        // Business tables cleared, identity/config kept.
+        $this->assertSame(0, DB::table('students')->count());
+        $this->assertSame(0, DB::table('memos')->count());
+        $this->assertSame(0, DB::table('halls')->count());
+        $this->assertSame(1, DB::table('schools')->where('id', $school->id)->count());
+        $this->assertSame('dep-uuid-1234', SchoolLicence::query()->where('school_id', $school->id)->value('external_ref'));
+        $this->assertSame('1', (string) DB::table('settings')->where('setting_key', 'keep.me')->value('setting_value'));
+    }
+
+    /**
+     * Without the switch, activation leaves existing records alone.
+     */
+    public function test_activate_without_fresh_preserves_data(): void
+    {
+        $school = $this->setupSchool();
+        $keeper = $this->owner();
+        $this->seedBusinessData($school, $keeper);
+
+        Http::fake(['*/api/v1/enroll' => Http::response($this->snapshot(), 200)]);
+
+        $result = app(LicenceEnrollmentService::class)->activate('APEX-2026-ABCD', false, $school, $keeper->id);
+
+        $this->assertTrue((bool) ($result['ok'] ?? false));
+        $this->assertArrayNotHasKey('refreshed', $result);
+        $this->assertSame(3, DB::table('users')->count());
+        $this->assertSame(1, DB::table('students')->count());
+        $this->assertSame(1, DB::table('memos')->count());
+        $this->assertSame('dep-uuid-1234', SchoolLicence::query()->where('school_id', $school->id)->value('external_ref'));
+    }
+
+    /**
+     * Settings single-field activation: demo document plus fresh switch in
+     * one step, banners refresh in place.
+     */
+    public function test_settings_activate_accepts_demo_with_fresh_switch(): void
+    {
+        $school = $this->setupSchool();
+        $keeper = $this->owner();
+        $this->seedBusinessData($school, $keeper);
+        SchoolLicence::query()->updateOrCreate(['school_id' => $school->id], [
+            'provisional' => true,
+            'external_ref' => null,
+        ]);
+
+        $doc = $this->mintDemoKey('localhost', now()->addMonth()->toDateString());
+
+        $component = Livewire::actingAs($keeper)
+            ->test(\App\Livewire\Admin\Settings\LicenceSettingsPage::class)
+            ->set('activationInput', $doc)
+            ->set('freshStart', true)
+            ->call('activate')
+            ->assertHasNoErrors();
+
+        $this->assertStringContainsString('fresh slate', (string) $component->get('notice'));
+        $this->assertSame([$keeper->id], User::query()->pluck('id')->all());
+        $this->assertSame(0, DB::table('students')->count());
+        $this->assertNull(SchoolLicence::query()->where('school_id', $school->id)->value('external_ref'));
+        $this->assertTrue((bool) $component->get('isDemo'));
+    }
+
+    /**
+     * Seed representative business data: an extra admin, a student, a hall,
+     * a memo, and a keeper setting.
+     */
+    private function seedBusinessData(School $school, User $keeper): void
+    {
+        $extra = User::factory()->create(['type' => 'admin', 'username' => 'extraadmin']);
+        $admin = new Admin;
+        $admin->user_id = $extra->id;
+        $admin->type = UserRole::query()->where('name', 'owner')->value('id');
+        $admin->save();
+
+        $hallId = DB::table('halls')->insertGetId([
+            'name' => 'Test Hall',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $studentUser = User::factory()->create(['type' => 'student', 'username' => 'studentone']);
+        DB::table('students')->insert([
+            'user_id' => $studentUser->id,
+            'index_number' => 'IDX-1',
+            'admission_index' => 'ADM-1',
+            'lastname' => 'Test',
+            'date_of_birth' => '2010-01-01',
+            'gender' => 'male',
+            'nationality' => 'Ghanaian',
+            'contact_address' => 'Addr',
+            'phone_number' => '123',
+            'hall_id' => $hallId,
+            'profile_pic' => 'x.png',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('memos')->insert([
+            'title' => 'T',
+            'content' => 'C',
+            'sender_id' => $keeper->id,
+            'recipient_type' => 'user',
+            'recipient_entity_id' => $keeper->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('settings')->insert([
+            'setting_key' => 'keep.me',
+            'setting_value' => '1',
+            'data_type' => 'string',
+            'category' => 'test',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
     public function test_linked_live_install_allows_plan_toggles_and_guards_save(): void
     {
         $school = $this->setupSchool();
@@ -604,15 +848,13 @@ class LicenceEnrollmentTest extends TestCase
      */
     private function mintDemoKey(string $host, string $exp): string
     {
-        static $secret = null;
+        // Fresh keypair every call: static caching leaked the secret across
+        // tests while config resets per test, signing with an unconfigured key.
+        $keypair = sodium_crypto_sign_keypair();
+        $secret = sodium_crypto_sign_secretkey($keypair);
+        config(['controlplane.public_key' => base64_encode(sodium_crypto_sign_publickey($keypair))]);
 
-        if ($secret === null) {
-            $keypair = sodium_crypto_sign_keypair();
-            $secret = sodium_crypto_sign_secretkey($keypair);
-            config(['controlplane.public_key' => base64_encode(sodium_crypto_sign_publickey($keypair))]);
-        }
-
-        $payload = ['expires_at' => $exp, 'host' => $host, 'issued_at' => now()->toDateString()];
+        $payload = ['kind' => 'demo', 'expires_at' => $exp, 'host' => $host, 'issued_at' => now()->toDateString(), 'version' => 1, 'kid' => '2026-a'];
 
         return (string) json_encode([
             'payload' => $payload,

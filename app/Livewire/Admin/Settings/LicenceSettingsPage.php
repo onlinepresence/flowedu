@@ -55,6 +55,18 @@ class LicenceSettingsPage extends Component
 
     public string $enrollError = '';
 
+    /**
+     * Universal activation input: one field accepting a claim code, a demo
+     * document, a bare demo-XXXXXXXX code, or a licence file blob.
+     */
+    public string $activationInput = '';
+
+    /**
+     * Fresh-slate switch: clear existing business records (keeper login and
+     * school profile survive) before activating.
+     */
+    public bool $freshStart = false;
+
     /** @var list<string> */
     public array $manualLines = [];
 
@@ -305,6 +317,32 @@ class LicenceSettingsPage extends Component
     }
 
     /**
+     * Single-field activation: paste anything (claim code, demo document or
+     * code, licence file) and activate. Optionally starts fresh first.
+     * Stays on the page and refreshes banners, toggles and grants in place.
+     */
+    public function activate(SchoolLicenceService $licenceService, \App\Services\ControlPlane\LicenceEnrollmentService $enrollment): void
+    {
+        $this->resetSubmissionState();
+        $this->validate(['activationInput' => ['required', 'string', 'max:20000']]);
+
+        $result = $enrollment->activate($this->activationInput, $this->freshStart, keeperId: auth()->id());
+
+        if (! empty($result['refreshed'])) {
+            $cleared = (int) ($result['cleared_total'] ?? 0);
+            $message = ! empty($result['demo'])
+                ? __('Demo accepted on a fresh slate (:count records cleared) — full trial access.', ['count' => $cleared])
+                : __('Licence activated on a fresh slate (:count records cleared).', ['count' => $cleared]);
+        } else {
+            $message = ! empty($result['demo'])
+                ? __('Demo accepted — full trial access.')
+                : __('Licence activated.');
+        }
+
+        $this->handleActivationResult($result, $licenceService, $enrollment, $message);
+    }
+
+    /**
      * Modal exit (a): redeem an enrollment code. Stays on the page and
      * refreshes banners, toggles and grants in place.
      */
@@ -417,7 +455,7 @@ class LicenceSettingsPage extends Component
         }
 
         $this->refreshLicenceState($licenceService, $enrollment);
-        $this->reset(['enrollCode', 'elevationCode', 'offlineCode', 'importBlob']);
+        $this->reset(['enrollCode', 'elevationCode', 'offlineCode', 'importBlob', 'activationInput']);
         $this->notice = $successMessage;
         $this->dispatch('close-modal', 'licence-activation-modal');
     }

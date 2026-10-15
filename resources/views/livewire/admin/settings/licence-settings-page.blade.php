@@ -312,15 +312,57 @@
     </form>
 
     <x-college.modal name="licence-activation-modal" :title="__('Activate licence')" maxWidth="2xl">
-        @include('livewire.admin.setup.licence-activation-panels', [
-            'mode' => $mode,
-            'idPrefix' => 'modal-',
-            'enrollError' => $enrollError,
-            'manualLines' => $manualLines,
-            'manualPath' => $manualPath,
-            'hasExistingData' => $hasExistingData ?? false,
-            'showContinueSetup' => false,
-        ])
+        @if(($enrollError ?? '') !== '')
+            <p class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300" role="alert">
+                {{ $enrollError }}
+            </p>
+        @endif
+
+        @if(! empty($manualLines ?? []))
+            <div class="rounded-xl border border-amber-200 bg-amber-50 p-6 dark:border-amber-900/50 dark:bg-amber-950/20">
+                <h2 class="text-base font-bold text-amber-900 dark:text-amber-200">{{ __('Licence accepted — one manual step left') }}</h2>
+                <p class="mt-1 text-sm text-amber-800 dark:text-amber-300">
+                    {{ __('The licence row is seeded, but the server settings could not be written. Paste these exact lines into :path, then continue.', ['path' => $manualPath ?? base_path('.env')]) }}
+                </p>
+                <pre class="mt-3 overflow-x-auto rounded-lg bg-gray-950 p-4 font-mono text-xs text-green-300">@foreach($manualLines as $line){{ $line }}{{ "\n" }}@endforeach</pre>
+            </div>
+        @endif
+
+        <div class="space-y-4">
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-300">{{ __('Paste your enrollment code, demo key, or signed licence file — one field handles all of them.') }}</p>
+                <label for="modal-activation-input" class="mt-3 block text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">{{ __('Activation code or file') }}</label>
+                <textarea wire:model="activationInput" id="modal-activation-input" rows="4" spellcheck="false" placeholder='APEX-2026-ABCD, demo-XXXXXXXX, or {"payload": {...}, "signature": "..."}' class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white text-xs font-mono"></textarea>
+                @error('activationInput') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+            </div>
+            <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                <input type="checkbox" wire:model.live="freshStart" class="mt-0.5 rounded border-gray-300 text-purple-600 shadow-sm focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-900" />
+                <span>
+                    <span class="block text-sm font-semibold text-gray-900 dark:text-white">{{ __('Start fresh') }}</span>
+                    <span class="block text-xs text-gray-500 dark:text-gray-400">{{ __('Clear existing records first — students, staff, fees, results and everything else go. Your login and the school profile stay. Uploaded files on disk are kept.') }}</span>
+                </span>
+            </label>
+            <button
+                type="button"
+                wire:click="activate"
+                wire:loading.attr="disabled"
+                wire:target="activate"
+                class="inline-flex w-full justify-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-purple-500 focus:outline-none disabled:opacity-50"
+            >
+                <span wire:loading.remove wire:target="activate" class="inline-flex items-center gap-2">
+                    {{ __('Activate') }}
+                </span>
+                <span wire:loading.delay.200ms wire:target="activate" wire:loading.class.remove="hidden" class="hidden inline-flex items-center gap-2">
+                    <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+                    {{ __('Please wait…') }}
+                </span>
+            </button>
+            @if(! empty($notice ?? ''))
+                <p class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200" role="status">
+                    {{ $notice }}
+                </p>
+            @endif
+        </div>
         <x-slot name="footer">
             <button
                 type="button"
