@@ -29,6 +29,7 @@ class SchoolLicence extends Model
         'module_progression',
         'module_system_admin',
         'module_teacher_tools',
+        'module_messaging',
         'module_practicum',
     ];
 
@@ -51,6 +52,7 @@ class SchoolLicence extends Model
         'module_progression' => 'boolean',
         'module_system_admin' => 'boolean',
         'module_teacher_tools' => 'boolean',
+        'module_messaging' => 'boolean',
         'module_practicum' => 'boolean',
     ];
 

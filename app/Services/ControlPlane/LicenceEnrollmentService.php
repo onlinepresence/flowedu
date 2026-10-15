@@ -489,17 +489,17 @@ final class LicenceEnrollmentService
     private function recordCentralGrant(array $snapshot): void
     {
         try {
+            $snapshot = $this->toInternalSnapshot($snapshot);
             $lic = is_array($snapshot['licence'] ?? null) ? $snapshot['licence'] : [];
-            $coreFlags = is_array($lic['core'] ?? null) ? $lic['core'] : [];
-            $moduleFlags = is_array($lic['modules'] ?? null) ? $lic['modules'] : [];
+            $unified = $this->unifiedFlags($lic);
 
             $core = [];
             foreach (config('licence.core_features', []) as $key => $feat) {
                 if (($feat['locked'] ?? false) || ! isset($feat['db_column'])) {
                     continue;
                 }
-                $core[$key] = array_key_exists($key, $coreFlags)
-                    ? (bool) $coreFlags[$key]
+                $core[$key] = array_key_exists('core:'.$key, $unified)
+                    ? (bool) $unified['core:'.$key]
                     : (bool) ($feat['default'] ?? true);
             }
 
@@ -508,8 +508,8 @@ final class LicenceEnrollmentService
                 if (! isset($feat['db_column'])) {
                     continue;
                 }
-                $modules[$key] = array_key_exists($key, $moduleFlags)
-                    ? (bool) $moduleFlags[$key]
+                $modules[$key] = array_key_exists('modules:'.$key, $unified)
+                    ? (bool) $unified['modules:'.$key]
                     : (bool) ($feat['default'] ?? false);
             }
 
@@ -536,7 +536,9 @@ final class LicenceEnrollmentService
      */
     private function snapshotFields(array $snapshot): array
     {
+        $snapshot = $this->toInternalSnapshot($snapshot);
         $lic = is_array($snapshot['licence'] ?? null) ? $snapshot['licence'] : [];
+        $unified = $this->unifiedFlags($lic);
 
         $fields = [
             'max_active_students' => isset($lic['max_active_students']) ? (int) $lic['max_active_students'] : null,
@@ -549,7 +551,10 @@ final class LicenceEnrollmentService
             'provisional' => false,
         ];
 
-        $tier = (string) ($lic['package_tier'] ?? 'complete');
+        $tier = (string) ($lic['package_tier'] ?? $lic['tier'] ?? 'complete');
+        if ($tier === 'standard') {
+            $tier = 'complete';
+        }
         if (! in_array($tier, ['core', 'professional', 'complete'], true)) {
             $tier = 'complete';
         }
@@ -565,8 +570,8 @@ final class LicenceEnrollmentService
             if (($feat['locked'] ?? false) || ! isset($feat['db_column'])) {
                 continue;
             }
-            $fields[$feat['db_column']] = array_key_exists($key, $coreFlags)
-                ? (bool) $coreFlags[$key]
+            $fields[$feat['db_column']] = array_key_exists('core:'.$key, $unified)
+                ? (bool) $unified['core:'.$key]
                 : (bool) ($feat['default'] ?? true);
         }
 
@@ -574,12 +579,130 @@ final class LicenceEnrollmentService
             if (! isset($feat['db_column'])) {
                 continue;
             }
-            $fields[$feat['db_column']] = array_key_exists($key, $moduleFlags)
-                ? (bool) $moduleFlags[$key]
+            $fields[$feat['db_column']] = array_key_exists('modules:'.$key, $unified)
+                ? (bool) $unified['modules:'.$key]
                 : (bool) ($feat['default'] ?? false);
         }
 
         return $fields;
+    }
+
+    /**
+     * Normalize any snapshot to the internal envelope
+     * {deployment_uuid, control_plane_token, licence{package_tier,
+     * max_active_students, starts_at, expires_at, core{}, modules{}}}.
+     *
+     * Accepts the nested online shape AND the flat air-gap file shape
+     * ControlDesk exports ({product, deployment_uuid, tier, enabled[],
+     * caps, starts_at, expires_at, issued_at, version, kid}).
+     */
+    private function toInternalSnapshot(array $snapshot): array
+    {
+        if (isset($snapshot['licence']) && is_array($snapshot['licence'])) {
+            return $snapshot;
+        }
+
+        if (! array_key_exists('enabled', $snapshot) && ! array_key_exists('deployment_uuid', $snapshot)) {
+            return $snapshot;
+        }
+
+        $enabled = $snapshot['enabled'] ?? [];
+        if (! is_array($enabled)) {
+            $enabled = [];
+        }
+
+        $core = [];
+        $modules = [];
+        foreach ($enabled as $key => $value) {
+            if (is_int($key)) {
+                $name = is_string($value) ? $value : '';
+                $granted = true;
+            } else {
+                $name = (string) $key;
+                $granted = (bool) $value;
+            }
+            if ($name === '') {
+                continue;
+            }
+            $shortCore = ControlPlaneClient::shortCoreKey($name);
+            if ($shortCore !== null) {
+                $core[$shortCore] = $granted;
+                continue;
+            }
+            $shortModule = ControlPlaneClient::shortModuleKey($name);
+            if ($shortModule !== null) {
+                if ($granted) {
+                    $modules[$shortModule] = true;
+                }
+                continue;
+            }
+        }
+
+        $caps = $snapshot['caps'] ?? [];
+        if (! is_array($caps)) {
+            $caps = [];
+        }
+
+        $tier = (string) ($snapshot['tier'] ?? 'complete');
+        if ($tier === 'standard') {
+            $tier = 'complete';
+        }
+
+        return [
+            'deployment_uuid' => (string) ($snapshot['deployment_uuid'] ?? ''),
+            'control_plane_token' => (string) ($snapshot['control_plane_token'] ?? ''),
+            'licence' => [
+                'package_tier' => $tier,
+                'max_active_students' => $caps['max_active_students']
+                    ?? $caps['max_students']
+                    ?? $caps['students']
+                    ?? null,
+                'starts_at' => $snapshot['starts_at'] ?? null,
+                'expires_at' => $snapshot['expires_at'] ?? null,
+                'core' => $core,
+                'modules' => $modules,
+            ],
+        ];
+    }
+
+    /**
+     * Merge core + modules flag maps into short-key lookups, accepting
+     * short keys (finance), db_column keys (module_finance), and list
+     * forms. Keys land as core:<short> / modules:<short>.
+     *
+     * @return array<string, bool>
+     */
+    private function unifiedFlags(array $lic): array
+    {
+        $unified = [];
+
+        foreach (['core', 'modules'] as $mapKey) {
+            $map = $lic[$mapKey] ?? [];
+            if (! is_array($map)) {
+                continue;
+            }
+            foreach ($map as $key => $value) {
+                if (is_int($key)) {
+                    $name = is_string($value) ? $value : '';
+                    if ($name === '') {
+                        continue;
+                    }
+                    $granted = true;
+                } else {
+                    $name = (string) $key;
+                    $granted = (bool) $value;
+                }
+                if (($short = ControlPlaneClient::shortCoreKey($name)) !== null) {
+                    $unified['core:'.$short] = $granted;
+                } elseif (($short = ControlPlaneClient::shortModuleKey($name)) !== null) {
+                    // Explicit false for modules == absent (default false),
+                    // but record it anyway so callers can distinguish.
+                    $unified['modules:'.$short] = $granted;
+                }
+            }
+        }
+
+        return $unified;
     }
 
     private function cleanDate(mixed $value): ?string

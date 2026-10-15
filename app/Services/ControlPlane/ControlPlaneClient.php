@@ -153,6 +153,8 @@ final class ControlPlaneClient
         return match ($code) {
             'expired' => __('That code has expired — ask ops for a fresh code.'),
             'consumed' => __('That code was already used (each install needs its own code) — ask ops for a fresh code.'),
+            'product_mismatch' => __('That code belongs to a different product — ask ops for a FlowEdu code.'),
+            'product_inactive' => __('That product is not active — ask ops to activate it.'),
             default => __('That code was not recognized — check it and try again, or ask ops for a fresh code.'),
         };
     }
@@ -185,33 +187,130 @@ final class ControlPlaneClient
     /**
      * Normalize flat licence {tier, modules[], caps{}, valid_until} into the
      * internal snapshot shape the enrollment service consumes.
+     *
+     * ControlDesk sends db_column keys (module_finance, core_attendance,
+     * academic_structure, ...); older fakes/tests use short catalogue keys
+     * (finance, attendance). Both are accepted here and normalized to short
+     * catalogue keys, split into core vs modules maps.
      */
     private function normalizeSnapshot(string $uuid, string $token, array $licence): array
     {
+        $core = [];
         $modules = [];
-        foreach ((array) ($licence['modules'] ?? []) as $name) {
-            if (is_string($name) && $name !== '') {
-                $modules[$name] = true;
+
+        // Explicit core map wins when present (newer Desk heartbeat shape):
+        // accepts list or map, short or db_column keys.
+        foreach ((array) ($licence['core'] ?? []) as $key => $value) {
+            $name = is_string($value) && is_int($key) ? $value : (string) $key;
+            $short = self::shortCoreKey($name);
+            if ($short !== null) {
+                $core[$short] = is_int($key) ? true : (bool) $value;
             }
         }
 
+        foreach ((array) ($licence['modules'] ?? []) as $key => $value) {
+            // Desk heartbeat sends a list; map form also accepted.
+            if (is_int($key)) {
+                $name = is_string($value) ? $value : '';
+                $enabled = true;
+            } else {
+                $name = (string) $key;
+                $enabled = (bool) $value;
+                if (! $enabled) {
+                    // Explicit false for a toggleable core feature must be
+                    // preserved (absent defaults to true in snapshotFields);
+                    // for modules absent already means false.
+                    if (($shortCore = self::shortCoreKey($name)) !== null && ! array_key_exists($shortCore, $core)) {
+                        $core[$shortCore] = false;
+                    }
+                    continue;
+                }
+            }
+            if ($name === '') {
+                continue;
+            }
+            if (($short = self::shortCoreKey($name)) !== null) {
+                $core[$short] = true;
+            } elseif (($short = self::shortModuleKey($name)) !== null) {
+                $modules[$short] = true;
+            }
+            // Locked core names (academic_structure, ...) need no column —
+            // always on — so they are deliberately dropped here.
+        }
+
         $caps = is_array($licence['caps'] ?? null) ? $licence['caps'] : [];
+
+        $tier = (string) ($licence['tier'] ?? 'complete');
+        // Desk answers tier=standard; internal vocabulary is core /
+        // professional / complete (package_tier column was dropped, tier
+        // survives only in notes).
+        if ($tier === 'standard') {
+            $tier = 'complete';
+        }
 
         return [
             'deployment_uuid' => $uuid,
             'control_plane_token' => $token,
             'licence' => [
-                'package_tier' => $licence['tier'] ?? 'complete',
+                'package_tier' => $tier,
                 'max_active_students' => $caps['max_active_students']
                     ?? $caps['max_students']
                     ?? $caps['students']
                     ?? null,
                 'starts_at' => $licence['starts_at'] ?? null,
-                'expires_at' => $licence['valid_until'] ?? null,
-                'core' => [],
+                'expires_at' => $licence['expires_at'] ?? $licence['valid_until'] ?? null,
+                'core' => $core,
                 'modules' => $modules,
             ],
         ];
+    }
+
+    /**
+     * Short catalogue key for a toggleable core feature, accepting the
+     * short key (timetable) or the db_column form (core_timetable).
+     */
+    public static function shortCoreKey(string $name): ?string
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return null;
+        }
+
+        $known = ['timetable' => true, 'attendance' => true, 'memos' => true, 'impersonation' => true];
+
+        if (isset($known[$name])) {
+            return $name;
+        }
+
+        if (str_starts_with($name, 'core_') && isset($known[substr($name, 5)])) {
+            return substr($name, 5);
+        }
+
+        return null;
+    }
+
+    /**
+     * Short catalogue key for a module, accepting the short key (finance)
+     * or the db_column form (module_finance).
+     */
+    public static function shortModuleKey(string $name): ?string
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return null;
+        }
+
+        $known = ['finance' => true, 'staff_hr' => true, 'reports' => true, 'evaluations' => true, 'student_welfare' => true, 'progression' => true, 'system_admin' => true, 'teacher_tools' => true, 'messaging' => true, 'practicum' => true];
+
+        if (isset($known[$name])) {
+            return $name;
+        }
+
+        if (str_starts_with($name, 'module_') && isset($known[substr($name, 7)])) {
+            return substr($name, 7);
+        }
+
+        return null;
     }
 
     /**
@@ -227,6 +326,8 @@ final class ControlPlaneClient
             'deployment_mismatch' => 'invalid',
             'deployment_revoked' => 'invalid',
             'unbound_code' => 'invalid',
+            'product_mismatch' => 'product_mismatch',
+            'product_inactive' => 'product_inactive',
         ];
     }
 

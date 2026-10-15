@@ -14,8 +14,9 @@ use Illuminate\Support\Facades\Log;
  * Offline-first demo-key verification (ControlDesk document shape).
  *
  * Demo keys are FULL access by design: a valid signature means unlock
- * everything. The signed document payload is only
- *   {"expires_at": "YYYY-MM-DD"|null, "host": "..."|null, "issued_at": "YYYY-MM-DD"}
+ * everything. The signed document payload is
+ *   {"kind": "demo", "expires_at": "ISO8601"|null, "host": "..."|null,
+ *   "issued_at": "ISO8601", "version": 1, "kid": "..."}
  * plus {signature, algorithm: ed25519}. There is deliberately no
  * enabled/modules/caps list — never gate any module on demo and never
  * enforce student caps while a demo is unlocked. Host binding and expiry
@@ -192,18 +193,23 @@ final class DemoKeyVerifier
         $today = now()->toDateString();
 
         // Null expiry = NEVER (the marketing key): accepted, but loudly.
+        // Desk mints ISO8601 datetimes — compare as dates, never as raw
+        // strings (ISO8601 vs YYYY-MM-DD misorders lexicographically).
         $exp = $payload['expires_at'] ?? null;
         $neverExpires = $exp === null;
-        if (! $neverExpires && (! is_string($exp) || $exp === '' || $exp < $today)) {
-            Log::info('demo.key.rejected', ['reason' => self::REASON_EXPIRED, 'host' => $host]);
+        if (! $neverExpires) {
+            $expDate = $this->toDate($exp);
+            if ($expDate === null || $expDate < $today) {
+                Log::info('demo.key.rejected', ['reason' => self::REASON_EXPIRED, 'host' => $host]);
 
-            return ['ok' => false, 'reason' => self::REASON_EXPIRED, 'document' => null];
+                return ['ok' => false, 'reason' => self::REASON_EXPIRED, 'document' => null];
+            }
         }
 
         // Issued-in-the-future beyond a day of leeway: either the server
         // clock is wrong or the document is misissued. Enforce + log loudly.
         $iat = $payload['issued_at'] ?? null;
-        if (is_string($iat) && $iat !== '' && $iat > now()->addDay()->toDateString()) {
+        if (is_string($iat) && $iat !== '' && $this->toDate($iat) !== null && $this->toDate($iat) > now()->addDay()->toDateString()) {
             Log::warning('demo.key.clock_suspect', ['host' => $host, 'issued_at' => $iat]);
 
             return ['ok' => false, 'reason' => self::REASON_CLOCK_SKEW, 'document' => null];
@@ -705,6 +711,23 @@ final class DemoKeyVerifier
     public static function canonicalJson(mixed $value): string
     {
         return ControlPlaneKeys::canonicalJson($value);
+    }
+
+    /**
+     * Parse an ISO8601 datetime or YYYY-MM-DD date to Y-m-d. Null when
+     * missing or unparseable.
+     */
+    private function toDate(mixed $value): ?string
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        try {
+            return \Carbon\Carbon::parse(trim($value))->toDateString();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**

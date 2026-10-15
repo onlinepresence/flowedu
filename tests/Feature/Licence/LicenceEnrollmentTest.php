@@ -116,6 +116,50 @@ class LicenceEnrollmentTest extends TestCase
         $this->assertStringContainsString('CONTROL_PLANE_TOKEN=tok-secret-5678', $env);
     }
 
+    /**
+     * Real ControlDesk heartbeat shape (db_column keys in `modules`,
+     * explicit `core` map, tier=standard, ISO8601 starts_at) must seed
+     * modules, core grants, caps, and start dates — not defaults.
+     */
+    public function test_redeem_accepts_control_desk_heartbeat_shape(): void
+    {
+        $school = $this->setupSchool();
+        $user = $this->owner();
+        $starts = now()->subMonth()->toDateString();
+
+        Http::fake([
+            '*/api/v1/enroll' => Http::response([
+                'deployment_uuid' => 'dep-desk-2222',
+                'heartbeat_token' => 'tok-desk-9999',
+                'licence' => [
+                    'tier' => 'standard',
+                    'modules' => ['academic_structure', 'students', 'core_attendance', 'module_finance', 'module_messaging'],
+                    'core' => ['attendance' => true, 'timetable' => false],
+                    'caps' => ['max_active_students' => 600],
+                    'starts_at' => now()->subMonth()->toIso8601String(),
+                    'valid_until' => '2027-09-18',
+                ],
+            ], 200),
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(SetupLicenceForm::class)
+            ->set('enrollCode', 'APEX-2026-DESK')
+            ->call('redeemCode')
+            ->assertHasNoErrors()
+            ->assertRedirect(route('admin.setup.faculties', absolute: false));
+
+        $row = SchoolLicence::query()->where('school_id', $school->id)->firstOrFail();
+        $this->assertSame('dep-desk-2222', $row->external_ref);
+        $this->assertSame(600, $row->max_active_students);
+        $this->assertSame($starts, $row->licence_start->format('Y-m-d'));
+        $this->assertTrue((bool) $row->core_attendance);
+        $this->assertFalse((bool) $row->core_timetable);
+        $this->assertTrue((bool) $row->module_finance);
+        $this->assertTrue((bool) $row->module_messaging);
+        $this->assertFalse((bool) $row->module_reports);
+    }
+
     public function test_redeem_failures_speak_human_and_seed_nothing(): void
     {
         $school = $this->setupSchool();
@@ -233,6 +277,7 @@ class LicenceEnrollmentTest extends TestCase
         $blob = json_encode([
             'payload' => $payload,
             'signature' => base64_encode(sodium_crypto_sign_detached($verifier->canonicalJson($payload), $secret)),
+            'algorithm' => 'ed25519',
         ]);
 
         Livewire::actingAs($user)
@@ -261,6 +306,7 @@ class LicenceEnrollmentTest extends TestCase
         $expired = json_encode([
             'payload' => $payload,
             'signature' => base64_encode(sodium_crypto_sign_detached($verifier->canonicalJson($payload), $secret)),
+            'algorithm' => 'ed25519',
         ]);
         $expiredCall = Livewire::actingAs($user)
             ->test(SetupLicenceForm::class)
@@ -268,6 +314,58 @@ class LicenceEnrollmentTest extends TestCase
             ->call('importLicence')
             ->assertHasNoErrors();
         $this->assertStringContainsString('expired', (string) $expiredCall->get('enrollError'));
+    }
+
+    /**
+     * Real ControlDesk air-gap export shape (flat payload with `enabled`
+     * list, hex signature, ISO8601 dates) must import and seed modules,
+     * caps, and dates — including the messaging module column.
+     */
+    public function test_import_accepts_flat_control_desk_export_shape(): void
+    {
+        $school = $this->setupSchool();
+        $user = $this->owner();
+
+        $keypair = sodium_crypto_sign_keypair();
+        $secret = sodium_crypto_sign_secretkey($keypair);
+        $public = sodium_crypto_sign_publickey($keypair);
+        config(['controlplane.public_key' => bin2hex($public)]);
+
+        $verifier = app(\App\Services\ControlPlane\LicenceFileVerifier::class);
+        $payload = [
+            'product' => 'flowedu',
+            'deployment_uuid' => 'dep-flat-1111',
+            'tier' => 'standard',
+            'enabled' => ['academic_structure', 'students', 'grading', 'teacher_portal', 'student_portal', 'core_timetable', 'module_finance', 'module_messaging'],
+            'caps' => ['max_active_students' => 420],
+            'starts_at' => now()->subDay()->toIso8601String(),
+            'expires_at' => now()->addYear()->toIso8601String(),
+            'issued_at' => now()->toIso8601String(),
+            'version' => 1,
+            'kid' => '2026-a',
+        ];
+        $blob = json_encode([
+            'payload' => $payload,
+            'signature' => bin2hex(sodium_crypto_sign_detached($verifier->canonicalJson($payload), $secret)),
+            'algorithm' => 'ed25519',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(SetupLicenceForm::class)
+            ->set('importBlob', $blob)
+            ->call('importLicence')
+            ->assertHasNoErrors()
+            ->assertRedirect(route('admin.setup.faculties', absolute: false));
+
+        $row = SchoolLicence::query()->where('school_id', $school->id)->firstOrFail();
+        $this->assertSame('dep-flat-1111', $row->external_ref);
+        $this->assertFalse((bool) $row->provisional);
+        $this->assertSame(420, $row->max_active_students);
+        $this->assertTrue((bool) $row->core_timetable);
+        $this->assertTrue((bool) $row->module_finance);
+        $this->assertTrue((bool) $row->module_messaging);
+        $this->assertFalse((bool) $row->module_reports);
+        $this->assertSame(now()->addYear()->toDateString(), $row->support_until->format('Y-m-d'));
     }
 
     public function test_linked_live_install_allows_plan_toggles_and_guards_save(): void
