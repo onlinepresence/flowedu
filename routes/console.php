@@ -52,7 +52,7 @@ Schedule::call(fn () => app(\App\Services\ControlPlane\LicenceEnrollmentService:
 | stored demo-XXXXXXXX code when due so revocation bites on the next online
 | check and every hit stamps demo.last_online_check (desk last_used_at stays
 | fresh). Offline copies keep working until expires_at; the call is a quiet
-| no-op when not in demo mode, live-linked, or not yet due.
+| no-op when no demo key is held, live-linked, or not yet due.
 */
 Schedule::call(fn () => app(\App\Services\DemoKeyVerifier::class)->reverifyIfDue())
     ->dailyAt('05:00')

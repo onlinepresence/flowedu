@@ -23,6 +23,10 @@ return [
     | connection swapping. All demo/production differences are Blade/config
     | checks off this flag only.
     |
+    | The flag does NOT gate demo-key acceptance: a Desk-signed demo document
+    | unlocks on its own (see DemoKeyVerifier). It gates marketing-instance
+    | behavior only (banners, closed registration, mail-to-log, wipe).
+    |
     */
     'demo_mode' => filter_var(env('APP_DEMO', false), FILTER_VALIDATE_BOOLEAN),
 

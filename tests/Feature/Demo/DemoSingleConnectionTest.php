@@ -123,6 +123,48 @@ class DemoSingleConnectionTest extends TestCase
         $this->get('/login')->assertOk()->assertSee('Quick Demo Login', false);
     }
 
+    /**
+     * A Desk-signed document unlocks with no APP_DEMO set beforehand: the
+     * screen is reachable on unlinked installs and acceptance unlocks
+     * features through the normal licence service.
+     */
+    public function test_key_entry_unlocks_without_demo_flag(): void
+    {
+        config(['college.demo_mode' => false]);
+        config(['college.demo_key' => null]);
+        config(['controlplane.deployment_uuid' => null]);
+        $this->createTestSchool();
+
+        $this->get('/demo/key')->assertOk();
+
+        [$doc] = $this->mintDocument('localhost', now()->addMonth()->toDateString());
+        $code = (string) json_encode($doc);
+
+        $this->post('/demo/key', ['code' => $code])
+            ->assertRedirect(route('login'));
+
+        $this->assertTrue(session('demo_key_accepted', false));
+        $this->assertTrue(app(DemoKeyVerifier::class)->verify($code, 'localhost'));
+        $this->assertTrue(app(\App\Services\SchoolLicenceService::class)->can('finance'));
+
+        // No challenge anywhere without the flag: gate honors the held key
+        // and passes traffic through untouched.
+        $this->get('/login')->assertOk();
+    }
+
+    /**
+     * Linked installs never see the demo screen without APP_DEMO (one-way
+     * gate); paying schools are untouched by the key flow.
+     */
+    public function test_key_screen_hidden_once_linked_without_flag(): void
+    {
+        config(['college.demo_mode' => false]);
+        config(['controlplane.deployment_uuid' => 'dep-linked-x']);
+
+        $this->get('/demo/key')->assertNotFound();
+        $this->post('/demo/key', ['code' => 'anything'])->assertNotFound();
+    }
+
     public function test_key_entry_shows_wrong_door_copy_for_heartbeat_token(): void
     {
         config(['college.demo_mode' => true]);

@@ -333,11 +333,12 @@ final class DemoKeyVerifier
     }
 
     /**
-     * Whether demo mode currently unlocks ALL features: demo flag on, not a
-     * live (linked) install, not revoked by the last online check, and a
+     * Whether a held demo key currently unlocks ALL features: not a live
+     * (linked) install, not revoked by the last online check, and a
      * locally verifiable document (cached, stored, env bare code pending
      * first verify, or accepted session) whose signature, expiry and host
-     * all pass. Never enforces student caps — callers bypass caps on true.
+     * all pass. No APP_DEMO flag required — the Desk signature is the
+     * authorization. Never enforces student caps — callers bypass caps on true.
      *
      * Memoized per request: can() fans out 10-20x per page.
      */
@@ -430,9 +431,8 @@ final class DemoKeyVerifier
     public function reverifyIfDue(?string $host = null, bool $force = false): ?array
     {
         try {
-            if (! (bool) config('college.demo_mode', false)) {
-                return null;
-            }
+            // No demo_mode gate: key-held demos without APP_DEMO must still
+            // re-verify so revocation bites everywhere.
             if ($this->isLiveInstall()) {
                 return null;
             }
@@ -819,13 +819,14 @@ final class DemoKeyVerifier
      * caching). Cached and stored documents verify strictly; a bare env code
      * with no cache yet is optimistically trusted (ops-set, pending the next
      * online re-verify which will cache the definitive document).
+     *
+     * No demo_mode gate here by design: a Desk-signed document is itself
+     * the authorization, so a handed-out demo unlocks without any env flag
+     * set beforehand. APP_DEMO keeps only marketing-instance behavior
+     * (banners, closed registration, mail-to-log, monthly wipe).
      */
     private function resolveUnlocked(?string $host): bool
     {
-        if (! (bool) config('college.demo_mode', false)) {
-            return false;
-        }
-
         try {
             if ($this->isLiveInstall()) {
                 return false;

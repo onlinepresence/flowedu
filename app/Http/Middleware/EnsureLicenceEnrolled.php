@@ -27,8 +27,7 @@ class EnsureLicenceEnrolled
         }
 
         try {
-            if ((bool) config('college.demo_mode', false)
-                && app(\App\Services\DemoKeyVerifier::class)->isUnlocked($request->getHost())) {
+            if (app(\App\Services\DemoKeyVerifier::class)->isUnlocked($request->getHost())) {
                 return $next($request);
             }
         } catch (\Throwable) {

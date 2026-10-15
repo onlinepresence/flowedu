@@ -91,8 +91,12 @@ require __DIR__.'/auth.php';
 // Single-connection demo key gate (full-access trial: valid signature unlocks
 // everything; opaque encoded DEMO_KEY env value bypasses + hydrates session;
 // verified document cached for offline rechecks; boot + ~24h online re-verify).
+// Reachable whenever demo mode is on OR the install is not live-linked yet,
+// so a handed-out demo needs no env flag set beforehand. Linked installs
+// refuse demo keys outright (one-way gate in the verifier), so the screen
+// stays hidden from paying schools.
 Route::get('/demo/key', function () {
-    if (! (bool) config('college.demo_mode', false)) {
+    if (! (bool) config('college.demo_mode', false) && trim((string) config('controlplane.deployment_uuid')) !== '') {
         abort(404);
     }
 
@@ -104,7 +108,7 @@ Route::get('/demo/key', function () {
 })->name('demo.key.show');
 
 Route::post('/demo/key', function (\Illuminate\Http\Request $request, \App\Services\DemoKeyVerifier $verifier) {
-    if (! (bool) config('college.demo_mode', false)) {
+    if (! (bool) config('college.demo_mode', false) && trim((string) config('controlplane.deployment_uuid')) !== '') {
         abort(404);
     }
 

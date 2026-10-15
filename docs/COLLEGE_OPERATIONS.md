@@ -153,6 +153,14 @@ No second DB, no runtime connection swapping. Demo vs production is one flag
 > banners, open credentials hints, closed registration and the monthly
 > `demo:refresh` wipe are all designed around disposable data.
 
+Handing a demo to a school needs NO env flag beforehand: a Desk-signed demo
+document unlocks full access on its own (`DemoKeyVerifier` verifies signature,
+expiry and host; `APP_DEMO` only adds the marketing-instance behavior above).
+`/demo/key` is reachable whenever demo mode is on or the install is not
+live-linked yet; live (linked) installs refuse demo keys outright and never
+show the screen. Revocation bites via the ~24h online re-verify with or
+without `APP_DEMO`.
+
 When `APP_DEMO=true`: demo banner on all pages, demo credentials hint on login,
 mail forced to `log` driver, public registration closed (seeded users only).
 Demo keys are FULL access by design — a valid demo signature unlocks every

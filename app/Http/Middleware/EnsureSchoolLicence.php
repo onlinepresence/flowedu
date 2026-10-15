@@ -40,11 +40,15 @@ class EnsureSchoolLicence
     private function recordDemoUse(string $feature): void
     {
         try {
-            if (! (bool) config('college.demo_mode', false)) {
+            $verifier = app(\App\Services\DemoKeyVerifier::class);
+            // Telemetry feeds the next online demo-verify call: record only
+            // when a demo is actually in play (marketing mode or held key),
+            // never spray rows on paying installs.
+            if (! (bool) config('college.demo_mode', false) && ! $verifier->isUnlocked()) {
                 return;
             }
 
-            app(\App\Services\DemoKeyVerifier::class)->recordModuleUse($feature);
+            $verifier->recordModuleUse($feature);
         } catch (\Throwable) {
             // Telemetry must never break navigation.
         }

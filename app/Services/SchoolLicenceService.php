@@ -309,10 +309,6 @@ class SchoolLicenceService
     private function isDemoUnlocked(): bool
     {
         try {
-            if (! (bool) config('college.demo_mode', false)) {
-                return false;
-            }
-
             return app(\App\Services\DemoKeyVerifier::class)->isUnlocked();
         } catch (\Throwable) {
             return false;

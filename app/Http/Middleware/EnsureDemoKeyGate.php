@@ -16,7 +16,13 @@ final class EnsureDemoKeyGate
     /**
      * Single-connection demo key gate.
      *
-     * - Production (APP_DEMO unset/false): pass through untouched.
+     * - Production without a held key (APP_DEMO unset/false): pass through
+     *   untouched — the gate never challenges paying installs.
+     * - Production WITH a held demo key: honor it opportunistically (hydrate
+     *   the session flag, run the throttled re-verify so revocation bites)
+     *   but still never challenge: no key screen is ever rendered outside
+     *   demo mode. A Desk-signed key needs no env flag set beforehand.
+     * - Demo mode (APP_DEMO true): full gate as documented below.
      * - Demo key routes + /up always pass (otherwise the key screen itself
      *   would redirect).
      * - Boot + ~24h re-verify: when a stored DEMO_KEY exists, the verifier
@@ -37,6 +43,23 @@ final class EnsureDemoKeyGate
     public function handle(Request $request, Closure $next): Response
     {
         if (! (bool) config('college.demo_mode', false)) {
+            // Opportunistic honor only — never challenge production traffic.
+            try {
+                $this->verifier->reverifyIfDue($request->getHost());
+            } catch (\Throwable) {
+                // Telemetry/re-verify must never break navigation.
+            }
+
+            try {
+                if ($this->verifier->isUnlocked($request->getHost())) {
+                    if ($request->hasSession() && $request->session()->get('demo_key_accepted', false) !== true) {
+                        $request->session()->put('demo_key_accepted', true);
+                    }
+                }
+            } catch (\Throwable) {
+                // Lookup failure means locked — pass through untouched.
+            }
+
             return $next($request);
         }
 
