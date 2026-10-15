@@ -263,7 +263,7 @@ class DemoFullAccessTest extends TestCase
         // "licence not active" states; every module lists as available.
         Livewire::actingAs($user)
             ->test(\App\Livewire\Admin\Settings\LicenceSettingsPage::class)
-            ->assertSee('Demo trial — full access')
+            ->assertSee('Demo licence activated.')
             ->assertDontSee('not linked to ControlDesk')
             ->assertDontSee('licence is not active')
             ->assertDontSee('Modular extensions unavailable')

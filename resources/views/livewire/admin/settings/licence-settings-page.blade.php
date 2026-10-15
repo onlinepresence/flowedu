@@ -6,21 +6,7 @@
     @endif
     @if(($isDemo ?? false))
         <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-100">
-            <i class="fa-solid fa-circle-check mr-2"></i>{{ __('Demo trial — full access. Every module is unlocked; no ControlDesk link needed.') }}
-            @php
-                $demoBannerHosts = [];
-                if (is_array($demoStatus ?? null)) {
-                    $rawHost = ($demoStatus ?? [])['host'] ?? null;
-                    $demoBannerHosts = is_array($rawHost)
-                        ? array_values(array_filter(array_map('strval', $rawHost)))
-                        : (is_string($rawHost) && trim($rawHost) !== '' ? [trim($rawHost)] : []);
-                }
-            @endphp
-            @if(is_array($demoStatus ?? null) && ! (($demoStatus ?? [])['never'] ?? true) && trim((string) (($demoStatus ?? [])['expires_at'] ?? '')) !== '')
-                <span class="font-semibold">{{ __('Valid until :date', ['date' => ($demoStatus ?? [])['expires_at']]) }}</span>@if($demoBannerHosts !== []). {{ __('Locked to :hosts', ['hosts' => implode(', ', $demoBannerHosts)]) }}@endif
-            @elseif(is_array($demoStatus ?? null) && (($demoStatus ?? [])['never'] ?? false))
-                <span class="font-semibold">{{ __('No expiry.') }}</span>
-            @endif
+            <i class="fa-solid fa-circle-check mr-2"></i>{{ __('Demo licence activated.') }}
         </div>
     @elseif($isLinked && ($isLive ?? false))
         <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-100">

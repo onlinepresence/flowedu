@@ -1,15 +1,30 @@
-<div class="mx-auto w-full max-w-3xl space-y-6">
+<div class="mx-auto w-full max-w-3xl space-y-6"
+    x-data="{
+        to: $wire.entangle('recipients').defer,
+        body: $wire.entangle('htmlBody').defer,
+        show: $wire.entangle('showPreview').defer,
+        count() {
+            const seen = new Set();
+            for (const part of String(this.to ?? '').split(/[\s,;]+/)) {
+                const email = part.trim();
+                if (email !== '' && ! seen.has(email)) {
+                    seen.add(email);
+                }
+            }
+            return seen.size;
+        }
+    }">
     <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
         <form wire:submit="send" class="space-y-5">
             <div>
                 <div class="flex items-baseline justify-between">
                     <x-input-label for="email-to" :value="__('Recipients')" />
                     <span class="text-xs text-gray-400 dark:text-gray-500">
-                        {{ __(':count recipient(s)', ['count' => $this->recipientCount]) }}
+                        <span x-text="count()"></span> {{ __('recipient(s)') }}
                     </span>
                 </div>
                 <textarea
-                    wire:model.live="recipients"
+                    x-model="to"
                     id="email-to"
                     rows="3"
                     placeholder="{{ __('one@example.com, two@example.com — one per line, comma or semicolon separated') }}"
@@ -29,14 +44,15 @@
                     <x-input-label for="email-body" :value="__('Message (HTML)')" />
                     <button
                         type="button"
-                        wire:click="$toggle('showPreview')"
+                        @click="show = ! show"
                         class="text-xs font-medium text-purple-600 hover:underline dark:text-purple-400"
                     >
-                        {{ $showPreview ? __('Hide preview') : __('Show preview') }}
+                        <span x-show="! show">{{ __('Show preview') }}</span>
+                        <span x-show="show" x-cloak>{{ __('Hide preview') }}</span>
                     </button>
                 </div>
                 <textarea
-                    wire:model.live="htmlBody"
+                    x-model="body"
                     id="email-body"
                     rows="8"
                     spellcheck="false"
@@ -46,14 +62,13 @@
                 <x-input-error :messages="$errors->get('htmlBody')" class="mt-2" />
             </div>
 
-            @if($showPreview)
-                <div>
-                    <p class="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ __('Preview') }}</p>
-                    <div class="rounded-md border border-dashed border-gray-300 bg-gray-50 p-4 text-sm dark:border-gray-700 dark:bg-gray-900/40">
-                        {!! $htmlBody !== '' ? $htmlBody : '<span class="text-gray-400">'.__('Nothing to preview yet.').'</span>' !!}
-                    </div>
+            <div x-show="show" x-cloak>
+                <p class="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ __('Preview') }}</p>
+                <div class="rounded-md border border-dashed border-gray-300 bg-gray-50 p-4 text-sm dark:border-gray-700 dark:bg-gray-900/40">
+                    <template x-if="body.trim() !== ''"><div x-html="body"></div></template>
+                    <template x-if="body.trim() === ''"><span class="text-gray-400">{{ __('Nothing to preview yet.') }}</span></template>
                 </div>
-            @endif
+            </div>
 
             <div>
                 <x-college-form-submit target="send" class="w-full justify-center">

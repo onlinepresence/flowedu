@@ -65,6 +65,18 @@ code") — the offline exit is always present, so there are no dead ends.
 **Reinstall = new code**: each install consumes its own code; wiping and
 reinstalling requires a fresh one from ops.
 
+### Resetting licence state (`licence:reset`)
+
+`php artisan licence:reset --force` returns the install to pre-activation:
+removes `DEPLOYMENT_UUID` / `CONTROL_PLANE_TOKEN` / `DEMO_KEY` from `.env`,
+clears pending-code, cached demo document, last online check/status,
+revocation and last-grant settings, and drops the licence rows so setup
+shows activation again. `--demo-only` voids just the demo (link and row
+stay). Business data is never touched. Without `--force` it asks first.
+Consumed Desk codes stay consumed — re-enroll with a fresh code, revoke the
+old Desk deployment if it must not linger, and sign out/in to drop any demo
+browser session.
+
 ### Trial-to-live elevation (no demo mode involved)
 
 A trial that already holds real data elevates inside normal setup: when the
