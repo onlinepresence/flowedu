@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace App\Livewire\Student;
 
 use App\Livewire\Concerns\DispatchesCollegeToasts;
+use App\Models\AcademicSession;
+use App\Models\FeeBreakdownRequest;
 use App\Models\FeeStructure;
 use App\Models\Payment;
 use App\Models\ScholarshipRecipient;
 use App\Models\Setting;
-use App\Models\FeeBreakdownRequest;
 use App\Models\User;
 use App\Notifications\CollegeNotification;
 use Illuminate\Contracts\View\View;
@@ -35,8 +36,8 @@ class StudentFeesIndexPage extends Component
                 ->orderByDesc('session_id')
                 ->get()
                 ->filter(function ($structure) use ($sessionLevelMap) {
-                    return isset($sessionLevelMap[$structure->session_id]) 
-                        && (int)$structure->level === (int)$sessionLevelMap[$structure->session_id];
+                    return isset($sessionLevelMap[$structure->session_id])
+                        && (int) $structure->level === (int) $sessionLevelMap[$structure->session_id];
                 });
 
             if ($structures->isNotEmpty()) {
@@ -64,9 +65,11 @@ class StudentFeesIndexPage extends Component
         if ($existing) {
             if ($existing->status === 'pending') {
                 $this->collegeToast(__('You already have a pending request for this fee breakdown.'), 'warning');
+
                 return;
             } elseif ($existing->status === 'approved') {
                 $this->collegeToast(__('Your request has already been approved.'), 'info');
+
                 return;
             } else {
                 // Allow resubmitting if rejected
@@ -144,8 +147,8 @@ class StudentFeesIndexPage extends Component
                 ->with('session')
                 ->get()
                 ->filter(function ($structure) use ($sessionLevelMap) {
-                    return isset($sessionLevelMap[$structure->session_id]) 
-                        && (int)$structure->level === (int)$sessionLevelMap[$structure->session_id];
+                    return isset($sessionLevelMap[$structure->session_id])
+                        && (int) $structure->level === (int) $sessionLevelMap[$structure->session_id];
                 })
                 ->sortByDesc('session_id')
                 ->values();
@@ -202,39 +205,60 @@ class StudentFeesIndexPage extends Component
                         'amount' => (float) $selectedStructure->tuition_fee,
                     ];
 
-                    $extraKeys = Setting::where('setting_key', 'finance.extra_fee_keys')->value('setting_value');
-                    $enabledKeys = is_string($extraKeys) ? json_decode($extraKeys, true) : null;
-                    if (!is_array($enabledKeys) || empty($enabledKeys)) {
-                        $enabledKeys = [
-                            'library_fee', 'lab_fee', 'medical_fee', 'sports_fee', 'examination_fee',
-                            'registration_fee', 'ict_fee', 'id_card_fee', 'facility_maintenance_fee',
-                            'utility_fee', 'field_trip_fee', 'internship_fee', 'src_dues'
-                        ];
-                    }
+                    $selectedStructure->loadMissing('items.feeComponent');
+                    $items = $selectedStructure->items
+                        ->filter(fn ($item): bool => $item->feeComponent !== null)
+                        ->sortBy(fn ($item): int => $item->feeComponent->field === 'tuition_fee' ? 0 : 1);
 
-                    $labels = [
-                        'library_fee' => __('Library Fee'),
-                        'lab_fee' => __('Lab Fee'),
-                        'medical_fee' => __('Medical Fee'),
-                        'sports_fee' => __('Sports Fee'),
-                        'examination_fee' => __('Examination Fee'),
-                        'registration_fee' => __('Registration Fee'),
-                        'ict_fee' => __('ICT Fee'),
-                        'id_card_fee' => __('ID Card Fee'),
-                        'facility_maintenance_fee' => __('Facility Maintenance Fee'),
-                        'utility_fee' => __('Utility Fee'),
-                        'field_trip_fee' => __('Field Trip / Practicum Fee'),
-                        'internship_fee' => __('Internship / Attachment Fee'),
-                        'src_dues' => __('SRC / Student Dues'),
-                    ];
+                    if ($items->isNotEmpty()) {
+                        foreach ($items as $item) {
+                            $component = $item->feeComponent;
+                            $val = (float) $item->amount;
 
-                    foreach ($enabledKeys as $key) {
-                        $val = (float) ($selectedStructure->{$key} ?? 0.0);
-                        if ($val > 0) {
+                            if ($component->field === 'tuition_fee' || $val <= 0) {
+                                continue;
+                            }
+
                             $breakdown[] = [
-                                'label' => $labels[$key] ?? ucwords(str_replace('_', ' ', $key)),
+                                'label' => $component->name,
                                 'amount' => $val,
                             ];
+                        }
+                    } else {
+                        $extraKeys = Setting::where('setting_key', 'finance.extra_fee_keys')->value('setting_value');
+                        $enabledKeys = is_string($extraKeys) ? json_decode($extraKeys, true) : null;
+                        if (! is_array($enabledKeys)) {
+                            $enabledKeys = [
+                                'library_fee', 'lab_fee', 'medical_fee', 'sports_fee', 'examination_fee',
+                                'registration_fee', 'ict_fee', 'id_card_fee', 'facility_maintenance_fee',
+                                'utility_fee', 'field_trip_fee', 'internship_fee', 'src_dues',
+                            ];
+                        }
+
+                        $labels = [
+                            'library_fee' => __('Library Fee'),
+                            'lab_fee' => __('Lab Fee'),
+                            'medical_fee' => __('Medical Fee'),
+                            'sports_fee' => __('Sports Fee'),
+                            'examination_fee' => __('Examination Fee'),
+                            'registration_fee' => __('Registration Fee'),
+                            'ict_fee' => __('ICT Fee'),
+                            'id_card_fee' => __('ID Card Fee'),
+                            'facility_maintenance_fee' => __('Facility Maintenance Fee'),
+                            'utility_fee' => __('Utility Fee'),
+                            'field_trip_fee' => __('Field Trip / Practicum Fee'),
+                            'internship_fee' => __('Internship / Attachment Fee'),
+                            'src_dues' => __('SRC / Student Dues'),
+                        ];
+
+                        foreach ($enabledKeys as $key) {
+                            $val = (float) ($selectedStructure->{$key} ?? 0.0);
+                            if ($val > 0) {
+                                $breakdown[] = [
+                                    'label' => $labels[$key] ?? ucwords(str_replace('_', ' ', $key)),
+                                    'amount' => $val,
+                                ];
+                            }
                         }
                     }
                 }
@@ -269,20 +293,20 @@ class StudentFeesIndexPage extends Component
     }
 
     /**
-     * @param mixed $student
+     * @param  mixed  $student
      * @return array<int, int>
      */
     private function getSessionLevelMap($student): array
     {
-        $currentSession = \App\Models\AcademicSession::where('is_current', true)->first();
-        if (!$currentSession) {
-            $currentSession = \App\Models\AcademicSession::orderByDesc('start_date')->first();
+        $currentSession = AcademicSession::where('is_current', true)->first();
+        if (! $currentSession) {
+            $currentSession = AcademicSession::orderByDesc('start_date')->first();
         }
-        if (!$currentSession) {
+        if (! $currentSession) {
             return [];
         }
 
-        $allSessions = \App\Models\AcademicSession::orderBy('start_date', 'asc')->get();
+        $allSessions = AcademicSession::orderBy('start_date', 'asc')->get();
         $currentIndex = $allSessions->pluck('id')->search($currentSession->id);
         if ($currentIndex === false) {
             return [];

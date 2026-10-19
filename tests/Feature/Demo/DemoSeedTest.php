@@ -83,6 +83,11 @@ class DemoSeedTest extends TestCase
             $this->assertSame($promo->from_level + 100, $promo->to_level);
             $this->assertLessThanOrEqual($promo->student->program->program_length * 100, $promo->to_level);
         }
+        $this->assertTrue(
+            Promotion::query()
+                ->whereHas('student', fn ($query) => $query->where('approved', false))
+                ->doesntExist()
+        );
 
         // Owing reconciles per student per year: paid + balance + discount == gross.
         $feeService = app(FeeCalculationService::class);
@@ -126,6 +131,8 @@ class DemoSeedTest extends TestCase
             $this->assertNotNull($pending->admission_date);
             $this->assertTrue($pending->admission_date->between($current->start_date, $current->end_date));
             $this->assertTrue($pending->parentGuardians()->exists());
+            $this->assertNotNull($pending->department_id);
+            $this->assertSame($pending->program->department_id, $pending->department_id);
         }
 
         $pendingSlipIds = ResultSlip::query()->where('status', 'pending')->pluck('id');

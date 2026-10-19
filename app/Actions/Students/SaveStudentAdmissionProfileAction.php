@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Students;
 
+use App\Models\Program;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
@@ -27,6 +28,7 @@ final class SaveStudentAdmissionProfileAction
         TemporaryUploadedFile|UploadedFile $profilePic
     ): Student {
         $relativePath = $this->storePhoto->execute($profilePic, null);
+        $programId = (int) $validated['program_id'];
 
         $student = new Student;
         $student->forceFill([
@@ -46,7 +48,8 @@ final class SaveStudentAdmissionProfileAction
             'denomination' => $validated['denomination'] ?? null,
             'disability_status' => $validated['disability_status'] ?? 'no',
             'disability_type' => $validated['disability_type'] ?? null,
-            'program_id' => $validated['program_id'],
+            'department_id' => Program::query()->whereKey($programId)->value('department_id'),
+            'program_id' => $programId,
             'hall_id' => $validated['hall_id'],
             'gender' => $validated['gender'],
             'blood_group' => $validated['blood_group'] ?? null,

@@ -489,12 +489,30 @@ class DemoDataSeeder extends Seeder
         ]));
 
         $componentDefs = [
-            ['Tuition Fee', true], ['Library Fee', true], ['Laboratory Fee', true],
-            ['Medical Fee', true], ['Sports Fee', true], ['Examination Fee', true],
+            ['Tuition Fee', 'tuition_fee', 70.00, true],
+            ['Library Fee', 'library_fee', 5.00, true],
+            ['Laboratory Fee', 'lab_fee', 8.00, true],
+            ['Medical Fee', 'medical_fee', 5.00, true],
+            ['Sports Fee', 'sports_fee', 4.00, true],
+            ['Examination Fee', 'examination_fee', 8.00, true],
+            ['Registration Fee', 'registration_fee', 2.00, true],
+            ['ICT Fee', 'ict_fee', 2.00, true],
+            ['ID Card Fee', 'id_card_fee', 0.50, true],
+            ['Facility Maintenance Fee', 'facility_maintenance_fee', 0.50, true],
+            ['Utility Fee', 'utility_fee', 0.50, true],
+            ['Field Trip / Practicum Fee', 'field_trip_fee', 0.50, true],
+            ['Internship / Attachment Fee', 'internship_fee', 0.50, true],
+            ['SRC / Student Union Dues', 'src_dues', 0.50, true],
         ];
         $componentRows = [];
         foreach ($componentDefs as $cd) {
-            $componentRows[] = ['name' => $cd[0], 'default_percentage' => 0.00, 'is_active' => true, 'is_system' => $cd[1]];
+            $componentRows[] = [
+                'name' => $cd[0],
+                'field' => $cd[1],
+                'default_percentage' => $cd[2],
+                'is_active' => true,
+                'is_system' => $cd[3],
+            ];
         }
         $this->chunkInsert('fee_components', $this->stamp($componentRows));
         $components = DB::table('fee_components')->orderBy('id')->get();
@@ -582,11 +600,16 @@ class DemoDataSeeder extends Seeder
             [$other, $lastName] = $this->splitName($c[0]);
             $deptId = null;
             $facId = null;
-            if (in_array($c[3], ['hod'], true)) {
+            if (in_array($c[3], ['owner', 'registrar', 'admissions_officer'], true)) {
+                // College-wide roles review admissions and student records
+                // across every faculty/department.
+                $deptId = null;
+                $facId = null;
+            } elseif (in_array($c[3], ['hod'], true)) {
                 $deptId = array_search($u->id, array_map(fn ($x): int => $x->id, $hodByDept), true) !== false
                     ? array_search($u->id, array_map(fn ($x): int => $x->id, $hodByDept), true)
                     : null;
-            } elseif (in_array($c[3], ['registrar', 'admissions_officer', 'exams_officer', 'accountant', 'secretary'], true)) {
+            } elseif (in_array($c[3], ['exams_officer', 'accountant', 'secretary'], true)) {
                 $deptId = $departments[0]->id;
                 $facId = $faculties[0]->id;
             } else {
@@ -953,6 +976,10 @@ class DemoDataSeeder extends Seeder
                 'Tuition Fee' => $fs->tuition_fee, 'Library Fee' => $fs->library_fee,
                 'Laboratory Fee' => $fs->lab_fee, 'Medical Fee' => $fs->medical_fee,
                 'Sports Fee' => $fs->sports_fee, 'Examination Fee' => $fs->examination_fee,
+                'Registration Fee' => $fs->registration_fee, 'ICT Fee' => $fs->ict_fee,
+                'ID Card Fee' => $fs->id_card_fee, 'Facility Maintenance Fee' => $fs->facility_maintenance_fee,
+                'Utility Fee' => $fs->utility_fee, 'Field Trip / Practicum Fee' => $fs->field_trip_fee,
+                'Internship / Attachment Fee' => $fs->internship_fee, 'SRC / Student Union Dues' => $fs->src_dues,
             ];
             foreach ($map as $name => $amt) {
                 $itemRows[] = [

@@ -84,6 +84,7 @@ class StudentAdmissionFlowTest extends TestCase
         $student = Student::query()->where('user_id', $user->id)->first();
         $this->assertNotNull($student);
         $this->assertSame('APP001', $student->index_number);
+        $this->assertSame($program->department_id, $student->department_id);
         $this->assertStringStartsWith('students/profiles/', $student->profile_pic);
         $this->assertSame('janedoe', $user->fresh()->username);
     }
