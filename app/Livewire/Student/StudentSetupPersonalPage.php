@@ -8,6 +8,7 @@ use App\Actions\Students\SaveStudentAdmissionProfileAction;
 use App\Http\Requests\Student\StoreStudentAdmissionRequest;
 use App\Http\Requests\Student\UpdateStudentAdmissionRequest;
 use App\Livewire\Concerns\DispatchesCollegeToasts;
+use App\Livewire\Concerns\NormalizesOptionalBankingFields;
 use App\Models\Hall;
 use App\Models\Program;
 use App\Models\Student;
@@ -22,6 +23,7 @@ use Livewire\Component;
 class StudentSetupPersonalPage extends Component
 {
     use DispatchesCollegeToasts;
+    use NormalizesOptionalBankingFields;
 
     public int $user_id = 0;
 
@@ -65,11 +67,11 @@ class StudentSetupPersonalPage extends Component
 
     public ?string $profilePicPond = null;
 
-    public string $account_bank = '';
+    public ?string $account_bank = null;
 
-    public string $account_number = '';
+    public ?string $account_number = null;
 
-    public string $ssnit_number = '';
+    public ?string $ssnit_number = null;
 
     public function mount(): void
     {
@@ -98,6 +100,8 @@ class StudentSetupPersonalPage extends Component
 
     public function save(SaveStudentAdmissionProfileAction $action): void
     {
+        $this->normalizeOptionalBankingFields();
+
         /** @var User $user */
         $user = auth()->user();
         $student = $user->student;

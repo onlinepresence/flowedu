@@ -91,9 +91,9 @@ final class SaveStudentAdmissionProfileAction
             'disability_status' => $validated['disability_status'] ?? 'no',
             'disability_type' => $validated['disability_type'] ?? null,
             'blood_group' => $bloodGroupVal,
-            'account_bank' => $validated['account_bank'] ?? null,
-            'account_number' => $validated['account_number'] ?? null,
-            'ssnit_number' => $validated['ssnit_number'] ?? null,
+            'account_bank' => ($validated['account_bank'] ?? null) ?: null,
+            'account_number' => ($validated['account_number'] ?? null) ?: null,
+            'ssnit_number' => ($validated['ssnit_number'] ?? null) ?: null,
             'profile_pic' => $profilePath,
         ])->save();
 

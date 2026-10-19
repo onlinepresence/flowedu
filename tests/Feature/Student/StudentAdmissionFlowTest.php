@@ -16,6 +16,7 @@ use App\Models\Student;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\Concerns\CreatesTestSchool;
 use Tests\TestCase;
@@ -59,7 +60,7 @@ class StudentAdmissionFlowTest extends TestCase
         ]);
 
         $tempPath = 'filepond-tmp/'.$user->id.'/passport.jpg';
-        \Illuminate\Support\Facades\Storage::disk('local')->put($tempPath, UploadedFile::fake()->image('passport.jpg', 400, 500)->size(100)->get());
+        Storage::disk('local')->put($tempPath, UploadedFile::fake()->image('passport.jpg', 400, 500)->size(100)->get());
 
         Livewire::actingAs($user)
             ->test(StudentSetupPersonalPage::class)
@@ -194,5 +195,44 @@ class StudentAdmissionFlowTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertSame('ZedUpdated', Student::query()->where('user_id', $user->id)->value('lastname'));
+    }
+
+    public function test_blank_banking_fields_are_stored_as_null(): void
+    {
+        ['program' => $program, 'hall' => $hall] = $this->seedGraph();
+
+        $user = User::factory()->create(['type' => 'student', 'username' => 'blankbank']);
+        Student::query()->forceCreate([
+            'user_id' => $user->id,
+            'index_number' => 'BB1',
+            'admission_index' => 'BB1',
+            'lastname' => 'Blank',
+            'firstname' => 'B',
+            'date_of_birth' => '2001-03-03',
+            'gender' => 'male',
+            'nationality' => 'GH',
+            'contact_address' => 'Addr',
+            'phone_number' => '0243333333',
+            'hall_id' => $hall->id,
+            'program_id' => $program->id,
+            'profile_pic' => 'students/profiles/old.jpg',
+            'ghana_card' => 'GHA-222222222-2',
+            'approved' => true,
+            'is_new' => false,
+            'department_id' => $program->department_id,
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(StudentProfilePage::class)
+            ->set('account_bank', '')
+            ->set('account_number', '   ')
+            ->set('ssnit_number', '')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $student = Student::query()->where('user_id', $user->id)->firstOrFail();
+        $this->assertNull($student->account_bank);
+        $this->assertNull($student->account_number);
+        $this->assertNull($student->ssnit_number);
     }
 }

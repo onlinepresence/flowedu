@@ -6,10 +6,13 @@ namespace App\Livewire\Student;
 
 use App\Actions\Students\SaveParentGuardianAction;
 use App\Actions\Students\SaveStudentAdmissionProfileAction;
+use App\Actions\Students\StoreStudentProfilePhotoAction;
 use App\Http\Requests\Student\UpdateStudentAdmissionRequest;
 use App\Livewire\Concerns\DispatchesCollegeToasts;
+use App\Livewire\Concerns\NormalizesOptionalBankingFields;
 use App\Models\Student;
 use App\Models\User;
+use App\Rules\GhanaMobilePhone;
 use App\Support\FilepondPendingFile;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\UploadedFile;
@@ -23,6 +26,7 @@ use Livewire\Component;
 class StudentProfilePage extends Component
 {
     use DispatchesCollegeToasts;
+    use NormalizesOptionalBankingFields;
 
     public int $user_id = 0;
 
@@ -60,11 +64,11 @@ class StudentProfilePage extends Component
 
     public ?string $profilePicPond = null;
 
-    public string $account_bank = '';
+    public ?string $account_bank = null;
 
-    public string $account_number = '';
+    public ?string $account_number = null;
 
-    public string $ssnit_number = '';
+    public ?string $ssnit_number = null;
 
     // Guardian Properties
     public int $guardian_id = 0;
@@ -100,6 +104,8 @@ class StudentProfilePage extends Component
 
     public function save(SaveStudentAdmissionProfileAction $action): void
     {
+        $this->normalizeOptionalBankingFields();
+
         /** @var User $user */
         $user = auth()->user();
         $student = $user->student;
@@ -117,7 +123,7 @@ class StudentProfilePage extends Component
         $this->collegeToast(__('Changes have been applied'));
     }
 
-    public function saveProfilePicture(\App\Actions\Students\StoreStudentProfilePhotoAction $storePhoto): void
+    public function saveProfilePicture(StoreStudentProfilePhotoAction $storePhoto): void
     {
         $this->validate([
             'profilePicPond' => ['required', 'string', 'max:500'],
@@ -192,7 +198,7 @@ class StudentProfilePage extends Component
             'guardian_id' => ['nullable', 'integer', 'min:0'],
             'guardian_name' => ['required', 'string', 'max:255'],
             'guardian_relationship' => ['required', 'string', 'max:100'],
-            'guardian_phone_number' => ['required', 'string', new \App\Rules\GhanaMobilePhone],
+            'guardian_phone_number' => ['required', 'string', new GhanaMobilePhone],
             'guardian_address' => ['nullable', 'string', 'max:2000'],
             'guardian_email' => ['nullable', 'email', 'max:255'],
         ], [], [
@@ -316,7 +322,7 @@ class StudentProfilePage extends Component
         /** @var User $user */
         $user = auth()->user();
         $student = $user->student;
-        if ($student === null || !$student->profile_pic) {
+        if ($student === null || ! $student->profile_pic) {
             return null;
         }
 
