@@ -13,6 +13,7 @@ use App\Models\Hall;
 use App\Models\Program;
 use App\Models\Student;
 use App\Models\User;
+use App\Rules\PassportPhotoPendingFile;
 use App\Support\FilepondPendingFile;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\UploadedFile;
@@ -138,7 +139,7 @@ class StudentSetupPersonalPage extends Component
     {
         $rules = StoreStudentAdmissionRequest::rulesForUser($userId);
         unset($rules['profile_pic']);
-        $rules['profilePicPond'] = ['required', 'string', 'max:500'];
+        $rules['profilePicPond'] = ['required', 'string', 'max:500', new PassportPhotoPendingFile(true)];
 
         return $rules;
     }
@@ -150,7 +151,7 @@ class StudentSetupPersonalPage extends Component
     {
         $rules = UpdateStudentAdmissionRequest::rulesForStudent($student);
         unset($rules['profile_pic']);
-        $rules['profilePicPond'] = ['nullable', 'string', 'max:500'];
+        $rules['profilePicPond'] = ['nullable', 'string', 'max:500', new PassportPhotoPendingFile(false)];
 
         return $rules;
     }

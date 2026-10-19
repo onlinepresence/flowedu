@@ -18,6 +18,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use Tests\Concerns\CreatesTestSchool;
 use Tests\TestCase;
 
@@ -234,5 +235,53 @@ class StudentAdmissionFlowTest extends TestCase
         $this->assertNull($student->account_bank);
         $this->assertNull($student->account_number);
         $this->assertNull($student->ssnit_number);
+    }
+
+    #[RequiresPhpExtension('gd')]
+    public function test_setup_form_enforces_passport_photo_validation(): void
+    {
+        config([
+            'image_validation.passport.enabled' => true,
+            'image_validation.passport.skip_ratio' => true,
+            'image_validation.passport.min_width' => 300,
+            'image_validation.passport.min_height' => 400,
+        ]);
+
+        ['program' => $program, 'hall' => $hall] = $this->seedGraph();
+
+        $user = User::factory()->create([
+            'type' => 'student',
+            'username' => null,
+        ]);
+
+        $tempPath = 'filepond-tmp/'.$user->id.'/passport.png';
+        $image = imagecreatetruecolor(50, 50);
+        $red = imagecolorallocate($image, 255, 0, 0);
+        imagefilledrectangle($image, 0, 0, 49, 49, $red);
+        ob_start();
+        imagepng($image);
+        $png = (string) ob_get_clean();
+        imagedestroy($image);
+        Storage::disk('local')->put($tempPath, $png);
+
+        Livewire::actingAs($user)
+            ->test(StudentSetupPersonalPage::class)
+            ->set('index_number', 'APP002')
+            ->set('lastname', 'Doe')
+            ->set('firstname', 'Jane')
+            ->set('date_of_birth', '2000-05-05')
+            ->set('nationality', 'GH')
+            ->set('ghana_card', 'GHA-123456780-1')
+            ->set('contact_address', 'Accra')
+            ->set('phone_number', '0241234568')
+            ->set('program_id', $program->id)
+            ->set('hall_id', $hall->id)
+            ->set('username', 'janedoe2')
+            ->set('gender', 'female')
+            ->set('profilePicPond', $tempPath)
+            ->call('save')
+            ->assertHasErrors(['profilePicPond']);
+
+        $this->assertDatabaseMissing('students', ['user_id' => $user->id]);
     }
 }

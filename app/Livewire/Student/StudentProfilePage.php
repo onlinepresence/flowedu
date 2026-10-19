@@ -13,6 +13,7 @@ use App\Livewire\Concerns\NormalizesOptionalBankingFields;
 use App\Models\Student;
 use App\Models\User;
 use App\Rules\GhanaMobilePhone;
+use App\Rules\PassportPhotoPendingFile;
 use App\Support\FilepondPendingFile;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\UploadedFile;
@@ -126,7 +127,7 @@ class StudentProfilePage extends Component
     public function saveProfilePicture(StoreStudentProfilePhotoAction $storePhoto): void
     {
         $this->validate([
-            'profilePicPond' => ['required', 'string', 'max:500'],
+            'profilePicPond' => ['required', 'string', 'max:500', new PassportPhotoPendingFile(true)],
         ]);
 
         /** @var User $user */
@@ -257,7 +258,7 @@ class StudentProfilePage extends Component
     {
         $rules = UpdateStudentAdmissionRequest::rulesForStudent($student);
         unset($rules['profile_pic']);
-        $rules['profilePicPond'] = ['nullable', 'string', 'max:500'];
+        $rules['profilePicPond'] = ['nullable', 'string', 'max:500', new PassportPhotoPendingFile(false)];
 
         return $rules;
     }
