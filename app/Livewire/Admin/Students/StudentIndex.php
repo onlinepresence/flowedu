@@ -4,20 +4,20 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Students;
 
-use App\Models\Faculty;
+use App\Livewire\Concerns\DispatchesCollegeToasts;
 use App\Models\Department;
+use App\Models\Faculty;
 use App\Models\Program;
 use App\Models\Student;
-use App\Models\User;
-use App\Livewire\Concerns\DispatchesCollegeToasts;
 use Illuminate\Contracts\View\View;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class StudentIndex extends Component
 {
-    use WithPagination, DispatchesCollegeToasts;
+    use DispatchesCollegeToasts, WithPagination;
 
     public string $search = '';
 
@@ -26,24 +26,36 @@ class StudentIndex extends Component
 
     // Filters
     public string $facultyFilter = '';
+
     public string $departmentFilter = '';
+
     public string $programFilter = '';
+
     public string $levelFilter = '';
 
     // Selection
     /** @var array<int, bool> */
     public array $selectedIds = [];
+
     public bool $selectAll = false;
 
     // Editing Student
     public ?int $editingStudentId = null;
+
     public string $editFirstname = '';
+
     public string $editOthernames = '';
+
     public string $editLastname = '';
+
     public string $editGender = '';
+
     public string $editPhone = '';
+
     public string $editAddress = '';
+
     public string $editLevel = '';
+
     public string $editProgramId = '';
 
     public function mount(): void
@@ -171,7 +183,7 @@ class StudentIndex extends Component
             $student->delete();
         }
 
-        $this->selectedIds = array_filter($this->selectedIds, fn($k) => $k !== $this->deletingStudentId, ARRAY_FILTER_USE_KEY);
+        $this->selectedIds = array_filter($this->selectedIds, fn ($k) => $k !== $this->deletingStudentId, ARRAY_FILTER_USE_KEY);
         $this->deletingStudentId = null;
         $this->collegeToast(__('Student deleted successfully.'));
     }
@@ -264,6 +276,21 @@ class StudentIndex extends Component
         $this->collegeToast(__('Student information updated.'));
     }
 
+    public function reviewStudent(int $id): void
+    {
+        $student = Student::findOrFail($id);
+
+        $admin = auth()->user()?->admin;
+        if ($admin) {
+            abort_unless($admin->canAccessStudent($student), 403);
+        }
+
+        $this->dispatch('open-pending-student-review', studentId: $student->id);
+    }
+
+    #[On('pending-student-approved')]
+    public function refreshAfterStudentApproval(): void {}
+
     public function render(): View
     {
         $admin = auth()->user()?->admin;
@@ -308,7 +335,7 @@ class StudentIndex extends Component
             ->when($admin?->department_id, fn ($q) => $q->whereHas('departments', fn ($d) => $d->where('id', $admin->department_id)))
             ->orderBy('name')
             ->get();
-        
+
         $departments = Department::query()
             ->when($admin?->department_id, fn ($q) => $q->where('id', $admin->department_id))
             ->when($admin?->faculty_id, fn ($q) => $q->where('faculty_id', $admin->faculty_id))

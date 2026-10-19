@@ -151,14 +151,14 @@
                             <td class="whitespace-nowrap px-6 py-4 text-right text-sm">
                                 <div class="flex items-center justify-end gap-3.5">
                                     @if (! $student->approved)
-                                        <a
-                                            href="{{ route('admin.approve-student', ['index_number' => $student->index_number, 'guardian' => $student->parent_guardians_count > 0 ? 1 : 0, 'id' => $student->user_id]) }}"
+                                        <button
+                                            type="button"
+                                            wire:click="reviewStudent({{ $student->id }})"
                                             class="text-purple-600 hover:text-purple-500 dark:text-purple-400 hover:scale-110 transition-transform"
-                                            wire:navigate
-                                            title="{{ __('Approve Student') }}"
+                                            title="{{ __('Review & Approve Student') }}"
                                         >
                                             <i class="fa-solid fa-user-check text-base"></i>
-                                        </a>
+                                        </button>
                                     @else
                                         <a
                                             href="{{ route('admin.students.print', ['index_number' => $student->index_number]) }}"
@@ -170,14 +170,25 @@
                                         </a>
                                     @endif
 
-                                    <a
-                                        href="{{ route('admin.students.show', ['index_number' => $student->index_number]) }}"
-                                        class="text-blue-600 hover:text-blue-500 dark:text-blue-400 hover:scale-110 transition-transform"
-                                        wire:navigate
-                                        title="{{ __('View Profile') }}"
-                                    >
-                                        <i class="fa-solid fa-eye text-base"></i>
-                                    </a>
+                                    @if ($student->approved)
+                                        <a
+                                            href="{{ route('admin.students.show', ['index_number' => $student->index_number]) }}"
+                                            class="text-blue-600 hover:text-blue-500 dark:text-blue-400 hover:scale-110 transition-transform"
+                                            wire:navigate
+                                            title="{{ __('View Profile') }}"
+                                        >
+                                            <i class="fa-solid fa-eye text-base"></i>
+                                        </a>
+                                    @else
+                                        <button
+                                            type="button"
+                                            wire:click="reviewStudent({{ $student->id }})"
+                                            class="text-blue-600 hover:text-blue-500 dark:text-blue-400 hover:scale-110 transition-transform"
+                                            title="{{ __('Review Pending Student') }}"
+                                        >
+                                            <i class="fa-solid fa-eye text-base"></i>
+                                        </button>
+                                    @endif
 
                                     <button
                                         type="button"
@@ -245,8 +256,8 @@
                 <div>
                     <label for="edit-gender" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Gender') }}</label>
                     <select wire:model="editGender" id="edit-gender" class="block w-full rounded-md border-gray-300 shadow-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white" required>
-                        <option value="Male">{{ __('Male') }}</option>
-                        <option value="Female">{{ __('Female') }}</option>
+                        <option value="male">{{ __('Male') }}</option>
+                        <option value="female">{{ __('Female') }}</option>
                     </select>
                     @error('editGender') <span class="text-xs text-red-600 dark:text-red-450">{{ $message }}</span> @enderror
                 </div>
@@ -320,5 +331,7 @@
             {{ __('Are you sure you want to delete the selected students? This action is permanent and will cascade to erase all related records.') }}
         </p>
     </x-college.confirm-modal>
+
+    <livewire:admin.students.pending-student-review-modal />
 
 </div>

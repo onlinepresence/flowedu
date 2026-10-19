@@ -79,4 +79,39 @@ class StudentIndexPageTest extends TestCase
             ->assertSee('IDX100')
             ->assertDontSee('IDX200');
     }
+
+    public function test_edit_modal_prefills_and_preselects_stored_gender(): void
+    {
+        $admin = $this->actingOwnerAdmin();
+
+        $hall = Hall::query()->create([
+            'name' => 'Hall A',
+            'cost' => 0,
+            'period' => 'per_year',
+        ]);
+
+        $user = User::factory()->create(['type' => 'student']);
+        $student = Student::query()->forceCreate([
+            'user_id' => $user->id,
+            'index_number' => 'IDX300',
+            'admission_index' => 'IDX300',
+            'lastname' => 'Female',
+            'firstname' => 'Fiona',
+            'date_of_birth' => '2001-03-03',
+            'gender' => 'female',
+            'nationality' => 'GH',
+            'contact_address' => 'Addr',
+            'phone_number' => '0240000003',
+            'hall_id' => $hall->id,
+            'profile_pic' => 'p.png',
+            'approved' => true,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(StudentIndex::class)
+            ->call('editStudent', $student->id)
+            ->assertSet('editGender', 'female')
+            ->assertSeeHtml('<option value="female">')
+            ->assertDontSeeHtml('<option value="Female">');
+    }
 }

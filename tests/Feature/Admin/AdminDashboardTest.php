@@ -3,7 +3,17 @@
 namespace Tests\Feature\Admin;
 
 use App\Livewire\Admin\AdminDashboardPage;
+use App\Models\AcademicSession;
 use App\Models\Admin;
+use App\Models\Course;
+use App\Models\Department;
+use App\Models\Faculty;
+use App\Models\FeeStructure;
+use App\Models\Hall;
+use App\Models\Invoice;
+use App\Models\Payment;
+use App\Models\Program;
+use App\Models\Student;
 use App\Models\User;
 use App\Models\UserRole;
 use Database\Seeders\AdminSystemSeeder;
@@ -100,27 +110,27 @@ class AdminDashboardTest extends TestCase
 
     public function test_hod_scopes_courses_count_to_their_department(): void
     {
-        $faculty = \App\Models\Faculty::query()->create(['name' => 'Faculty 1']);
+        $faculty = Faculty::query()->create(['name' => 'Faculty 1']);
 
         // Create 2 departments
-        $dept1 = \App\Models\Department::query()->forceCreate([
+        $dept1 = Department::query()->forceCreate([
             'name' => 'Dept 1',
             'faculty_id' => $faculty->id,
         ]);
-        $dept2 = \App\Models\Department::query()->forceCreate([
+        $dept2 = Department::query()->forceCreate([
             'name' => 'Dept 2',
             'faculty_id' => $faculty->id,
         ]);
 
         // Create programs in both
-        $prog1 = \App\Models\Program::query()->forceCreate([
+        $prog1 = Program::query()->forceCreate([
             'name' => 'Prog 1',
             'department_id' => $dept1->id,
             'certificate' => 'Cert 1',
             'cost' => 0,
             'program_length' => 4,
         ]);
-        $prog2 = \App\Models\Program::query()->forceCreate([
+        $prog2 = Program::query()->forceCreate([
             'name' => 'Prog 2',
             'department_id' => $dept2->id,
             'certificate' => 'Cert 2',
@@ -129,14 +139,14 @@ class AdminDashboardTest extends TestCase
         ]);
 
         // Create courses in both
-        \App\Models\Course::query()->forceCreate([
+        Course::query()->forceCreate([
             'name' => 'Course 1',
             'code' => 'C1',
             'program_id' => $prog1->id,
             'course_semester' => '1',
             'year_level' => '1',
         ]);
-        \App\Models\Course::query()->forceCreate([
+        Course::query()->forceCreate([
             'name' => 'Course 2',
             'code' => 'C2',
             'program_id' => $prog2->id,
@@ -160,7 +170,7 @@ class AdminDashboardTest extends TestCase
         // column as 0 while MySQL strict throws 1054 — so assert VALUES, not just 200.
         $user = $this->actingUserWithRole('owner');
 
-        \App\Models\Invoice::query()->create([
+        Invoice::query()->create([
             'invoice_number' => 'INV-REG-001',
             'vendor_name' => 'Regression Vendor',
             'amount' => 500.00,
@@ -168,25 +178,25 @@ class AdminDashboardTest extends TestCase
             'due_date' => now()->addMonth()->toDateString(),
         ]);
 
-        $faculty = \App\Models\Faculty::query()->create(['name' => 'Finance Faculty']);
-        $dept = \App\Models\Department::query()->forceCreate([
+        $faculty = Faculty::query()->create(['name' => 'Finance Faculty']);
+        $dept = Department::query()->forceCreate([
             'name' => 'Finance Dept',
             'faculty_id' => $faculty->id,
         ]);
-        $program = \App\Models\Program::query()->forceCreate([
+        $program = Program::query()->forceCreate([
             'name' => 'Finance Prog',
             'department_id' => $dept->id,
             'certificate' => 'BSc',
             'cost' => 1000,
             'program_length' => 4,
         ]);
-        $session = \App\Models\AcademicSession::query()->create([
+        $session = AcademicSession::query()->create([
             'name' => '2025/2026',
             'start_date' => '2025-09-01',
             'end_date' => '2026-06-30',
             'is_current' => true,
         ]);
-        $structure = \App\Models\FeeStructure::query()->create([
+        $structure = FeeStructure::query()->create([
             'program_id' => $program->id,
             'level' => 100,
             'session_id' => $session->id,
@@ -195,12 +205,12 @@ class AdminDashboardTest extends TestCase
             'created_by' => $user->id,
         ]);
         $studentUser = User::factory()->create(['type' => 'student']);
-        $hall = \App\Models\Hall::query()->create([
+        $hall = Hall::query()->create([
             'name' => 'Finance Hall',
             'cost' => 0,
             'period' => 'per_year',
         ]);
-        $student = \App\Models\Student::query()->forceCreate([
+        $student = Student::query()->forceCreate([
             'user_id' => $studentUser->id,
             'index_number' => 'FIN1',
             'admission_index' => 'FIN1',
@@ -216,7 +226,7 @@ class AdminDashboardTest extends TestCase
             'department_id' => $dept->id,
             'hall_id' => $hall->id,
         ]);
-        \App\Models\Payment::query()->create([
+        Payment::query()->create([
             'student_id' => $student->id,
             'fee_structure_id' => $structure->id,
             'amount_paid' => 200.00,
@@ -233,15 +243,15 @@ class AdminDashboardTest extends TestCase
     public function test_dean_scopes_students_to_their_faculty(): void
     {
         // Create 2 faculties
-        $faculty1 = \App\Models\Faculty::query()->create(['name' => 'Faculty 1']);
-        $faculty2 = \App\Models\Faculty::query()->create(['name' => 'Faculty 2']);
+        $faculty1 = Faculty::query()->create(['name' => 'Faculty 1']);
+        $faculty2 = Faculty::query()->create(['name' => 'Faculty 2']);
 
         // Create departments
-        $dept1 = \App\Models\Department::query()->forceCreate([
+        $dept1 = Department::query()->forceCreate([
             'name' => 'Dept 1',
             'faculty_id' => $faculty1->id,
         ]);
-        $dept2 = \App\Models\Department::query()->forceCreate([
+        $dept2 = Department::query()->forceCreate([
             'name' => 'Dept 2',
             'faculty_id' => $faculty2->id,
         ]);
@@ -249,14 +259,14 @@ class AdminDashboardTest extends TestCase
         $user1 = User::factory()->create(['type' => 'student']);
         $user2 = User::factory()->create(['type' => 'student']);
 
-        $hall = \App\Models\Hall::query()->create([
+        $hall = Hall::query()->create([
             'name' => 'Hall 1',
             'cost' => 0,
             'period' => 'per_year',
         ]);
 
         // Create students in both
-        \App\Models\Student::query()->forceCreate([
+        Student::query()->forceCreate([
             'user_id' => $user1->id,
             'index_number' => 'S1',
             'admission_index' => 'S1',
@@ -272,7 +282,7 @@ class AdminDashboardTest extends TestCase
             'department_id' => $dept1->id,
             'hall_id' => $hall->id,
         ]);
-        \App\Models\Student::query()->forceCreate([
+        Student::query()->forceCreate([
             'user_id' => $user2->id,
             'index_number' => 'S2',
             'admission_index' => 'S2',
@@ -296,7 +306,38 @@ class AdminDashboardTest extends TestCase
             ->test(AdminDashboardPage::class)
             ->assertViewHas('approvedCount', 1);
     }
+
+    public function test_pending_approval_open_dispatches_review_modal(): void
+    {
+        $user = $this->actingUserWithRole('owner');
+
+        $hall = Hall::query()->create([
+            'name' => 'Main Hall',
+            'cost' => 0,
+            'period' => 'per_year',
+        ]);
+        $studentUser = User::factory()->create(['type' => 'student']);
+        $student = Student::query()->forceCreate([
+            'user_id' => $studentUser->id,
+            'index_number' => 'ADM-2026-0100',
+            'admission_index' => 'ADM-2026-0100',
+            'lastname' => 'Pending',
+            'firstname' => 'Pat',
+            'date_of_birth' => '2005-01-01',
+            'gender' => 'female',
+            'nationality' => 'GH',
+            'contact_address' => 'Addr',
+            'phone_number' => '0240000100',
+            'hall_id' => $hall->id,
+            'profile_pic' => 'p.png',
+            'approved' => false,
+            'current_year' => '100',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(AdminDashboardPage::class)
+            ->assertSee('ADM-2026-0100')
+            ->call('reviewPendingStudent', $student->id)
+            ->assertDispatched('open-pending-student-review');
+    }
 }
-
-
-

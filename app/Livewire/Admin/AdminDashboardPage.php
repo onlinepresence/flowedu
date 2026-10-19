@@ -4,26 +4,28 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin;
 
-use App\Models\Student;
-use App\Models\Course;
-use App\Models\Program;
-use App\Models\Teacher;
-use App\Models\Result;
-use App\Models\Invoice;
-use App\Models\Payment;
-use App\Models\Expenditure;
-use App\Models\LeaveRequest;
-use App\Models\EvaluationResponse;
-use App\Models\SystemAudit;
-use App\Models\User;
 use App\Models\Admin;
 use App\Models\Announcement;
-use App\Models\Memo;
+use App\Models\Course;
 use App\Models\DisciplinaryRecord;
+use App\Models\EvaluationForm;
+use App\Models\EvaluationResponse;
+use App\Models\Expenditure;
+use App\Models\Invoice;
+use App\Models\LeaveRequest;
 use App\Models\MedicalHistory;
+use App\Models\Memo;
+use App\Models\Payment;
+use App\Models\Program;
+use App\Models\Result;
+use App\Models\Student;
+use App\Models\SystemAudit;
+use App\Models\Teacher;
+use App\Models\User;
 use App\Services\SchoolLicenceService;
 use App\Services\StudentLicenceCapService;
 use Illuminate\Contracts\View\View;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 class AdminDashboardPage extends Component
@@ -93,12 +95,11 @@ class AdminDashboardPage extends Component
             ->limit(5)
             ->get();
 
-
         // HR & Leaves
         $totalStaffCount = User::whereIn('type', ['admin', 'staff'])->count();
         $totalTeachersCount = Teacher::count();
         $pendingLeavesCount = $this->applyLeaveScope(LeaveRequest::query()->where('status', 'pending'), $admin);
-        
+
         $pendingLeavesPreview = $this->applyLeaveScope(LeaveRequest::query()->where('status', 'pending'), $admin)
             ->latest()
             ->limit(5)
@@ -109,7 +110,7 @@ class AdminDashboardPage extends Component
 
         // Evaluations
         $evaluationResponsesCount = $this->applyEvaluationScope(EvaluationResponse::query(), $admin)->count();
-        $activeFormsCount = \App\Models\EvaluationForm::where('is_active', true)->count();
+        $activeFormsCount = EvaluationForm::where('is_active', true)->count();
         $recentEvaluations = $this->applyEvaluationScope(EvaluationResponse::query(), $admin)
             ->with(['form', 'studentDepartment'])
             ->latest()
@@ -163,7 +164,15 @@ class AdminDashboardPage extends Component
         ]);
     }
 
-    private function applyScope($query, ?Admin $admin, string $relation = null)
+    public function reviewPendingStudent(int $studentId): void
+    {
+        $this->dispatch('open-pending-student-review', studentId: $studentId);
+    }
+
+    #[On('pending-student-approved')]
+    public function refreshPendingApprovals(): void {}
+
+    private function applyScope($query, ?Admin $admin, ?string $relation = null)
     {
         if ($admin === null) {
             return $query;
@@ -175,15 +184,17 @@ class AdminDashboardPage extends Component
                     $q->where('department_id', $admin->department_id);
                 });
             }
+
             return $query->where('department_id', $admin->department_id);
         }
 
         if ($admin->faculty_id) {
             if ($relation) {
-                return $query->whereHas($relation . '.department', function ($q) use ($admin) {
+                return $query->whereHas($relation.'.department', function ($q) use ($admin) {
                     $q->where('faculty_id', $admin->faculty_id);
                 });
             }
+
             return $query->whereHas('department', function ($q) use ($admin) {
                 $q->where('faculty_id', $admin->faculty_id);
             });
@@ -219,20 +230,18 @@ class AdminDashboardPage extends Component
 
         if ($admin->department_id) {
             return $query->whereHas('user', function ($q) use ($admin) {
-                $q->whereHas('admin', fn($a) => $a->where('department_id', $admin->department_id))
-                  ->orWhereHas('teacher', fn($t) => $t->where('department_id', $admin->department_id));
+                $q->whereHas('admin', fn ($a) => $a->where('department_id', $admin->department_id))
+                    ->orWhereHas('teacher', fn ($t) => $t->where('department_id', $admin->department_id));
             });
         }
 
         if ($admin->faculty_id) {
             return $query->whereHas('user', function ($q) use ($admin) {
-                $q->whereHas('admin.department', fn($d) => $d->where('faculty_id', $admin->faculty_id))
-                  ->orWhereHas('teacher.department', fn($d) => $d->where('faculty_id', $admin->faculty_id));
+                $q->whereHas('admin.department', fn ($d) => $d->where('faculty_id', $admin->faculty_id))
+                    ->orWhereHas('teacher.department', fn ($d) => $d->where('faculty_id', $admin->faculty_id));
             });
         }
 
         return $query;
     }
 }
-
-

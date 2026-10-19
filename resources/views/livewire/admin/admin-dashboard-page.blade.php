@@ -98,7 +98,7 @@
                                             <p class="font-mono text-sm text-gray-900 dark:text-gray-100">{{ $row->index_number }}</p>
                                             <p class="text-sm text-gray-600 dark:text-gray-300">{{ trim(implode(' ', array_filter([$row->firstname, $row->othernames, $row->lastname]))) }}</p>
                                         </div>
-                                        <a href="{{ route('admin.students.index', ['approval' => 'pending']) }}" wire:navigate class="shrink-0 text-sm text-purple-600 hover:text-purple-500 dark:text-purple-400 font-semibold">{{ __('Open') }}</a>
+                                        <button type="button" wire:click="reviewPendingStudent({{ $row->id }})" class="shrink-0 text-sm text-purple-600 hover:text-purple-500 dark:text-purple-400 font-semibold">{{ __('Open') }}</button>
                                     </li>
                                 @endforeach
                             </ul>
@@ -646,4 +646,6 @@
             @endif
         </div>
     @endif
+
+    <livewire:admin.students.pending-student-review-modal />
 </div>

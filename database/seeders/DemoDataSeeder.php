@@ -53,26 +53,20 @@ namespace Database\Seeders;
 use App\Actions\Students\ActivateStudentDashboardAction;
 use App\Actions\Students\AssertStudentApprovalAllowedByLicence;
 use App\Actions\Students\SaveStudentAdmissionProfileAction;
+use App\Helpers\AuditHelper;
 use App\Models\AcademicSession;
-use App\Models\Admin;
 use App\Models\AdminType;
 use App\Models\Course;
 use App\Models\Department;
-use App\Models\DisciplinaryRecord;
 use App\Models\EvaluationForm;
 use App\Models\EvaluationQuestion;
 use App\Models\EvaluationResponse;
 use App\Models\Expenditure;
 use App\Models\Faculty;
-use App\Models\FeeComponent;
 use App\Models\FeeStructure;
-use App\Models\FeeStructureItem;
 use App\Models\Grade;
 use App\Models\GradePoint;
-use App\Models\Hall;
 use App\Models\Invoice;
-use App\Models\InvoiceItem;
-use App\Models\JobAlert;
 use App\Models\LeaveRequest;
 use App\Models\MedicalHistory;
 use App\Models\Memo;
@@ -84,7 +78,6 @@ use App\Models\ParentGuardian;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Program;
-use App\Models\ResponseDetail;
 use App\Models\Result;
 use App\Models\ResultSlip;
 use App\Models\Scholarship;
@@ -92,16 +85,9 @@ use App\Models\ScholarshipRecipient;
 use App\Models\School;
 use App\Models\SchoolLicence;
 use App\Models\Semester;
-use App\Models\Setting;
-use App\Models\StaffLeaveType;
 use App\Models\Student;
 use App\Models\Teacher;
-use App\Models\TeacherAssignment;
-use App\Models\TeacherCourse;
-use App\Models\TeacherRole;
 use App\Models\Timetable;
-use App\Models\TimetableClass;
-use App\Models\TranscriptRequest;
 use App\Models\User;
 use App\Models\UserRole;
 use App\Services\Finance\FeeCalculationService;
@@ -116,7 +102,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class DemoDataSeeder extends Seeder
 {
@@ -1264,6 +1249,13 @@ class DemoDataSeeder extends Seeder
                 'username' => $spec['username'],
             ], $upload);
 
+            // Intake belongs to the latest academic year at level 100,
+            // including the pending rows awaiting admission review.
+            $student->forceFill([
+                'admission_date' => $today->toDateString(),
+                'current_year' => '100',
+            ])->save();
+
             ParentGuardian::create([
                 'student_id' => $student->id,
                 'name' => $this->pick($maleFirst).' '.$spec['surname'],
@@ -1744,6 +1736,7 @@ class DemoDataSeeder extends Seeder
                     'remarks' => 'Saved as draft.',
                     'created_at' => $memoDate($md['topic_day']),
                 ]);
+
                 continue;
             }
             MemoTracking::create([
@@ -2293,7 +2286,7 @@ class DemoDataSeeder extends Seeder
         ]);
 
         // Audit trail under the users who actually moved each item.
-        $audit = \App\Helpers\AuditHelper::class;
+        $audit = AuditHelper::class;
         Auth::login($accountant);
         $audit::log('invoice_created', 'Invoice '.$invoices[0]->invoice_number.' posted for '.$invoices[0]->vendor_name, $invoices[0]);
         $audit::log('invoice_paid', 'Invoice '.$invoices[0]->invoice_number.' settled in full', $invoices[0]);
