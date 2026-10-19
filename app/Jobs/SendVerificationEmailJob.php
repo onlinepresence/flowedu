@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Models\User;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -33,6 +34,8 @@ final class SendVerificationEmailJob implements ShouldQueue
             return;
         }
 
-        $user->sendEmailVerificationNotification();
+        // Notify directly: User::sendEmailVerificationNotification() dispatches
+        // this job, so calling it here would re-queue instead of sending.
+        $user->notify(new VerifyEmail);
     }
 }

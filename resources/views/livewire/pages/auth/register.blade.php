@@ -78,10 +78,8 @@ new #[Layout('layouts.guest')] class extends Component
             'active' => true,
         ]);
 
+        // Fires the Registered listener, which queues the verification email.
         event(new Registered($user));
-
-        // Verification goes out queued (database queue drains via scheduler).
-        \App\Jobs\SendVerificationEmailJob::dispatch($user->id);
 
         Auth::login($user);
 

@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Jobs\SendPasswordResetEmailJob;
+use App\Jobs\SendVerificationEmailJob;
 use Database\Factories\UserFactory;
 use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailTrait;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -66,6 +68,20 @@ class User extends Authenticatable implements MustVerifyEmail
         return (bool) ($this->must_change_password ?? false);
     }
 
+    /**
+     * Auth mails are queued so SMTP is never contacted inside the request
+     * cycle: an unreachable mail server cannot block registration or reset.
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        SendVerificationEmailJob::dispatch((int) $this->getKey());
+    }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        SendPasswordResetEmailJob::dispatch((int) $this->getKey(), (string) $token);
+    }
+
     public function staffLeaveType(): BelongsTo
     {
         return $this->belongsTo(StaffLeaveType::class, 'staff_leave_type_id');
@@ -119,6 +135,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
         if ($this->type === 'admin' && session('active_portal_role') === 'teacher') {
             $this->loadMissing('teacher');
+
             return $this->teacher !== null;
         }
 
@@ -220,7 +237,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function teacherPermissions(): array
     {
-        if (!$this->isTeacherActive()) {
+        if (! $this->isTeacherActive()) {
             return [];
         }
 
@@ -239,7 +256,7 @@ class User extends Authenticatable implements MustVerifyEmail
             return ['courses', 'students', 'assessments', 'communication'];
         }
 
-        return \App\Models\TeacherPortalRole::query()
+        return TeacherPortalRole::query()
             ->whereIn('name', $roles)
             ->get()
             ->pluck('permissions')
@@ -250,7 +267,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function hasTeacherPermission(string $permission): bool
     {
-        if (!$this->isTeacherActive()) {
+        if (! $this->isTeacherActive()) {
             return false;
         }
 
