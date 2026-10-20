@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Tools;
 
-use App\Jobs\SendCollegeNotificationMailJob;
 use App\Livewire\Concerns\DispatchesCollegeToasts;
+use App\Mail\CollegeNotificationMail;
 use App\Support\MailSetup;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Mail;
 use Livewire\Component;
+use Throwable;
 
 class EmailComposerPage extends Component
 {
@@ -20,7 +22,12 @@ class EmailComposerPage extends Component
 
     public string $htmlBody = '';
 
-    public bool $showPreview = false;
+    /**
+     * @var array<string, string>
+     */
+    public array $deliveryFailures = [];
+
+    public int $deliveredCount = 0;
 
     public function mount(): void
     {
@@ -54,6 +61,10 @@ class EmailComposerPage extends Component
     {
         $this->guard();
 
+        $this->resetErrorBag();
+        $this->deliveryFailures = [];
+        $this->deliveredCount = 0;
+
         $validated = $this->validate([
             'subject' => ['required', 'string', 'max:255'],
             'htmlBody' => ['required', 'string', 'max:50000'],
@@ -81,15 +92,34 @@ class EmailComposerPage extends Component
             return;
         }
 
-        // Queued, never instant: bulk sends stay off the request cycle, get
-        // retries on SMTP failure, and behave like every other app email.
-        // The per-minute queue drain delivers them shortly after.
         foreach ($emails as $email) {
-            SendCollegeNotificationMailJob::dispatch($email, $validated['subject'], $validated['htmlBody']);
+            try {
+                Mail::to($email)->send(new CollegeNotificationMail($validated['subject'], $validated['htmlBody']));
+                $this->deliveredCount++;
+            } catch (Throwable $exception) {
+                report($exception);
+
+                $message = trim($exception->getMessage());
+                $this->deliveryFailures[$email] = $message !== '' ? $message : $exception::class;
+            }
         }
 
-        $this->collegeToast(__('Queued :count email(s) for delivery.', ['count' => count($emails)]));
-        $this->reset(['recipients', 'subject', 'htmlBody', 'showPreview']);
+        if ($this->deliveryFailures !== []) {
+            $this->addError('delivery', __(':sent of :total email(s) sent. Fix the errors below, then retry.', [
+                'sent' => $this->deliveredCount,
+                'total' => count($emails),
+            ]));
+            $this->recipients = implode(', ', array_keys($this->deliveryFailures));
+
+            return;
+        }
+
+        $this->collegeToast(__('Sent :count email(s).', ['count' => $this->deliveredCount]));
+        $this->recipients = '';
+        $this->subject = '';
+        $this->htmlBody = '';
+        $this->deliveryFailures = [];
+        $this->deliveredCount = 0;
     }
 
     public function render(): View
@@ -97,7 +127,7 @@ class EmailComposerPage extends Component
         return view('livewire.admin.tools.email-composer-page')->layout('components.layouts.admin', [
             'title' => __('Email composer'),
             'headerTitle' => __('Compose Email'),
-            'headerDescription' => __('Send an HTML email to one or more recipients. Delivery is queued.'),
+            'headerDescription' => __('Send an HTML email to one or more recipients. Delivery is immediate and errors are shown here.'),
         ]);
     }
 

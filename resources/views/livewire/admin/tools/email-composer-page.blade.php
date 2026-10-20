@@ -1,11 +1,9 @@
 <div class="mx-auto w-full max-w-3xl space-y-6"
     x-data="{
-        to: $wire.entangle('recipients').defer,
-        body: $wire.entangle('htmlBody').defer,
-        show: $wire.entangle('showPreview').defer,
-        count() {
+        show: false,
+        count(value) {
             const seen = new Set();
-            for (const part of String(this.to ?? '').split(/[\s,;]+/)) {
+            for (const part of String(value ?? '').split(/[\s,;]+/)) {
                 const email = part.trim();
                 if (email !== '' && ! seen.has(email)) {
                     seen.add(email);
@@ -20,11 +18,11 @@
                 <div class="flex items-baseline justify-between">
                     <x-input-label for="email-to" :value="__('Recipients')" />
                     <span class="text-xs text-gray-400 dark:text-gray-500">
-                        <span x-text="count()"></span> {{ __('recipient(s)') }}
+                        <span x-text="count($wire.recipients)"></span> {{ __('recipient(s)') }}
                     </span>
                 </div>
                 <textarea
-                    x-model="to"
+                    wire:model.live.debounce.400ms="recipients"
                     id="email-to"
                     rows="3"
                     placeholder="{{ __('one@example.com, two@example.com — one per line, comma or semicolon separated') }}"
@@ -52,7 +50,7 @@
                     </button>
                 </div>
                 <textarea
-                    x-model="body"
+                    wire:model.live.debounce.400ms="htmlBody"
                     id="email-body"
                     rows="8"
                     spellcheck="false"
@@ -65,17 +63,33 @@
             <div x-show="show" x-cloak>
                 <p class="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ __('Preview') }}</p>
                 <div class="rounded-md border border-dashed border-gray-300 bg-gray-50 p-4 text-sm dark:border-gray-700 dark:bg-gray-900/40">
-                    <template x-if="body.trim() !== ''"><div x-html="body"></div></template>
-                    <template x-if="body.trim() === ''"><span class="text-gray-400">{{ __('Nothing to preview yet.') }}</span></template>
+                    <template x-if="$wire.htmlBody.trim() !== ''"><div x-html="$wire.htmlBody"></div></template>
+                    <template x-if="$wire.htmlBody.trim() === ''"><span class="text-gray-400">{{ __('Nothing to preview yet.') }}</span></template>
                 </div>
             </div>
 
+            @if ($deliveryFailures !== [])
+                <div class="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200" role="alert">
+                    <p class="font-semibold">{{ __('Some emails could not be sent.') }}</p>
+                    <ul class="mt-2 space-y-2">
+                        @foreach ($deliveryFailures as $email => $message)
+                            <li>
+                                <span class="font-semibold">{{ $email }}</span>
+                                <span class="mt-0.5 block break-words font-mono text-xs">{{ $message }}</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            <x-input-error :messages="$errors->get('delivery')" />
+
             <div>
                 <x-college-form-submit target="send" class="w-full justify-center">
-                    {{ __('Queue emails') }}
+                    {{ __('Send emails') }}
                 </x-college-form-submit>
                 <p class="mt-2 text-center text-xs text-gray-400 dark:text-gray-500">
-                    {{ __('Sending is queued — delivery follows within a minute via the queue worker.') }}
+                    {{ __('Emails are sent immediately. Any delivery errors will be shown here.') }}
                 </p>
             </div>
         </form>

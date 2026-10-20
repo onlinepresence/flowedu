@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Admin;
 
-use App\Jobs\SendCollegeNotificationMailJob;
 use App\Livewire\Admin\Tools\EmailComposerPage;
+use App\Mail\CollegeNotificationMail;
 use App\Models\Admin;
 use App\Models\User;
 use App\Models\UserRole;
 use Database\Seeders\AdminSystemSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Queue;
+use Illuminate\Mail\PendingMail;
+use Illuminate\Support\Facades\Mail;
 use Livewire\Livewire;
+use Mockery;
+use RuntimeException;
 use Tests\Concerns\ActsAsOwnerAdmin;
 use Tests\Concerns\CreatesTestSchool;
 use Tests\TestCase;
@@ -83,10 +86,10 @@ class EmailComposerTest extends TestCase
         $this->actingAs($user)->get(route('tools.email'))->assertForbidden();
     }
 
-    public function test_owner_and_system_admin_can_compose_and_queue(): void
+    public function test_owner_and_system_admin_can_compose_and_send_directly(): void
     {
         $this->configureMail();
-        Queue::fake();
+        Mail::fake();
 
         foreach ([$this->actingOwnerAdmin(), $this->actingSystemAdmin()] as $user) {
             $this->actingAs($user)->get(route('tools.email'))->assertOk();
@@ -100,7 +103,55 @@ class EmailComposerTest extends TestCase
                 ->assertHasNoErrors();
         }
 
-        Queue::assertPushed(SendCollegeNotificationMailJob::class, 4);
+        Mail::assertSent(CollegeNotificationMail::class, 4);
+        Mail::assertSent(CollegeNotificationMail::class, function (CollegeNotificationMail $mail): bool {
+            return $mail->hasTo('one@example.test')
+                && $mail->mailSubject === 'Hello'
+                && $mail->htmlBody === '<p>Hi <strong>there</strong></p>';
+        });
+    }
+
+    public function test_composer_fields_are_bound_directly_to_livewire(): void
+    {
+        $this->configureMail();
+        $owner = $this->actingOwnerAdmin();
+
+        $this->actingAs($owner)
+            ->get(route('tools.email'))
+            ->assertOk()
+            ->assertSee('wire:model.live.debounce.400ms="recipients"', false)
+            ->assertSee('wire:model.live.debounce.400ms="htmlBody"', false)
+            ->assertDontSee("entangle('recipients')", false)
+            ->assertDontSee("entangle('htmlBody')", false);
+    }
+
+    public function test_delivery_errors_are_shown_and_only_failed_recipients_remain(): void
+    {
+        $this->configureMail();
+
+        $sent = Mockery::mock(PendingMail::class);
+        $sent->shouldReceive('send')->once()->andReturnNull();
+
+        $failed = Mockery::mock(PendingMail::class);
+        $failed->shouldReceive('send')->once()->andThrow(new RuntimeException('SMTP rejected the message.'));
+
+        Mail::shouldReceive('to')->once()->with('good@example.test')->andReturn($sent);
+        Mail::shouldReceive('to')->once()->with('bad@example.test')->andReturn($failed);
+
+        $owner = $this->actingOwnerAdmin();
+
+        Livewire::actingAs($owner)
+            ->test(EmailComposerPage::class)
+            ->set('recipients', 'good@example.test, bad@example.test')
+            ->set('subject', 'Hello')
+            ->set('htmlBody', '<p>Hi</p>')
+            ->call('send')
+            ->assertHasErrors(['delivery'])
+            ->assertSet('deliveredCount', 1)
+            ->assertSet('recipients', 'bad@example.test')
+            ->assertSet('deliveryFailures', ['bad@example.test' => 'SMTP rejected the message.'])
+            ->assertSee('Some emails could not be sent.')
+            ->assertSee('SMTP rejected the message.');
     }
 
     public function test_invalid_and_excessive_recipients_rejected(): void
