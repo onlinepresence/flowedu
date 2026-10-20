@@ -113,6 +113,7 @@ class PendingStudentReviewModalTest extends TestCase
             ->call('open', $student->id)
             ->assertSet('studentId', $student->id)
             ->assertDispatched('open-modal', 'pending-student-review-modal')
+            ->assertDispatched('pending-student-review-loaded', studentId: $student->id)
             ->assertSee('ADM-2026-0001')
             ->assertSee('Dzifa')
             ->assertSee('Kofi Mensah')

@@ -202,7 +202,7 @@
                                         <div class="rounded-md bg-white py-1 ring-1 ring-black ring-opacity-5 dark:bg-gray-700" x-on:click="open = false">
                                             <button
                                                 type="button"
-                                                x-on:click="$dispatch('open-modal', 'pending-student-review-modal'); $dispatch('open-pending-student-review', { studentId: {{ $student->id }} })"
+                                                x-on:click="$dispatch('open-modal', 'pending-student-review-modal'); $dispatch('open-pending-student-review', { studentId: {{ $student->id }}, approved: {{ $student->approved ? 'true' : 'false' }} })"
                                                 class="flex w-full items-center px-4 py-2 text-left text-sm font-semibold text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
                                             >
                                                 <i class="fa-solid fa-magnifying-glass mr-2.5 w-4 text-center"></i>

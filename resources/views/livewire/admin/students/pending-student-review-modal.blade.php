@@ -1,6 +1,10 @@
-<div>
+<div
+    x-data="{ loading: false, requestedId: null }"
+    x-on:open-pending-student-review.window="requestedId = $event.detail.studentId; loading = true; const heading = $el.querySelector('h2'); if (heading) heading.textContent = $event.detail.approved ? '{{ __('Student Details') }}' : '{{ __('Pending Admission Review') }}';"
+    x-on:pending-student-review-loaded.window="if (Number($event.detail.studentId) === Number(requestedId)) loading = false"
+>
     <x-college.modal name="pending-student-review-modal" maxWidth="4xl" :title="$student?->approved ? __('Student Details') : __('Pending Admission Review')">
-        <div @if ($student !== null) wire:loading wire:target="open" @endif class="animate-pulse space-y-6" aria-hidden="true">
+        <div x-cloak x-show="loading" class="animate-pulse space-y-6" aria-hidden="true">
             <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
                 <div class="h-24 w-24 shrink-0 rounded-full bg-gray-200 dark:bg-gray-700"></div>
                 <div class="min-w-0 flex-1 space-y-3">
@@ -26,7 +30,7 @@
         </div>
 
         @if ($student)
-            <div wire:loading.remove wire:target="open" class="space-y-6">
+            <div x-show="! loading" class="space-y-6">
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
                     <div class="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-purple-100 text-purple-600 shadow-inner dark:bg-purple-900/30 dark:text-purple-400">
                         @if ($photoDataUrl)
@@ -194,15 +198,14 @@
                 <a
                     href="{{ route('admin.students.show', ['index_number' => $student->index_number]) }}"
                     wire:navigate
-                    wire:loading.remove
-                    wire:target="open"
+                    x-show="! loading"
                     class="inline-flex items-center gap-2 rounded-md bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-purple-500"
                 >
                     <i class="fa-solid fa-user"></i>
                     {{ __('View Full Profile') }}
                 </a>
             @elseif ($student && ! $student->approved)
-                <span wire:loading.remove wire:target="open">
+                <span x-show="! loading">
                     <button
                         type="button"
                         wire:click="approve"
@@ -218,3 +221,4 @@
         </x-slot>
     </x-college.modal>
 </div>
+

@@ -34,6 +34,7 @@ class PendingStudentReviewModal extends Component
         $this->studentId = $student->id;
         $this->resetErrorBag();
         $this->dispatch('open-modal', 'pending-student-review-modal');
+        $this->dispatch('pending-student-review-loaded', studentId: $student->id);
     }
 
     public function approve(AssertStudentApprovalAllowedByLicence $assertCap): void
