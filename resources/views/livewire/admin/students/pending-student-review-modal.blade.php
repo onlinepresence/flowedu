@@ -1,5 +1,5 @@
 <div>
-    <x-college.modal name="pending-student-review-modal" maxWidth="4xl" :title="__('Pending Admission Review')">
+    <x-college.modal name="pending-student-review-modal" maxWidth="4xl" :title="$student?->approved ? __('Student Details') : __('Pending Admission Review')">
         <div @if ($student !== null) wire:loading wire:target="open" @endif class="animate-pulse space-y-6" aria-hidden="true">
             <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
                 <div class="h-24 w-24 shrink-0 rounded-full bg-gray-200 dark:bg-gray-700"></div>
@@ -190,7 +190,18 @@
             >
                 {{ __('Close') }}
             </button>
-            @if ($student && ! $student->approved)
+            @if ($student?->approved)
+                <a
+                    href="{{ route('admin.students.show', ['index_number' => $student->index_number]) }}"
+                    wire:navigate
+                    wire:loading.remove
+                    wire:target="open"
+                    class="inline-flex items-center gap-2 rounded-md bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-purple-500"
+                >
+                    <i class="fa-solid fa-user"></i>
+                    {{ __('View Full Profile') }}
+                </a>
+            @elseif ($student && ! $student->approved)
                 <span wire:loading.remove wire:target="open">
                     <button
                         type="button"

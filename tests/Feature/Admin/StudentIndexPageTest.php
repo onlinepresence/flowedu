@@ -75,6 +75,11 @@ class StudentIndexPageTest extends TestCase
             ->assertSeeHtml('aria-disabled="true"')
             ->assertSee('IDX100')
             ->assertSee('IDX200')
+            ->assertSee('Quick View')
+            ->assertSee('Print Record')
+            ->assertSee('View Profile')
+            ->assertSee('Edit Student')
+            ->assertSee('Delete Student')
             ->set('search', 'IDX100')
             ->assertSee('IDX100')
             ->assertDontSee('IDX200');

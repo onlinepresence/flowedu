@@ -149,66 +149,105 @@
                                 @endif
                             </td>
                             <td class="whitespace-nowrap px-6 py-4 text-right text-sm">
-                                <div class="flex items-center justify-end gap-3.5">
-                                    @if (! $student->approved)
-                                        <button
-                                            type="button"
-                                            x-data
-                                            x-on:click="$dispatch('open-modal', 'pending-student-review-modal'); $dispatch('open-pending-student-review', { studentId: {{ $student->id }} })"
-                                            class="text-purple-600 hover:text-purple-500 dark:text-purple-400 hover:scale-110 transition-transform"
-                                            title="{{ __('Review & Approve Student') }}"
-                                        >
-                                            <i class="fa-solid fa-user-check text-base"></i>
-                                        </button>
-                                    @else
-                                        <a
-                                            href="{{ route('admin.students.print', ['index_number' => $student->index_number]) }}"
-                                            class="text-gray-500 hover:text-gray-700 dark:text-gray-400 hover:scale-110 transition-transform"
-                                            wire:navigate
-                                            title="{{ __('Print Record') }}"
-                                        >
-                                            <i class="fa-solid fa-print text-base"></i>
-                                        </a>
-                                    @endif
-
-                                    @if ($student->approved)
-                                        <a
-                                            href="{{ route('admin.students.show', ['index_number' => $student->index_number]) }}"
-                                            class="text-blue-600 hover:text-blue-500 dark:text-blue-400 hover:scale-110 transition-transform"
-                                            wire:navigate
-                                            title="{{ __('View Profile') }}"
-                                        >
-                                            <i class="fa-solid fa-eye text-base"></i>
-                                        </a>
-                                    @else
-                                        <button
-                                            type="button"
-                                            x-data
-                                            x-on:click="$dispatch('open-modal', 'pending-student-review-modal'); $dispatch('open-pending-student-review', { studentId: {{ $student->id }} })"
-                                            class="text-blue-600 hover:text-blue-500 dark:text-blue-400 hover:scale-110 transition-transform"
-                                            title="{{ __('Review Pending Student') }}"
-                                        >
-                                            <i class="fa-solid fa-eye text-base"></i>
-                                        </button>
-                                    @endif
-
+                                <div
+                                    x-data="{
+                                        open: false,
+                                        top: 0,
+                                        left: 0,
+                                        toggle() {
+                                            const rect = this.$refs.trigger.getBoundingClientRect();
+                                            const width = 192;
+                                            this.left = Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8));
+                                            this.top = rect.bottom + 8;
+                                            this.open = ! this.open;
+                                            this.$nextTick(() => {
+                                                if (! this.open) return;
+                                                const height = this.$refs.menu?.offsetHeight ?? 200;
+                                                if (this.top + height > window.innerHeight - 8) {
+                                                    this.top = Math.max(8, rect.top - height - 8);
+                                                }
+                                            });
+                                        },
+                                    }"
+                                    x-on:click.outside="if (! $refs.trigger.contains($event.target)) open = false"
+                                    x-on:keydown.escape.window="open = false"
+                                    x-on:resize.window="open = false"
+                                    class="relative inline-block text-left"
+                                >
                                     <button
                                         type="button"
-                                        wire:click="editStudent({{ $student->id }})"
-                                        class="text-amber-600 hover:text-amber-500 dark:text-amber-400 hover:scale-110 transition-transform"
-                                        title="{{ __('Edit Student') }}"
+                                        x-ref="trigger"
+                                        x-on:click.stop="toggle()"
+                                        x-bind:aria-expanded="open ? 'true' : 'false'"
+                                        aria-haspopup="true"
+                                        aria-label="{{ __('Student actions') }}"
+                                        class="inline-flex items-center justify-center rounded-md bg-white p-1.5 text-gray-600 shadow-sm ring-1 ring-inset ring-gray-300 transition hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:ring-gray-700 dark:hover:bg-gray-700"
                                     >
-                                        <i class="fa-solid fa-pen text-base"></i>
+                                        <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
                                     </button>
 
-                                    <button
-                                        type="button"
-                                        wire:click="confirmDeleteStudent({{ $student->id }})"
-                                        class="text-red-655 hover:text-red-500 dark:text-red-400 hover:scale-110 transition-transform"
-                                        title="{{ __('Delete Student') }}"
+                                    <div
+                                        x-ref="menu"
+                                        x-show="open"
+                                        x-transition:enter="transition ease-out duration-150"
+                                        x-transition:enter-start="opacity-0 scale-95"
+                                        x-transition:enter-end="opacity-100 scale-100"
+                                        x-transition:leave="transition ease-in duration-100"
+                                        x-transition:leave-start="opacity-100 scale-100"
+                                        x-transition:leave-end="opacity-0 scale-95"
+                                        x-bind:style="'top: ' + top + 'px; left: ' + left + 'px;'"
+                                        class="fixed z-50 w-48 rounded-md shadow-lg"
+                                        style="display: none;"
                                     >
-                                        <i class="fa-solid fa-trash text-base"></i>
-                                    </button>
+                                        <div class="rounded-md bg-white py-1 ring-1 ring-black ring-opacity-5 dark:bg-gray-700" x-on:click="open = false">
+                                            <button
+                                                type="button"
+                                                x-on:click="$dispatch('open-modal', 'pending-student-review-modal'); $dispatch('open-pending-student-review', { studentId: {{ $student->id }} })"
+                                                class="flex w-full items-center px-4 py-2 text-left text-sm font-semibold text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                                            >
+                                                <i class="fa-solid fa-magnifying-glass mr-2.5 w-4 text-center"></i>
+                                                {{ __('Quick View') }}
+                                            </button>
+
+                                            @if ($student->approved)
+                                                <a
+                                                    href="{{ route('admin.students.print', ['index_number' => $student->index_number]) }}"
+                                                    wire:navigate
+                                                    class="flex w-full items-center px-4 py-2 text-left text-sm leading-5 text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                                                >
+                                                    <i class="fa-solid fa-print mr-2.5 w-4 text-center"></i>
+                                                    {{ __('Print Record') }}
+                                                </a>
+
+                                                <a
+                                                    href="{{ route('admin.students.show', ['index_number' => $student->index_number]) }}"
+                                                    wire:navigate
+                                                    class="flex w-full items-center px-4 py-2 text-left text-sm leading-5 text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                                                >
+                                                    <i class="fa-solid fa-eye mr-2.5 w-4 text-center"></i>
+                                                    {{ __('View Profile') }}
+                                                </a>
+                                            @endif
+
+                                            <button
+                                                type="button"
+                                                wire:click="editStudent({{ $student->id }})"
+                                                class="flex w-full items-center px-4 py-2 text-left text-sm font-semibold text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                                            >
+                                                <i class="fa-solid fa-pen mr-2.5 w-4 text-center"></i>
+                                                {{ __('Edit Student') }}
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                wire:click="confirmDeleteStudent({{ $student->id }})"
+                                                class="flex w-full items-center border-t border-gray-100 px-4 py-2 text-left text-sm font-semibold text-red-600 transition hover:bg-red-50 dark:border-gray-700/50 dark:text-red-400 dark:hover:bg-red-950/30"
+                                            >
+                                                <i class="fa-solid fa-trash mr-2.5 w-4 text-center"></i>
+                                                {{ __('Delete Student') }}
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </td>
                         </tr>

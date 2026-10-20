@@ -25,7 +25,7 @@ class PendingStudentReviewModalTest extends TestCase
     use CreatesTestSchool;
     use RefreshDatabase;
 
-    private function seedPendingStudent(bool $withGuardian = true): Student
+    private function seedPendingStudent(bool $withGuardian = true, bool $approved = false): Student
     {
         $faculty = Faculty::query()->create(['name' => 'Applied Sciences']);
         $department = Department::query()->forceCreate([
@@ -64,7 +64,7 @@ class PendingStudentReviewModalTest extends TestCase
             'department_id' => null,
             'hall_id' => $hall->id,
             'profile_pic' => 'placeholder.png',
-            'approved' => false,
+            'approved' => $approved,
             'is_new' => true,
             'current_year' => '100',
             'admission_date' => now()->toDateString(),
@@ -117,6 +117,19 @@ class PendingStudentReviewModalTest extends TestCase
             ->assertSee('Dzifa')
             ->assertSee('Kofi Mensah')
             ->assertSee('GHA-123456789-0');
+    }
+
+    public function test_review_modal_shows_profile_link_without_approve_action_for_approved_student(): void
+    {
+        $student = $this->seedPendingStudent(approved: true);
+        $admin = $this->actingOwnerAdmin();
+
+        Livewire::actingAs($admin)
+            ->test(PendingStudentReviewModal::class)
+            ->call('open', $student->id)
+            ->assertSee('View Full Profile')
+            ->assertDontSee('Approve Student')
+            ->assertSeeHtml(route('admin.students.show', ['index_number' => $student->index_number]));
     }
 
     public function test_review_modal_approves_pending_student(): void
