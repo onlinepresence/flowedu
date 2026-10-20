@@ -51,10 +51,11 @@ class AdminDashboardPage extends Component
 
         // 2. Fetch Scoped Data
         // Student Stats
-        $pendingCount = $this->applyScope(Student::query(), $admin)->where('approved', false)->count();
+        $pendingCount = $this->applyScope(Student::query(), $admin)->where('approved', false)->where('rejected', false)->count();
         $approvedCount = $this->applyScope(Student::query(), $admin)->where('approved', true)->count();
         $pendingPreview = $this->applyScope(Student::query(), $admin)
             ->where('approved', false)
+            ->where('rejected', false)
             ->orderBy('lastname')
             ->orderBy('firstname')
             ->limit(5)
@@ -170,6 +171,7 @@ class AdminDashboardPage extends Component
     }
 
     #[On('pending-student-approved')]
+    #[On('pending-student-rejected')]
     public function refreshPendingApprovals(): void {}
 
     private function applyScope($query, ?Admin $admin, ?string $relation = null)

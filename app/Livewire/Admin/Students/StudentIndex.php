@@ -62,7 +62,7 @@ class StudentIndex extends Component
     {
         abort_unless(auth()->user()?->hasAdminPermission('nav_students_index'), 403);
 
-        if (! in_array($this->approval, ['all', 'pending', 'approved'], true)) {
+        if (! in_array($this->approval, ['all', 'pending', 'approved', 'rejected'], true)) {
             $this->approval = 'all';
         }
 
@@ -123,11 +123,12 @@ class StudentIndex extends Component
             }
 
             $q = trim($this->search);
-            $approval = in_array($this->approval, ['pending', 'approved'], true) ? $this->approval : 'all';
+            $approval = in_array($this->approval, ['pending', 'approved', 'rejected'], true) ? $this->approval : 'all';
 
             $ids = Student::query()
-                ->when($approval === 'pending', fn ($query) => $query->where('approved', false))
+                ->when($approval === 'pending', fn ($query) => $query->where('approved', false)->where('rejected', false))
                 ->when($approval === 'approved', fn ($query) => $query->where('approved', true))
+                ->when($approval === 'rejected', fn ($query) => $query->where('rejected', true))
                 ->when($this->facultyFilter, fn ($query) => $query->whereHas('department', fn ($d) => $d->where('faculty_id', $this->facultyFilter)))
                 ->when($this->departmentFilter, fn ($query) => $query->where('department_id', $this->departmentFilter))
                 ->when($this->programFilter, fn ($query) => $query->where('program_id', $this->programFilter))
@@ -289,7 +290,8 @@ class StudentIndex extends Component
     }
 
     #[On('pending-student-approved')]
-    public function refreshAfterStudentApproval(): void {}
+    #[On('pending-student-rejected')]
+    public function refreshAfterStudentDecision(): void {}
 
     public function render(): View
     {
@@ -304,13 +306,14 @@ class StudentIndex extends Component
         }
 
         $q = trim($this->search);
-        $approval = in_array($this->approval, ['pending', 'approved'], true) ? $this->approval : 'all';
+        $approval = in_array($this->approval, ['pending', 'approved', 'rejected'], true) ? $this->approval : 'all';
 
         $students = Student::query()
             ->with(['user', 'program.department', 'department'])
             ->withCount('parentGuardians')
-            ->when($approval === 'pending', fn ($query) => $query->where('approved', false))
+            ->when($approval === 'pending', fn ($query) => $query->where('approved', false)->where('rejected', false))
             ->when($approval === 'approved', fn ($query) => $query->where('approved', true))
+            ->when($approval === 'rejected', fn ($query) => $query->where('rejected', true))
             ->when($this->facultyFilter, fn ($query) => $query->whereHas('department', fn ($d) => $d->where('faculty_id', $this->facultyFilter)))
             ->when($this->departmentFilter, fn ($query) => $query->where('department_id', $this->departmentFilter))
             ->when($this->programFilter, fn ($query) => $query->where('program_id', $this->programFilter))

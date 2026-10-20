@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Jobs\SendCollegeNotificationMailJob;
 use App\Livewire\Admin\Students\ApproveStudentPage;
 use App\Models\Admin;
 use App\Models\Hall;
@@ -11,6 +12,7 @@ use App\Models\User;
 use App\Models\UserRole;
 use Database\Seeders\AdminSystemSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 use Tests\Concerns\CreatesTestSchool;
 use Tests\TestCase;
@@ -77,6 +79,8 @@ class ApproveStudentPageTest extends TestCase
 
     public function test_admin_can_approve_student_when_guardian_complete_and_cap_allows(): void
     {
+        Queue::fake();
+
         $student = $this->seedPendingStudent();
         $admin = $this->actingOwnerAdmin();
 
@@ -90,6 +94,7 @@ class ApproveStudentPageTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertTrue($student->fresh()->approved);
+        Queue::assertPushed(SendCollegeNotificationMailJob::class, 1);
     }
 
     public function test_approve_fails_when_guardian_flag_zero(): void

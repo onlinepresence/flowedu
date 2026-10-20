@@ -85,6 +85,62 @@ class StudentIndexPageTest extends TestCase
             ->assertDontSee('IDX200');
     }
 
+    public function test_student_index_filters_rejected_students(): void
+    {
+        $admin = $this->actingOwnerAdmin();
+
+        $hall = Hall::query()->create([
+            'name' => 'Hall A',
+            'cost' => 0,
+            'period' => 'per_year',
+        ]);
+
+        $rejectedUser = User::factory()->create(['type' => 'student']);
+        Student::query()->forceCreate([
+            'user_id' => $rejectedUser->id,
+            'index_number' => 'IDX401',
+            'admission_index' => 'IDX401',
+            'lastname' => 'Rejected',
+            'firstname' => 'Rita',
+            'date_of_birth' => '2001-04-04',
+            'gender' => 'female',
+            'nationality' => 'GH',
+            'contact_address' => 'Addr',
+            'phone_number' => '0240000004',
+            'hall_id' => $hall->id,
+            'profile_pic' => 'p.png',
+            'approved' => false,
+            'rejected' => true,
+            'rejection_reason' => 'Documents incomplete.',
+            'rejected_at' => now(),
+        ]);
+
+        $pendingUser = User::factory()->create(['type' => 'student']);
+        Student::query()->forceCreate([
+            'user_id' => $pendingUser->id,
+            'index_number' => 'IDX402',
+            'admission_index' => 'IDX402',
+            'lastname' => 'Pending',
+            'firstname' => 'Paul',
+            'date_of_birth' => '2001-05-05',
+            'gender' => 'male',
+            'nationality' => 'GH',
+            'contact_address' => 'Addr',
+            'phone_number' => '0240000005',
+            'hall_id' => $hall->id,
+            'profile_pic' => 'p.png',
+            'approved' => false,
+            'rejected' => false,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(StudentIndex::class)
+            ->set('approval', 'rejected')
+            ->assertSee('IDX401')
+            ->assertDontSee('IDX402')
+            ->assertSee('Rejected');
+    }
+
     public function test_edit_modal_prefills_and_preselects_stored_gender(): void
     {
         $admin = $this->actingOwnerAdmin();

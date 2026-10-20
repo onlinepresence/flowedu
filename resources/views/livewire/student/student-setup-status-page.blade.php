@@ -12,27 +12,59 @@
 
         <div class="p-6 space-y-6">
             @if (! $student->approved)
-                <!-- Pending Registrar Approval -->
-                <div class="flex flex-col items-center text-center p-8 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-900/50 rounded-xl space-y-4">
-                    <div class="h-16 w-16 bg-amber-100 dark:bg-amber-900/40 rounded-full flex items-center justify-center text-amber-600 dark:text-amber-400 shadow-sm animate-pulse">
-                        <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                    </div>
-                    
-                    <div class="space-y-2">
-                        <h2 class="text-lg font-bold text-amber-800 dark:text-amber-300">
-                            {{ __('Admission Pending Review') }}
-                        </h2>
-                        <p class="text-sm text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-                            {{ __('Your admission application is currently being reviewed by the registrar. You will be notified once it is approved.') }}
+                @if ($student->rejected)
+                    <!-- Application Rejected -->
+                    <div class="flex flex-col items-center text-center p-8 bg-red-50/50 dark:bg-red-950/20 border border-red-200/50 dark:border-red-900/50 rounded-xl space-y-4">
+                        <div class="h-16 w-16 bg-red-100 dark:bg-red-900/40 rounded-full flex items-center justify-center text-red-600 dark:text-red-400 shadow-sm">
+                            <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </div>
+
+                        <div class="space-y-2">
+                            <h2 class="text-lg font-bold text-red-800 dark:text-red-300">
+                                {{ __('Admission Application Not Successful') }}
+                            </h2>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 max-w-md mx-auto">
+                                {{ __('Thank you for your interest. After reviewing your application, we are unable to offer you admission at this time.') }}
+                            </p>
+                        </div>
+
+                        <div class="w-full rounded-lg border border-red-200 bg-white/70 p-4 text-left dark:border-red-800 dark:bg-gray-900/40">
+                            <p class="text-xs font-bold uppercase tracking-wider text-red-700 dark:text-red-300">{{ __('Reason for decision') }}</p>
+                            <p class="mt-2 whitespace-pre-line text-sm font-medium text-red-900 dark:text-red-100">{{ $student->rejection_reason }}</p>
+                            @if ($student->rejected_at)
+                                <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">{{ __('Decision date: :date', ['date' => $student->rejected_at->format('M j, Y')]) }}</p>
+                            @endif
+                        </div>
+
+                        <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                            {{ __('If you believe this decision was made in error, please contact the admissions office.') }}
                         </p>
                     </div>
+                @else
+                    <!-- Pending Registrar Approval -->
+                    <div class="flex flex-col items-center text-center p-8 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-900/50 rounded-xl space-y-4">
+                        <div class="h-16 w-16 bg-amber-100 dark:bg-amber-900/40 rounded-full flex items-center justify-center text-amber-600 dark:text-amber-400 shadow-sm animate-pulse">
+                            <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
 
-                    <div class="pt-2 text-xs text-gray-500 dark:text-gray-400 font-medium">
-                        {{ __('Meanwhile, you can still edit or update your details if needed.') }}
+                        <div class="space-y-2">
+                            <h2 class="text-lg font-bold text-amber-800 dark:text-amber-300">
+                                {{ __('Admission Pending Review') }}
+                            </h2>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 max-w-md mx-auto">
+                                {{ __('Your admission application is currently being reviewed by the registrar. You will be notified once it is approved.') }}
+                            </p>
+                        </div>
+
+                        <div class="pt-2 text-xs text-gray-500 dark:text-gray-400 font-medium">
+                            {{ __('Meanwhile, you can still edit or update your details if needed.') }}
+                        </div>
                     </div>
-                </div>
+                @endif
 
                 <!-- Submission Summary Card -->
                 <div class="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/30 dark:bg-gray-800/30 space-y-3">

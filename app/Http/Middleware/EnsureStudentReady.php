@@ -30,6 +30,12 @@ class EnsureStudentReady
                 ->with('status', __('Admission form submission not completed.'));
         }
 
+        if ($student->rejected) {
+            return redirect()
+                ->route('student.setup.status')
+                ->with('status', __('Your admission application was not successful. Please review the decision below.'));
+        }
+
         if (! $student->approved) {
             return redirect()
                 ->route('student.setup.personal')

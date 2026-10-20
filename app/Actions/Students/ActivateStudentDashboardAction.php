@@ -24,6 +24,12 @@ final class ActivateStudentDashboardAction
             ]);
         }
 
+        if ($student->rejected) {
+            throw ValidationException::withMessages([
+                'activate' => [__('Your admission application was not successful. Please contact the admissions office if you need clarification.')],
+            ]);
+        }
+
         if (! $student->approved) {
             throw ValidationException::withMessages([
                 'activate' => [__('Your admission has not yet been approved. Please check at another time.')],

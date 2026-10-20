@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Admin;
 
+use App\Jobs\SendCollegeNotificationMailJob;
 use App\Livewire\Admin\Students\PendingStudentReviewModal;
 use App\Models\Admin;
 use App\Models\Department;
@@ -16,6 +17,7 @@ use App\Models\User;
 use App\Models\UserRole;
 use Database\Seeders\AdminSystemSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 use Tests\Concerns\CreatesTestSchool;
 use Tests\TestCase;
@@ -25,8 +27,12 @@ class PendingStudentReviewModalTest extends TestCase
     use CreatesTestSchool;
     use RefreshDatabase;
 
-    private function seedPendingStudent(bool $withGuardian = true, bool $approved = false): Student
-    {
+    private function seedPendingStudent(
+        bool $withGuardian = true,
+        bool $approved = false,
+        bool $rejected = false,
+        ?string $rejectionReason = null,
+    ): Student {
         $faculty = Faculty::query()->create(['name' => 'Applied Sciences']);
         $department = Department::query()->forceCreate([
             'name' => 'Computer Science',
@@ -65,6 +71,9 @@ class PendingStudentReviewModalTest extends TestCase
             'hall_id' => $hall->id,
             'profile_pic' => 'placeholder.png',
             'approved' => $approved,
+            'rejected' => $rejected,
+            'rejection_reason' => $rejectionReason,
+            'rejected_at' => $rejected ? now() : null,
             'is_new' => true,
             'current_year' => '100',
             'admission_date' => now()->toDateString(),
@@ -135,6 +144,8 @@ class PendingStudentReviewModalTest extends TestCase
 
     public function test_review_modal_approves_pending_student(): void
     {
+        Queue::fake();
+
         $student = $this->seedPendingStudent();
         $admin = $this->actingOwnerAdmin();
 
@@ -151,6 +162,82 @@ class PendingStudentReviewModalTest extends TestCase
         $this->assertTrue($student->approved);
         $this->assertSame($student->index_number, $student->admission_index);
         $this->assertNotNull($student->department_id);
+
+        Queue::assertPushed(SendCollegeNotificationMailJob::class, 2);
+        Queue::assertPushed(
+            SendCollegeNotificationMailJob::class,
+            fn (SendCollegeNotificationMailJob $job): bool => $job->toAddress === 'guardian@example.com'
+                && str_contains($job->mailSubject, 'approved'),
+        );
+    }
+
+    public function test_review_modal_rejects_pending_student_with_reason_and_queues_emails(): void
+    {
+        Queue::fake();
+
+        $student = $this->seedPendingStudent();
+        $admin = $this->actingOwnerAdmin();
+
+        Livewire::actingAs($admin)
+            ->test(PendingStudentReviewModal::class)
+            ->call('open', $student->id)
+            ->set('rejectionReason', 'Supporting documents were incomplete.')
+            ->call('reject')
+            ->assertHasNoErrors()
+            ->assertSet('studentId', null)
+            ->assertDispatched('close-modal', 'pending-student-review-modal')
+            ->assertDispatched('pending-student-rejected', studentId: $student->id);
+
+        $student->refresh();
+
+        $this->assertTrue($student->rejected);
+        $this->assertFalse($student->approved);
+        $this->assertSame('Supporting documents were incomplete.', $student->rejection_reason);
+        $this->assertSame($admin->id, $student->rejected_by);
+        $this->assertNotNull($student->rejected_at);
+
+        Queue::assertPushed(SendCollegeNotificationMailJob::class, 2);
+        Queue::assertPushed(
+            SendCollegeNotificationMailJob::class,
+            fn (SendCollegeNotificationMailJob $job): bool => $job->toAddress === 'guardian@example.com'
+                && str_contains($job->mailSubject, 'update')
+                && str_contains($job->htmlBody, 'Supporting documents were incomplete.'),
+        );
+    }
+
+    public function test_review_modal_requires_rejection_reason(): void
+    {
+        Queue::fake();
+
+        $student = $this->seedPendingStudent();
+        $admin = $this->actingOwnerAdmin();
+
+        Livewire::actingAs($admin)
+            ->test(PendingStudentReviewModal::class)
+            ->call('open', $student->id)
+            ->set('rejectionReason', '')
+            ->call('reject')
+            ->assertHasErrors(['rejectionReason']);
+
+        $this->assertFalse($student->fresh()->rejected);
+        Queue::assertNothingPushed();
+    }
+
+    public function test_rejected_student_modal_is_read_only_and_shows_reason(): void
+    {
+        $student = $this->seedPendingStudent(
+            rejected: true,
+            rejectionReason: 'Entry requirements were not met.',
+        );
+        $admin = $this->actingOwnerAdmin();
+
+        Livewire::actingAs($admin)
+            ->test(PendingStudentReviewModal::class)
+            ->call('open', $student->id)
+            ->assertSee('Rejected Application')
+            ->assertSee('Entry requirements were not met.')
+            ->assertDontSee('Approve Student')
+            ->assertDontSee('Reject Student');
     }
 
     public function test_review_modal_blocks_approval_without_guardian(): void

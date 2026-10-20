@@ -87,6 +87,7 @@
                             <button type="button" wire:click="$set('approval', 'all')" class="rounded-md px-3 py-1.5 text-xs font-semibold transition-all duration-150 {{ $approvalFilter === 'all' ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-950 dark:text-gray-400 dark:hover:text-white' }}">{{ __('All') }}</button>
                             <button type="button" wire:click="$set('approval', 'pending')" class="rounded-md px-3 py-1.5 text-xs font-semibold transition-all duration-150 {{ $approvalFilter === 'pending' ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-950 dark:text-gray-400 dark:hover:text-white' }}">{{ __('Pending') }}</button>
                             <button type="button" wire:click="$set('approval', 'approved')" class="rounded-md px-3 py-1.5 text-xs font-semibold transition-all duration-150 {{ $approvalFilter === 'approved' ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-950 dark:text-gray-400 dark:hover:text-white' }}">{{ __('Approved') }}</button>
+                            <button type="button" wire:click="$set('approval', 'rejected')" class="rounded-md px-3 py-1.5 text-xs font-semibold transition-all duration-150 {{ $approvalFilter === 'rejected' ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-950 dark:text-gray-400 dark:hover:text-white' }}">{{ __('Rejected') }}</button>
                         </div>
                     </div>
                 </div>
@@ -144,6 +145,8 @@
                             <td class="whitespace-nowrap px-6 py-4 text-sm">
                                 @if ($student->approved)
                                     <span class="inline-flex rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-800 dark:bg-green-900/40 dark:text-green-200">{{ __('Approved') }}</span>
+                                @elseif ($student->rejected)
+                                    <span class="inline-flex rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800 dark:bg-red-900/40 dark:text-red-200">{{ __('Rejected') }}</span>
                                 @else
                                     <span class="inline-flex rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">{{ __('Pending') }}</span>
                                 @endif
@@ -202,7 +205,7 @@
                                         <div class="rounded-md bg-white py-1 ring-1 ring-black ring-opacity-5 dark:bg-gray-700" x-on:click="open = false">
                                             <button
                                                 type="button"
-                                                x-on:click="$dispatch('open-modal', 'pending-student-review-modal'); $dispatch('open-pending-student-review', { studentId: {{ $student->id }}, approved: {{ $student->approved ? 'true' : 'false' }} })"
+                                                x-on:click="$dispatch('open-modal', 'pending-student-review-modal'); $dispatch('open-pending-student-review', { studentId: {{ $student->id }}, approved: {{ $student->approved ? 'true' : 'false' }}, rejected: {{ $student->rejected ? 'true' : 'false' }} })"
                                                 class="flex w-full items-center px-4 py-2 text-left text-sm font-semibold text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
                                             >
                                                 <i class="fa-solid fa-magnifying-glass mr-2.5 w-4 text-center"></i>

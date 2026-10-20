@@ -15,6 +15,8 @@ class Student extends Model
         'graduated' => 'boolean',
         'is_new' => 'boolean',
         'approved' => 'boolean',
+        'rejected' => 'boolean',
+        'rejected_at' => 'datetime',
     ];
 
     public function user(): BelongsTo
@@ -55,6 +57,11 @@ class Student extends Model
     public function parentGuardians(): HasMany
     {
         return $this->hasMany(ParentGuardian::class);
+    }
+
+    public function rejectedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'rejected_by');
     }
 
     public function medicalHistory(): HasOne

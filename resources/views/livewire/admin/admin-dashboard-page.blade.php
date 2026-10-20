@@ -101,7 +101,7 @@
                                         <button
                                             type="button"
                                             x-data
-                                            x-on:click="$dispatch('open-modal', 'pending-student-review-modal'); $dispatch('open-pending-student-review', { studentId: {{ $row->id }}, approved: false })"
+                                            x-on:click="$dispatch('open-modal', 'pending-student-review-modal'); $dispatch('open-pending-student-review', { studentId: {{ $row->id }}, approved: false, rejected: false })"
                                             class="shrink-0 text-sm font-semibold text-purple-600 hover:text-purple-500 dark:text-purple-400"
                                         >{{ __('Open') }}</button>
                                     </li>

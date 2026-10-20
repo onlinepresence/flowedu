@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\Students;
 
 use App\Actions\Students\AssertStudentApprovalAllowedByLicence;
+use App\Actions\Students\NotifyStudentAdmissionDecisionAction;
 use App\Livewire\Concerns\DispatchesCollegeToasts;
 use App\Models\Student;
 use Illuminate\Contracts\View\View;
@@ -19,6 +20,10 @@ class PendingStudentReviewModal extends Component
 
     public ?int $studentId = null;
 
+    public bool $showRejectForm = false;
+
+    public string $rejectionReason = '';
+
     #[On('open-pending-student-review')]
     public function open(int $studentId): void
     {
@@ -32,13 +37,30 @@ class PendingStudentReviewModal extends Component
         }
 
         $this->studentId = $student->id;
+        $this->showRejectForm = false;
+        $this->rejectionReason = '';
         $this->resetErrorBag();
         $this->dispatch('open-modal', 'pending-student-review-modal');
         $this->dispatch('pending-student-review-loaded', studentId: $student->id);
     }
 
-    public function approve(AssertStudentApprovalAllowedByLicence $assertCap): void
+    public function startReject(): void
     {
+        $this->resetErrorBag();
+        $this->showRejectForm = true;
+    }
+
+    public function cancelReject(): void
+    {
+        $this->showRejectForm = false;
+        $this->rejectionReason = '';
+        $this->resetErrorBag();
+    }
+
+    public function approve(
+        AssertStudentApprovalAllowedByLicence $assertCap,
+        NotifyStudentAdmissionDecisionAction $notify,
+    ): void {
         if ($this->studentId === null) {
             return;
         }
@@ -77,14 +99,77 @@ class PendingStudentReviewModal extends Component
 
         $student->forceFill([
             'approved' => true,
+            'rejected' => false,
+            'rejection_reason' => null,
+            'rejected_by' => null,
+            'rejected_at' => null,
             'admission_index' => $student->index_number,
             'department_id' => $student->department_id ?? $student->program?->department_id,
         ])->save();
 
+        $notify->approved($student);
+
         $this->dispatch('close-modal', 'pending-student-review-modal');
         $this->studentId = null;
+        $this->showRejectForm = false;
+        $this->rejectionReason = '';
         $this->dispatch('pending-student-approved', studentId: $student->id);
-        $this->collegeToast(__('Student :name (:index) has been approved.', [
+        $this->collegeToast(__('Student :name (:index) has been approved. Notification email queued.', [
+            'name' => $student->lastname,
+            'index' => $student->index_number,
+        ]));
+    }
+
+    public function reject(NotifyStudentAdmissionDecisionAction $notify): void
+    {
+        if ($this->studentId === null) {
+            return;
+        }
+
+        $student = Student::query()
+            ->with(['program', 'parentGuardians', 'user'])
+            ->findOrFail($this->studentId);
+
+        $admin = auth()->user()?->admin;
+        if ($admin !== null) {
+            abort_unless($admin->canAccessStudent($student), 403);
+        }
+
+        if ($student->approved) {
+            $this->addError('reject', __('Student has already been approved.'));
+
+            return;
+        }
+
+        if ($student->rejected) {
+            $this->addError('reject', __('Student application has already been rejected.'));
+
+            return;
+        }
+
+        $this->validate([
+            'rejectionReason' => ['required', 'string', 'min:3', 'max:1000'],
+        ], [], [
+            'rejectionReason' => __('rejection reason'),
+        ]);
+
+        $reason = trim($this->rejectionReason);
+
+        $student->forceFill([
+            'rejected' => true,
+            'rejection_reason' => $reason,
+            'rejected_by' => auth()->id(),
+            'rejected_at' => now(),
+        ])->save();
+
+        $notify->rejected($student, $reason);
+
+        $this->dispatch('close-modal', 'pending-student-review-modal');
+        $this->studentId = null;
+        $this->showRejectForm = false;
+        $this->rejectionReason = '';
+        $this->dispatch('pending-student-rejected', studentId: $student->id);
+        $this->collegeToast(__('Student :name (:index) has been rejected. Notification email queued.', [
             'name' => $student->lastname,
             'index' => $student->index_number,
         ]));
@@ -94,7 +179,7 @@ class PendingStudentReviewModal extends Component
     {
         $student = $this->studentId !== null
             ? Student::query()
-                ->with(['user', 'program.department.faculty', 'department', 'hall', 'parentGuardians'])
+                ->with(['user', 'rejectedBy', 'program.department.faculty', 'department', 'hall', 'parentGuardians'])
                 ->find($this->studentId)
             : null;
 

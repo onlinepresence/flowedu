@@ -1,9 +1,9 @@
 <div
     x-data="{ loading: false, requestedId: null }"
-    x-on:open-pending-student-review.window="requestedId = $event.detail.studentId; loading = true; const heading = $el.querySelector('h2'); if (heading) heading.textContent = $event.detail.approved ? '{{ __('Student Details') }}' : '{{ __('Pending Admission Review') }}';"
+    x-on:open-pending-student-review.window="requestedId = $event.detail.studentId; loading = true; const heading = $el.querySelector('h2'); if (heading) heading.textContent = $event.detail.rejected ? '{{ __('Rejected Application') }}' : ($event.detail.approved ? '{{ __('Student Details') }}' : '{{ __('Pending Admission Review') }}');"
     x-on:pending-student-review-loaded.window="if (Number($event.detail.studentId) === Number(requestedId)) loading = false"
 >
-    <x-college.modal name="pending-student-review-modal" maxWidth="4xl" :title="$student?->approved ? __('Student Details') : __('Pending Admission Review')">
+    <x-college.modal name="pending-student-review-modal" maxWidth="4xl" :title="$student?->rejected ? __('Rejected Application') : ($student?->approved ? __('Student Details') : __('Pending Admission Review'))">
         <div x-cloak x-show="loading" class="animate-pulse space-y-6" aria-hidden="true">
             <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
                 <div class="h-24 w-24 shrink-0 rounded-full bg-gray-200 dark:bg-gray-700"></div>
@@ -46,9 +46,19 @@
                             {{ trim(implode(' ', array_filter([$student->firstname, $student->othernames, $student->lastname]))) }}
                         </h3>
                         <p class="mt-1 font-mono text-sm text-gray-500 dark:text-gray-400">{{ $student->index_number }}</p>
-                        <span class="mt-2 inline-flex rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
-                            {{ $student->approved ? __('Approved') : __('Pending Approval') }}
-                        </span>
+                        @if ($student->approved)
+                            <span class="mt-2 inline-flex rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-800 dark:bg-green-900/40 dark:text-green-200">
+                                {{ __('Approved') }}
+                            </span>
+                        @elseif ($student->rejected)
+                            <span class="mt-2 inline-flex rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800 dark:bg-red-900/40 dark:text-red-200">
+                                {{ __('Rejected') }}
+                            </span>
+                        @else
+                            <span class="mt-2 inline-flex rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+                                {{ __('Pending Approval') }}
+                            </span>
+                        @endif
                     </div>
                 </div>
 
@@ -178,6 +188,23 @@
                     </div>
                 </div>
 
+                @if ($student->rejected)
+                    <div>
+                        <h4 class="border-b border-gray-200 pb-2 text-sm font-bold uppercase tracking-wider text-gray-700 dark:border-gray-700 dark:text-gray-300">
+                            {{ __('Rejection Details') }}
+                        </h4>
+                        <div class="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950/30">
+                            <p class="whitespace-pre-line text-sm font-medium text-red-800 dark:text-red-200">{{ $student->rejection_reason }}</p>
+                            <p class="mt-3 text-xs text-red-700 dark:text-red-300">
+                                {{ __('Rejected :date', ['date' => $student->rejected_at?->format('M j, Y g:i A') ?? '-']) }}
+                                @if ($student->rejectedBy?->name)
+                                    {{ __('by :name', ['name' => $student->rejectedBy->name]) }}
+                                @endif
+                            </p>
+                        </div>
+                    </div>
+                @endif
+
                 @error('approve')
                     <p class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
                         {{ $message }}
@@ -204,19 +231,70 @@
                     <i class="fa-solid fa-user"></i>
                     {{ __('View Full Profile') }}
                 </a>
-            @elseif ($student && ! $student->approved)
-                <span x-show="! loading">
-                    <button
-                        type="button"
-                        wire:click="approve"
-                        wire:loading.attr="disabled"
-                        @disabled(! $guardianComplete)
-                        class="inline-flex items-center gap-2 rounded-md bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                        <i class="fa-solid fa-user-check"></i>
-                        {{ __('Approve Student') }}
-                    </button>
-                </span>
+            @elseif ($student && ! $student->approved && ! $student->rejected)
+                @if ($showRejectForm)
+                    <div class="w-full space-y-3 text-left">
+                        <div>
+                            <label for="rejection-reason" class="mb-1 block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                {{ __('Reason for rejection') }}
+                            </label>
+                            <textarea
+                                id="rejection-reason"
+                                wire:model="rejectionReason"
+                                rows="3"
+                                maxlength="1000"
+                                class="block w-full rounded-md border-gray-300 text-sm shadow-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white focus:border-red-500 focus:ring-red-500"
+                                placeholder="{{ __('Explain why this application is being rejected. This will be included in the email to the applicant.') }}"
+                            ></textarea>
+                            @error('rejectionReason')
+                                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            @enderror
+                            @error('reject')
+                                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            @enderror
+                        </div>
+                        <div class="flex flex-wrap justify-end gap-2">
+                            <button
+                                type="button"
+                                wire:click="cancelReject"
+                                class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                            >
+                                {{ __('Cancel') }}
+                            </button>
+                            <button
+                                type="button"
+                                wire:click="reject"
+                                wire:loading.attr="disabled"
+                                wire:target="reject"
+                                class="inline-flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                <i class="fa-solid fa-user-xmark"></i>
+                                {{ __('Confirm Rejection') }}
+                            </button>
+                        </div>
+                    </div>
+                @else
+                    <span x-show="! loading" class="flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            wire:click="approve"
+                            wire:loading.attr="disabled"
+                            @disabled(! $guardianComplete)
+                            class="inline-flex items-center gap-2 rounded-md bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            <i class="fa-solid fa-user-check"></i>
+                            {{ __('Approve Student') }}
+                        </button>
+                        <button
+                            type="button"
+                            wire:click="startReject"
+                            class="inline-flex items-center gap-2 rounded-md border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 shadow-sm transition-colors hover:bg-red-50 dark:border-red-800 dark:bg-gray-800 dark:text-red-300 dark:hover:bg-red-950/30"
+                        >
+                            <i class="fa-solid fa-user-xmark"></i>
+                            {{ __('Reject Student') }}
+                        </button>
+                    </span>
+                @endif
             @endif
         </x-slot>
     </x-college.modal>

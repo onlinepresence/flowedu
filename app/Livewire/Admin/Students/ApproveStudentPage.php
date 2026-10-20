@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\Students;
 
 use App\Actions\Students\AssertStudentApprovalAllowedByLicence;
+use App\Actions\Students\NotifyStudentAdmissionDecisionAction;
 use App\Models\Student;
 use App\Support\CollegeFlash;
 use Illuminate\Contracts\View\View;
@@ -37,7 +38,7 @@ class ApproveStudentPage extends Component
         }
     }
 
-    public function approve(AssertStudentApprovalAllowedByLicence $assertCap): void
+    public function approve(AssertStudentApprovalAllowedByLicence $assertCap, NotifyStudentAdmissionDecisionAction $notify): void
     {
         if ($this->student === null) {
             return;
@@ -70,9 +71,15 @@ class ApproveStudentPage extends Component
 
         $this->student->forceFill([
             'approved' => true,
+            'rejected' => false,
+            'rejection_reason' => null,
+            'rejected_by' => null,
+            'rejected_at' => null,
             'admission_index' => $this->index_number,
             'department_id' => $departmentId,
         ])->save();
+
+        $notify->approved($this->student);
 
         CollegeFlash::forNextRequestToo('status', __('Student :name (:index) has been approved.', [
             'name' => $this->student->lastname,
