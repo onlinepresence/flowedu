@@ -355,9 +355,9 @@
                                         {{ __('Add component') }}
                                     </button>
                                     <div x-show="open" x-on:click.outside="open = false" x-transition class="absolute right-0 z-20 mt-1 max-h-60 w-56 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-900">
-                                        @foreach ($availableComponents as $component)
-                                            <button type="button" wire:click="addComponent({{ $component->id }})" x-on:click="open = false" class="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-800">
-                                                <span>{{ $component->name }}</span>
+                                        @foreach ($availableComponents as $feeComponent)
+                                            <button type="button" wire:click="addComponent({{ $feeComponent->id }})" x-on:click="open = false" class="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-800">
+                                                <span>{{ $feeComponent->name }}</span>
                                                 <i class="fa-solid fa-plus text-[10px] text-gray-400"></i>
                                             </button>
                                         @endforeach
@@ -371,15 +371,15 @@
                                 <x-text-input id="tuition_fee" type="number" min="0" step="0.01" class="mt-1 block w-full text-sm" wire:model="tuition_fee" />
                                 @error('tuition_fee') <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                             </div>
-                            @foreach ($selectedComponents as $index => $component)
-                                <div wire:key="fee-component-{{ $component['id'] }}">
+                            @foreach ($selectedComponents as $index => $selectedFeeComponent)
+                                <div wire:key="fee-component-{{ $selectedFeeComponent['id'] }}">
                                     <div class="flex items-center justify-between gap-2">
-                                        <x-input-label :for="'component-'.$component['id']" :value="$component['name']" />
+                                        <x-input-label :for="'component-'.$selectedFeeComponent['id']" :value="$selectedFeeComponent['name']" />
                                         <button type="button" wire:click="removeComponent({{ $index }})" class="text-xs text-red-500 hover:text-red-600 dark:text-red-400" title="{{ __('Remove and add amount to tuition') }}">
                                             <i class="fa-solid fa-xmark"></i>
                                         </button>
                                     </div>
-                                    <x-text-input :id="'component-'.$component['id']" type="number" min="0" step="0.01" class="mt-1 block w-full text-sm" wire:model="selectedComponents.{{ $index }}.amount" />
+                                    <x-text-input :id="'component-'.$selectedFeeComponent['id']" type="number" min="0" step="0.01" class="mt-1 block w-full text-sm" wire:model="selectedComponents.{{ $index }}.amount" />
                                     @error('selectedComponents.'.$index.'.amount') <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                                 </div>
                             @endforeach
@@ -429,26 +429,26 @@
                 </form>
 
                 <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    @forelse ($feeComponents as $component)
-                        <div wire:key="fee-component-setting-{{ $component->id }}" class="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-900">
+                    @forelse ($feeComponents as $feeComponent)
+                        <div wire:key="fee-component-setting-{{ $feeComponent->id }}" class="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-900">
                             <div class="min-w-0">
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ $component->name }}</span>
+                                    <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ $feeComponent->name }}</span>
                                     <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                                        {{ $component->is_system ? __('System') : __('Custom') }}
+                                        {{ $feeComponent->is_system ? __('System') : __('Custom') }}
                                     </span>
                                 </div>
                                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    {{ __('Auto-fill') }}: {{ number_format((float) $component->default_percentage, 2) }}%
+                                    {{ __('Auto-fill') }}: {{ number_format((float) $feeComponent->default_percentage, 2) }}%
                                 </p>
                             </div>
-                            @if ($component->field === 'tuition_fee')
+                            @if ($feeComponent->field === 'tuition_fee')
                                 <span class="shrink-0 rounded-full bg-indigo-50 px-2 py-1 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300">
                                     {{ __('Always included') }}
                                 </span>
                             @else
                                 <label class="relative inline-flex cursor-pointer items-center">
-                                    <input type="checkbox" wire:model="componentActive.{{ $component->id }}" class="peer sr-only" />
+                                    <input type="checkbox" wire:model="componentActive.{{ $feeComponent->id }}" class="peer sr-only" />
                                     <div class="h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-indigo-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:ring-2 peer-focus:ring-indigo-300 dark:bg-gray-700 dark:after:border-gray-600 dark:peer-focus:ring-indigo-800"></div>
                                 </label>
                             @endif
