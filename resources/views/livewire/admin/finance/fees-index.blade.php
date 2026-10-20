@@ -416,7 +416,7 @@
                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('Create a custom fee item and optionally set an auto-fill percentage.') }}</p>
                     </div>
 
-                    <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1fr)] lg:items-end">
+                    <div class="mt-4 grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] md:items-end">
                         <div>
                             <x-input-label for="newComponentName" :value="__('New component name')" />
                             <x-text-input id="newComponentName" type="text" class="mt-1 block w-full text-sm" wire:model="newComponentName" placeholder="{{ __('e.g. Practical Training Fee') }}" />
@@ -427,7 +427,7 @@
                             <x-text-input id="newComponentPercentage" type="number" min="0" max="100" step="0.01" class="mt-1 block w-full text-sm" wire:model="newComponentPercentage" placeholder="{{ __('Optional') }}" />
                             @error('newComponentPercentage') <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                         </div>
-                        <button type="submit" class="inline-flex w-full items-center justify-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 lg:h-[42px]">
+                        <button type="submit" class="inline-flex items-center justify-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
                             <i class="fa-solid fa-plus mr-2"></i>{{ __('Add component') }}
                         </button>
                     </div>
