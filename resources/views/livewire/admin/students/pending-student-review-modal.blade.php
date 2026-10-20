@@ -1,7 +1,32 @@
 <div>
     <x-college.modal name="pending-student-review-modal" maxWidth="4xl" :title="__('Pending Admission Review')">
+        <div @if ($student !== null) wire:loading wire:target="open" @endif class="animate-pulse space-y-6" aria-hidden="true">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
+                <div class="h-24 w-24 shrink-0 rounded-full bg-gray-200 dark:bg-gray-700"></div>
+                <div class="min-w-0 flex-1 space-y-3">
+                    <div class="h-6 w-56 max-w-full rounded bg-gray-200 dark:bg-gray-700"></div>
+                    <div class="h-4 w-36 rounded bg-gray-200 dark:bg-gray-700"></div>
+                    <div class="h-5 w-28 rounded-full bg-gray-200 dark:bg-gray-700"></div>
+                </div>
+            </div>
+
+            @for ($section = 0; $section < 3; $section++)
+                <div class="space-y-4">
+                    <div class="h-5 w-52 rounded bg-gray-200 dark:bg-gray-700"></div>
+                    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        @for ($field = 0; $field < 6; $field++)
+                            <div class="space-y-2">
+                                <div class="h-3 w-24 rounded bg-gray-200 dark:bg-gray-700"></div>
+                                <div class="h-4 w-36 max-w-full rounded bg-gray-200 dark:bg-gray-700"></div>
+                            </div>
+                        @endfor
+                    </div>
+                </div>
+            @endfor
+        </div>
+
         @if ($student)
-            <div class="space-y-6">
+            <div wire:loading.remove wire:target="open" class="space-y-6">
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
                     <div class="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-purple-100 text-purple-600 shadow-inner dark:bg-purple-900/30 dark:text-purple-400">
                         @if ($photoDataUrl)
@@ -166,16 +191,18 @@
                 {{ __('Close') }}
             </button>
             @if ($student && ! $student->approved)
-                <button
-                    type="button"
-                    wire:click="approve"
-                    wire:loading.attr="disabled"
-                    @disabled(! $guardianComplete)
-                    class="inline-flex items-center gap-2 rounded-md bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                    <i class="fa-solid fa-user-check"></i>
-                    {{ __('Approve Student') }}
-                </button>
+                <span wire:loading.remove wire:target="open">
+                    <button
+                        type="button"
+                        wire:click="approve"
+                        wire:loading.attr="disabled"
+                        @disabled(! $guardianComplete)
+                        class="inline-flex items-center gap-2 rounded-md bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        <i class="fa-solid fa-user-check"></i>
+                        {{ __('Approve Student') }}
+                    </button>
+                </span>
             @endif
         </x-slot>
     </x-college.modal>

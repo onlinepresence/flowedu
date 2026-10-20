@@ -98,7 +98,12 @@
                                             <p class="font-mono text-sm text-gray-900 dark:text-gray-100">{{ $row->index_number }}</p>
                                             <p class="text-sm text-gray-600 dark:text-gray-300">{{ trim(implode(' ', array_filter([$row->firstname, $row->othernames, $row->lastname]))) }}</p>
                                         </div>
-                                        <button type="button" wire:click="reviewPendingStudent({{ $row->id }})" class="shrink-0 text-sm text-purple-600 hover:text-purple-500 dark:text-purple-400 font-semibold">{{ __('Open') }}</button>
+                                        <button
+                                            type="button"
+                                            x-data
+                                            x-on:click="$dispatch('open-modal', 'pending-student-review-modal'); $dispatch('open-pending-student-review', { studentId: {{ $row->id }} })"
+                                            class="shrink-0 text-sm font-semibold text-purple-600 hover:text-purple-500 dark:text-purple-400"
+                                        >{{ __('Open') }}</button>
                                     </li>
                                 @endforeach
                             </ul>

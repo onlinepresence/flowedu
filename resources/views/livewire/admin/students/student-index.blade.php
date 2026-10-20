@@ -153,7 +153,8 @@
                                     @if (! $student->approved)
                                         <button
                                             type="button"
-                                            wire:click="reviewStudent({{ $student->id }})"
+                                            x-data
+                                            x-on:click="$dispatch('open-modal', 'pending-student-review-modal'); $dispatch('open-pending-student-review', { studentId: {{ $student->id }} })"
                                             class="text-purple-600 hover:text-purple-500 dark:text-purple-400 hover:scale-110 transition-transform"
                                             title="{{ __('Review & Approve Student') }}"
                                         >
@@ -182,7 +183,8 @@
                                     @else
                                         <button
                                             type="button"
-                                            wire:click="reviewStudent({{ $student->id }})"
+                                            x-data
+                                            x-on:click="$dispatch('open-modal', 'pending-student-review-modal'); $dispatch('open-pending-student-review', { studentId: {{ $student->id }} })"
                                             class="text-blue-600 hover:text-blue-500 dark:text-blue-400 hover:scale-110 transition-transform"
                                             title="{{ __('Review Pending Student') }}"
                                         >
