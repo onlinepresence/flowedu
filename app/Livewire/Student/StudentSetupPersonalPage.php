@@ -126,7 +126,8 @@ class StudentSetupPersonalPage extends Component
             $action->create($user, $validated, $pic);
             $this->clearPending($this->profilePicPond);
             $this->profilePicPond = null;
-            $this->collegeToast(! $hadUsername ? __('Your account details have been saved') : __('Changes have been applied'));
+            session()->flash('status', ! $hadUsername ? __('Your account details have been saved') : __('Changes have been applied'));
+            $this->redirect(route('student.setup.guardian'), navigate: true);
 
             return;
         }
