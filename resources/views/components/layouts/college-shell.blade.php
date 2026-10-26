@@ -112,7 +112,7 @@
             }
         </style>
     </head>
-    <body class="h-full font-sans antialiased text-gray-900 dark:text-gray-100">
+    <body class="h-full overflow-hidden font-sans antialiased text-gray-900 dark:text-gray-100">
         {{-- Global Livewire request progress + offline banner (pure JS/Alpine, works outside Livewire scope) --}}
         <div id="college-top-progress" class="fixed inset-x-0 top-0 z-[300] hidden h-1 bg-transparent" aria-hidden="true">
             <div id="college-top-progress-bar" class="h-full w-1/3 rounded-r bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.9)] transition-all duration-300 dark:bg-amber-300 dark:shadow-[0_0_12px_rgba(252,211,77,0.95)]"></div>
