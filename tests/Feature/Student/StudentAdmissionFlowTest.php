@@ -73,6 +73,7 @@ class StudentAdmissionFlowTest extends TestCase
             ->set('ghana_card', 'GHA-123456789-1')
             ->set('contact_address', 'Accra')
             ->set('phone_number', '0241234567')
+            ->set('religion', 'Christian')
             ->set('program_id', $program->id)
             ->set('hall_id', $hall->id)
             ->set('username', 'janedoe')
@@ -233,6 +234,7 @@ class StudentAdmissionFlowTest extends TestCase
         Livewire::actingAs($user)
             ->test(StudentProfilePage::class)
             ->set('lastname', 'ZedUpdated')
+            ->set('religion', 'Christian')
             ->set('denomination', 'Presbyterian')
             ->assertSee('Catholic')
             ->call('save')
@@ -272,6 +274,7 @@ class StudentAdmissionFlowTest extends TestCase
             ->set('account_bank', '')
             ->set('account_number', '   ')
             ->set('ssnit_number', '')
+            ->set('religion', 'Christian')
             ->call('save')
             ->assertHasNoErrors();
 

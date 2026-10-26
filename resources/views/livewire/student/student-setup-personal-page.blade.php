@@ -18,7 +18,7 @@
                 <legend class="text-sm font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 border-b border-gray-100 dark:border-gray-700 pb-2 w-full">
                     {{ __('Admission & Account Setup') }}
                 </legend>
-                
+
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div class="sm:col-span-2">
                         <x-input-label for="index_number" :value="__('Index / Application Number')" :required="true" />
@@ -37,7 +37,7 @@
                             </x-select-input>
                             <x-input-error :messages="$errors->get('program_id')" class="mt-1" />
                         </div>
-                        
+
                         <div class="sm:col-span-2">
                             <x-input-label for="hall_id" :value="__('Hall of Residence')" :required="true" />
                             <x-select-input wire:model="hall_id" id="hall_id" class="mt-1 block w-full" required>
@@ -48,7 +48,7 @@
                             </x-select-input>
                             <x-input-error :messages="$errors->get('hall_id')" class="mt-1" />
                         </div>
-                        
+
                         <div class="sm:col-span-2">
                             <x-input-label for="username" :value="__('Login Username')" :required="true" />
                             <x-text-input wire:model="username" id="username" type="text" autocomplete="username" class="mt-1 block w-full font-mono" required />
@@ -77,7 +77,7 @@
                 <legend class="text-sm font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 border-b border-gray-100 dark:border-gray-700 pb-2 w-full">
                     {{ __('Personal Information') }}
                 </legend>
-                
+
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div>
                         <x-input-label for="lastname" :value="__('Last name')" :required="true" />
@@ -131,7 +131,7 @@
                     </div>
 
                     <div>
-                        <x-input-label for="religion" :value="__('Religion')" />
+                        <x-input-label for="religion" :value="__('Religion')" :required="true" />
                         <x-text-input wire:model="religion" id="religion" type="text" class="mt-1 block w-full" required />
                         <x-input-error :messages="$errors->get('religion')" class="mt-1" />
                     </div>
@@ -154,7 +154,7 @@
                 <legend class="text-sm font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 border-b border-gray-100 dark:border-gray-700 pb-2 w-full">
                     {{ __('Contact & Welfare Details') }}
                 </legend>
-                
+
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div class="sm:col-span-2">
                         <x-input-label for="ghana_card" :value="__('Ghana Card number')" :required="true" />
@@ -228,7 +228,7 @@
                     <legend class="text-sm font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 border-b border-gray-100 dark:border-gray-700 pb-2 w-full">
                         {{ __('Financial & Banking Details') }}
                     </legend>
-                    
+
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
                             <x-input-label for="account_bank" :value="__('Bank name')" />
@@ -254,7 +254,7 @@
                 <legend class="text-sm font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 border-b border-gray-100 dark:border-gray-700 pb-2 w-full">
                     {{ __('Passport Photo') }}
                 </legend>
-                
+
                 <div class="space-y-2">
                     <x-filepond
                         field="profilePicPond"
@@ -265,6 +265,7 @@
                     <p class="text-xs text-gray-500 dark:text-gray-400">
                         {{ __('Required file formats: JPG, PNG, WebP, AVIF. Max size 5MB.') }}
                     </p>
+
                     @if ($passportRequirements['enabled'])
                         <div class="flex flex-col gap-3 rounded-lg border border-purple-200 bg-purple-50 p-3 dark:border-purple-900/60 dark:bg-purple-950/30 sm:flex-row sm:items-center sm:justify-between">
                             <p class="text-xs text-purple-800 dark:text-purple-300">
@@ -276,11 +277,11 @@
                                 rel="noopener noreferrer"
                                 class="inline-flex shrink-0 items-center justify-center rounded-lg bg-purple-600 px-3 py-2 text-xs font-semibold text-white hover:bg-purple-700"
                             >
-                                <i class="fa-solid fa-arrow-up-right-from-square mr-2" aria-hidden="true"></i>{{ __('Test my photo') }}
+                                {{ __('Test my photo') }}
+                                <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
                             </a>
                         </div>
                     @endif
-                    <x-input-error :messages="$errors->get('profilePicPond')" class="mt-1" />
                 </div>
             </fieldset>
 

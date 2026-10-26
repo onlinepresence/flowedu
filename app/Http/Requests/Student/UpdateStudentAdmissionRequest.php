@@ -51,7 +51,7 @@ class UpdateStudentAdmissionRequest extends FormRequest
             'ghana_card' => ['required', 'string', new GhanaCardNumber, Rule::unique('students', 'ghana_card')->ignore($student->id)],
             'contact_address' => ['required', 'string', 'max:2000'],
             'phone_number' => ['required', 'string', new GhanaMobilePhone, Rule::unique('students', 'phone_number')->ignore($student->id)],
-            'religion' => ['nullable', 'string', 'max:255'],
+            'religion' => ['required', 'string', 'max:255'],
             'denomination' => ['nullable', 'string', 'max:100'],
             'disability_status' => ['nullable', 'string', Rule::in(['no', 'yes'])],
             'disability_type' => ['nullable', 'required_if:disability_status,yes', 'string', 'max:255'],

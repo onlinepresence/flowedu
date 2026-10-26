@@ -387,42 +387,40 @@ final class PassportPhotoValidationService
      */
     private function describeBackgroundResult(array $background, array $requirements): string
     {
-        $expected = sprintf(
-            'RGB(%d, %d, %d)',
+        $expectedRgb = [
             $requirements['bg_color']['r'],
             $requirements['bg_color']['g'],
             $requirements['bg_color']['b'],
-        );
+        ];
+        $expected = $this->getColorName($expectedRgb);
+
         $actual = $background['average_color'] === null
             ? __('unknown')
-            : sprintf('RGB(%d, %d, %d)', ...$background['average_color']);
+            : $this->getColorName($background['average_color']);
         $percentage = number_format($background['match_percentage'], 1);
 
         if ($background['matched_by_edges']) {
-            return __('Background matches :expected. :actual% of edge samples are within :tolerance colour tolerance (minimum :required%).', [
+            return __('Background matches :expected. :actual% of edge samples are within tolerance (minimum :required%).', [
                 'expected' => $expected,
                 'actual' => $percentage,
-                'tolerance' => $background['tolerance'],
                 'required' => $background['required_percentage'],
             ]);
         }
 
         if ($background['matched_by_average']) {
-            return __('Edge match was only :actual% (minimum :required%), but the average edge colour :average is within :tolerance colour tolerance of :expected.', [
+            return __('Edge match was only :actual% (minimum :required%), but the average edge colour :average is within tolerance of :expected.', [
                 'actual' => $percentage,
                 'required' => $background['required_percentage'],
                 'average' => $actual,
-                'tolerance' => $background['tolerance'],
                 'expected' => $expected,
             ]);
         }
 
-        return __('Background does not match :expected. :actual% of edge samples pass (minimum :required%), and the average edge colour :average is outside the :tolerance colour tolerance. Use a plain, solid background.', [
+        return __('Background does not match :expected. :actual% of edge samples pass (minimum :required%), and the average edge colour is :average. Use a plain, solid :expected background.', [
             'expected' => $expected,
             'actual' => $percentage,
             'required' => $background['required_percentage'],
             'average' => $actual,
-            'tolerance' => $background['tolerance'],
         ]);
     }
 
@@ -516,5 +514,58 @@ final class PassportPhotoValidationService
         );
 
         return $distance <= $tolerance;
+    }
+
+    /**
+     * Convert RGB to human-readable color name.
+     *
+     * @param  array{0: int, 1: int, 2: int}  $rgb
+     */
+    private function getColorName(array $rgb): string
+    {
+        [$r, $g, $b] = $rgb;
+
+        // White and near-white
+        if ($r > 200 && $g > 200 && $b > 200) {
+            return 'white';
+        }
+
+        // Black and near-black
+        if ($r < 50 && $g < 50 && $b < 50) {
+            return 'black';
+        }
+
+        // Red and variations
+        if ($r > 180 && $g < 100 && $b < 100) {
+            return 'red';
+        }
+
+        // Blue and variations
+        if ($b > 180 && $r < 100 && $g < 100) {
+            return 'blue';
+        }
+
+        // Light blue (common passport background)
+        if ($b > 150 && $g > 150 && $r < 150 && $b > $r && $b > $g) {
+            return 'light blue';
+        }
+
+        // Green and variations
+        if ($g > 180 && $r < 100 && $b < 100) {
+            return 'green';
+        }
+
+        // Yellow and variations
+        if ($r > 180 && $g > 180 && $b < 100) {
+            return 'yellow';
+        }
+
+        // Gray and variations
+        if (abs($r - $g) < 30 && abs($g - $b) < 30 && abs($r - $b) < 30) {
+            return 'gray';
+        }
+
+        // Fallback to RGB
+        return sprintf('RGB(%d, %d, %d)', $r, $g, $b);
     }
 }
