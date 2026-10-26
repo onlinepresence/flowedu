@@ -160,9 +160,8 @@ class PassportPhotoValidationServiceTest extends TestCase
 
             $this->assertFalse($result['accepted']);
             $this->assertSame('fail', $checks['background']['state']);
-            $this->assertStringContainsString('Background does not match red', $checks['background']['detail']);
-            $this->assertStringContainsString('average edge colour is green', $checks['background']['detail']);
-            $this->assertStringContainsString('0.0%', $checks['background']['detail']);
+            $this->assertStringContainsString('Background must be red', $checks['background']['detail']);
+            $this->assertStringContainsString('Your photo has a green background', $checks['background']['detail']);
         } finally {
             @unlink($path);
         }

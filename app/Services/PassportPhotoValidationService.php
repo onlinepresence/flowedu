@@ -397,29 +397,20 @@ final class PassportPhotoValidationService
         $actual = $background['average_color'] === null
             ? __('unknown')
             : $this->getColorName($background['average_color']);
-        $percentage = number_format($background['match_percentage'], 1);
 
         if ($background['matched_by_edges']) {
-            return __('Background matches :expected. :actual% of edge samples are within tolerance (minimum :required%).', [
-                'expected' => $expected,
-                'actual' => $percentage,
-                'required' => $background['required_percentage'],
-            ]);
+            return __('Background matches :expected.', ['expected' => $expected]);
         }
 
         if ($background['matched_by_average']) {
-            return __('Edge match was only :actual% (minimum :required%), but the average edge colour :average is within tolerance of :expected.', [
-                'actual' => $percentage,
-                'required' => $background['required_percentage'],
-                'average' => $actual,
+            return __('Background is close to :expected. Average edge colour is :average.', [
                 'expected' => $expected,
+                'average' => $actual,
             ]);
         }
 
-        return __('Background does not match :expected. :actual% of edge samples pass (minimum :required%), and the average edge colour is :average. Use a plain, solid :expected background.', [
+        return __('Background must be :expected. Your photo has a :average background. Use a plain, solid :expected background.', [
             'expected' => $expected,
-            'actual' => $percentage,
-            'required' => $background['required_percentage'],
             'average' => $actual,
         ]);
     }
