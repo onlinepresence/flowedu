@@ -27,7 +27,7 @@
         data-revert-url="{{ route('college.filepond.revert') }}"
         data-sync-selector="#{{ $syncId }}"
         @if ($accept) data-accept="{{ $accept }}" @endif
-        @if ($initial) data-initial="{{ $initial }}" @endif
+        @if ($initial) data-initial="{{ json_encode($initial) }}" @endif
     >
         <input type="file" id="{{ $instanceId }}" data-filepond-input />
     </div>
