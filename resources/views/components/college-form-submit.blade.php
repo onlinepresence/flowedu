@@ -1,6 +1,7 @@
 @props([
     'target' => null,
     'variant' => 'indigo',
+    'disabled' => false,
 ])
 
 @php
@@ -18,6 +19,7 @@
         wire:loading.attr="disabled"
         wire:target="{{ $target }}"
     @endif
+    :disabled="{{ $disabled }}"
     {{ $attributes->merge(['class' => 'inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 '.($variant === 'auth' ? 'transition duration-150 ease-in-out dark:focus:ring-offset-gray-800 ' : 'text-white dark:focus:ring-offset-gray-900 ').$variantClass]) }}
 >
     @if($target)

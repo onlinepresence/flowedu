@@ -93,6 +93,9 @@ function bindPond(root) {
                 formData.append('filepond', file);
                 formData.append('purpose', purpose);
 
+                // Notify Livewire that upload started
+                document.dispatchEvent(new CustomEvent('filepond:upload:start', { detail: { fieldName } }));
+
                 const request = new XMLHttpRequest();
                 request.open('POST', processUrl);
                 request.setRequestHeader('X-CSRF-TOKEN', csrfToken());
@@ -101,6 +104,9 @@ function bindPond(root) {
                     progress(e.lengthComputable, e.loaded, e.total);
                 };
                 request.onload = () => {
+                    // Notify Livewire that upload ended
+                    document.dispatchEvent(new CustomEvent('filepond:upload:end', { detail: { fieldName } }));
+                    
                     if (request.status >= 200 && request.status < 300) {
                         const id = request.responseText.trim();
                         load(id);
@@ -109,13 +115,17 @@ function bindPond(root) {
                         error(request.responseText || 'Upload failed');
                     }
                 };
-                request.onerror = () => error('Upload failed');
+                request.onerror = () => {
+                    document.dispatchEvent(new CustomEvent('filepond:upload:end', { detail: { fieldName } }));
+                    error('Upload failed');
+                };
                 request.send(formData);
 
                 return {
                     abort: () => {
                         request.abort();
                         abort();
+                        document.dispatchEvent(new CustomEvent('filepond:upload:end', { detail: { fieldName } }));
                     },
                 };
             },

@@ -22,11 +22,14 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
+use Livewire\Attributes\On;
 
 class StudentSetupPersonalPage extends Component
 {
     use DispatchesCollegeToasts;
     use NormalizesOptionalBankingFields;
+
+    public bool $isUploading = false;
 
     public int $user_id = 0;
 
@@ -222,6 +225,18 @@ class StudentSetupPersonalPage extends Component
         $this->account_bank = (string) ($student->account_bank ?? '');
         $this->account_number = (string) ($student->account_number ?? '');
         $this->ssnit_number = (string) ($student->ssnit_number ?? '');
+    }
+
+    #[On('filepond:upload:start')]
+    public function onUploadStart(): void
+    {
+        $this->isUploading = true;
+    }
+
+    #[On('filepond:upload:end')]
+    public function onUploadEnd(): void
+    {
+        $this->isUploading = false;
     }
 
     public function render(): View

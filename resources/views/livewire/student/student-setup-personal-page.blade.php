@@ -291,7 +291,11 @@
                     * {{ __('All fields in sections above are required unless marked optional.') }}
                 </p>
                 <div class="flex items-center gap-3">
-                    <x-college-form-submit target="save" class="inline-flex justify-center px-6">
+                    <x-college-form-submit 
+                        target="save" 
+                        class="inline-flex justify-center px-6"
+                        :disabled="$isUploading"
+                    >
                         {{ __('Save & Continue') }}
                     </x-college-form-submit>
                 </div>
