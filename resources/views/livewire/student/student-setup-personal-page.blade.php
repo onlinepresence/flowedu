@@ -261,6 +261,7 @@
                         purpose="passport_photo"
                         :label="__('Upload passport photo')"
                         accept="image/jpeg,image/png,image/webp,image/avif"
+                        :initial="$initialProfilePic"
                     />
                     <p class="text-xs text-gray-500 dark:text-gray-400">
                         {{ __('Required file formats: JPG, PNG, WebP, AVIF. Max size 5MB.') }}

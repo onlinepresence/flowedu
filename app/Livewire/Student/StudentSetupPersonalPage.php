@@ -242,13 +242,26 @@ class StudentSetupPersonalPage extends Component
 
     public function render(): View
     {
+        $student = auth()->user()?->student;
+        $initialFile = null;
+
+        if ($student?->profile_pic) {
+            $initialFile = [
+                [
+                    'source' => asset('storage/' . $student->profile_pic),
+                    'options' => ['type' => 'local'],
+                ],
+            ];
+        }
+
         return view('livewire.student.student-setup-personal-page', [
             'programs' => Program::query()->with('department')->orderBy('name')->get(),
             'halls' => Hall::query()->orderBy('name')->get(),
-            'hasStudent' => auth()->user()?->student !== null,
+            'hasStudent' => $student !== null,
             'nationalities' => StudentPersonalOptions::withCurrent(StudentPersonalOptions::nationalities(), $this->nationality),
             'denominations' => StudentPersonalOptions::withCurrent(StudentPersonalOptions::denominations(), $this->denomination),
             'passportRequirements' => app(PassportPhotoValidationService::class)->requirements(),
+            'initialProfilePic' => $initialFile,
         ])->layout('components.layouts.student', ['title' => __('Personal information')]);
     }
 }

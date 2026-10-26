@@ -76,6 +76,7 @@ function bindPond(root) {
     const processUrl = root.dataset.processUrl;
     const revertUrl = root.dataset.revertUrl;
     const syncSelector = root.dataset.syncSelector;
+    const initialData = root.dataset.initial;
 
     if (!processUrl || !revertUrl || !syncSelector) {
         return;
@@ -86,6 +87,9 @@ function bindPond(root) {
         credits: false,
         ...(accepted
             ? { acceptedFileTypes: accepted.split(',').map((s) => s.trim()) }
+            : {}),
+        ...(initialData
+            ? { files: JSON.parse(initialData) }
             : {}),
         server: {
             process: (fieldName, file, metadata, load, error, progress, abort) => {

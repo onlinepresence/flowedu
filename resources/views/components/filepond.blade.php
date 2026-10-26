@@ -3,6 +3,7 @@
     'purpose' => 'generic_image',
     'label' => null,
     'accept' => null,
+    'initial' => null,
 ])
 
 @php
@@ -26,6 +27,7 @@
         data-revert-url="{{ route('college.filepond.revert') }}"
         data-sync-selector="#{{ $syncId }}"
         @if ($accept) data-accept="{{ $accept }}" @endif
+        @if ($initial) data-initial="{{ $initial }}" @endif
     >
         <input type="file" id="{{ $instanceId }}" data-filepond-input />
     </div>
