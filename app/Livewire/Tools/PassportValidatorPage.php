@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace App\Livewire\Tools;
 
 use App\Services\PassportPhotoValidationService;
+use App\Support\FilepondPendingFile;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
-use Livewire\WithFileUploads;
 
 class PassportValidatorPage extends Component
 {
-    use WithFileUploads;
-
-    public $photo = null;
+    public ?string $photo = null;
 
     /**
      * @var array<string, mixed>|null
@@ -29,11 +29,26 @@ class PassportValidatorPage extends Component
     public function analyze(PassportPhotoValidationService $service): void
     {
         $this->validate([
-            'photo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,avif', 'max:5120'],
+            'photo' => ['required', 'string', 'max:500'],
         ]);
 
-        $result = $service->inspect($this->photo->getRealPath());
-        $result['metadata']['filename'] = $this->photo->getClientOriginalName();
+        $userId = Auth::id();
+        if ($userId === null || ! FilepondPendingFile::assertOwnedPendingPath($this->photo, $userId)) {
+            $this->addError('photo', __('The uploaded photo is invalid.'));
+
+            return;
+        }
+
+        $path = Storage::disk('local')->path($this->photo);
+
+        if (! is_readable($path)) {
+            $this->addError('photo', __('The uploaded photo could not be read.'));
+
+            return;
+        }
+
+        $result = $service->inspect($path);
+        $result['metadata']['filename'] = basename($this->photo);
         $this->result = $result;
     }
 

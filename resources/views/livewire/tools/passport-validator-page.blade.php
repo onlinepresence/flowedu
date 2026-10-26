@@ -47,35 +47,12 @@
         </p>
 
         <div class="space-y-4">
-            <div>
-                <label for="passport-validator-photo" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('Passport photo') }}</label>
-                <input
-                    id="passport-validator-photo"
-                    type="file"
-                    wire:model="photo"
-                    accept="image/jpeg,image/png,image/webp,image/avif"
-                    class="block w-full cursor-pointer rounded-lg border border-gray-300 bg-white text-sm text-gray-700 file:mr-4 file:border-0 file:bg-purple-600 file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-white hover:file:bg-purple-700 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-300"
-                />
-                @error('photo')
-                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
-                @enderror
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400" wire:loading wire:target="photo">{{ __('Uploading image...') }}</p>
-            </div>
-
-            @if ($photo)
-                @php
-                    $previewable = in_array($photo->getMimeType(), ['image/jpeg', 'image/png', 'image/webp'], true);
-                @endphp
-                <div class="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
-                    @if ($previewable)
-                        <img src="{{ $photo->temporaryUrl() }}" alt="{{ __('Selected passport photo preview') }}" class="h-16 w-16 rounded-md border border-gray-200 object-cover dark:border-gray-700">
-                    @endif
-                    <div class="min-w-0">
-                        <p class="truncate text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $photo->getClientOriginalName() }}</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('Ready to analyze') }}</p>
-                    </div>
-                </div>
-            @endif
+            <x-filepond
+                field="photo"
+                purpose="passport_photo"
+                :label="__('Passport photo')"
+                accept="image/jpeg,image/png,image/webp,image/avif"
+            />
 
             <div class="flex justify-start">
                 <button
