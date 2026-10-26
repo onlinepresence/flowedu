@@ -13,6 +13,7 @@ use App\Services\PassportPhotoValidationService;
 use App\Services\PassportValidationConfigResolver;
 use Database\Seeders\AdminSystemSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use Tests\Concerns\CreatesTestSchool;
@@ -66,6 +67,57 @@ class ImageValidationPageTest extends TestCase
         $this->assertSame('200', Setting::query()->where('setting_key', 'image_validation.passport_bg_color_r')->value('setting_value'));
         $this->assertSame('3:4', Setting::query()->where('setting_key', 'image_validation.passport_aspect_ratio')->value('setting_value'));
         $this->assertSame('0', Setting::query()->where('setting_key', 'image_validation.passport_skip_ratio')->value('setting_value'));
+    }
+
+    public function test_admin_passport_validator_uses_the_shared_validator_page(): void
+    {
+        $user = $this->actingSystemAdmin();
+
+        $this->actingAs($user)
+            ->get(route('tools.passport-validator'))
+            ->assertOk()
+            ->assertSee(__('Test your passport photo'))
+            ->assertSee(__('Current passport photo requirements'));
+    }
+
+    #[RequiresPhpExtension('gd')]
+    public function test_sandbox_uses_the_colour_selected_in_the_realtime_preview(): void
+    {
+        $user = $this->actingSystemAdmin();
+
+        config([
+            'image_validation.passport.enabled' => true,
+            'image_validation.passport.bg_color' => ['r' => 255, 'g' => 0, 'b' => 0],
+        ]);
+
+        $pending = 'filepond-tmp/'.$user->id.'/blue-preview.png';
+        $path = tempnam(sys_get_temp_dir(), 'pp').'.png';
+        $image = imagecreatetruecolor(320, 420);
+        $blue = imagecolorallocate($image, 0, 0, 255);
+        imagefilledrectangle($image, 0, 0, 319, 419, $blue);
+        imagepng($image, $path);
+        imagedestroy($image);
+        Storage::disk('local')->put($pending, (string) file_get_contents($path));
+
+        try {
+            Livewire::actingAs($user)
+                ->test(ImageValidationPage::class)
+                ->set('passport_bg_color_r', 0)
+                ->set('passport_bg_color_g', 0)
+                ->set('passport_bg_color_b', 255)
+                ->set('passport_tolerance', 120)
+                ->set('passport_min_width', 300)
+                ->set('passport_min_height', 400)
+                ->set('passport_match_percentage', 60)
+                ->set('passport_skip_ratio', true)
+                ->set('passport_edge_sample_divisor', 100)
+                ->set('testPhotoPond', $pending)
+                ->call('runTestUpload')
+                ->assertSet('testMessages.0', __('Validation passed.'));
+        } finally {
+            Storage::disk('local')->delete($pending);
+            @unlink($path);
+        }
     }
 
     #[RequiresPhpExtension('gd')]

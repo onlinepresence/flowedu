@@ -89,6 +89,46 @@ class StudentAdmissionFlowTest extends TestCase
         $this->assertSame('janedoe', $user->fresh()->username);
     }
 
+    public function test_registration_defaults_to_ghanaian_and_shows_denomination_options(): void
+    {
+        $this->seedGraph();
+
+        $user = User::factory()->create([
+            'type' => 'student',
+            'username' => null,
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(StudentSetupPersonalPage::class)
+            ->assertSet('nationality', 'Ghanaian')
+            ->assertSee('Catholic')
+            ->assertSee('Methodist')
+            ->assertSee('Presbyterian')
+            ->assertSee('Anglican')
+            ->assertSee('Assemblies of God (A.G.)');
+    }
+
+    public function test_registration_shows_a_link_to_the_public_passport_validator_when_enabled(): void
+    {
+        $this->seedGraph();
+
+        config([
+            'image_validation.passport.enabled' => true,
+            'image_validation.passport.min_width' => 300,
+            'image_validation.passport.min_height' => 400,
+        ]);
+
+        $user = User::factory()->create([
+            'type' => 'student',
+            'username' => null,
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(StudentSetupPersonalPage::class)
+            ->assertSee(__('Test my photo'))
+            ->assertSee(route('passport.validator'), false);
+    }
+
     public function test_guardian_save_and_activation_flow(): void
     {
         ['program' => $program, 'hall' => $hall] = $this->seedGraph();
@@ -193,10 +233,13 @@ class StudentAdmissionFlowTest extends TestCase
         Livewire::actingAs($user)
             ->test(StudentProfilePage::class)
             ->set('lastname', 'ZedUpdated')
+            ->set('denomination', 'Presbyterian')
+            ->assertSee('Catholic')
             ->call('save')
             ->assertHasNoErrors();
 
         $this->assertSame('ZedUpdated', Student::query()->where('user_id', $user->id)->value('lastname'));
+        $this->assertSame('Presbyterian', Student::query()->where('user_id', $user->id)->value('denomination'));
     }
 
     public function test_blank_banking_fields_are_stored_as_null(): void

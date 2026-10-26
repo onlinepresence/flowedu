@@ -14,7 +14,9 @@ use App\Models\Program;
 use App\Models\Student;
 use App\Models\User;
 use App\Rules\PassportPhotoPendingFile;
+use App\Services\PassportPhotoValidationService;
 use App\Support\FilepondPendingFile;
+use App\Support\StudentPersonalOptions;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
@@ -96,7 +98,11 @@ class StudentSetupPersonalPage extends Component
             }
 
             $this->fillFromStudent($student);
+
+            return;
         }
+
+        $this->nationality = StudentPersonalOptions::DEFAULT_NATIONALITY;
     }
 
     public function save(SaveStudentAdmissionProfileAction $action): void
@@ -224,6 +230,9 @@ class StudentSetupPersonalPage extends Component
             'programs' => Program::query()->with('department')->orderBy('name')->get(),
             'halls' => Hall::query()->orderBy('name')->get(),
             'hasStudent' => auth()->user()?->student !== null,
+            'nationalities' => StudentPersonalOptions::withCurrent(StudentPersonalOptions::nationalities(), $this->nationality),
+            'denominations' => StudentPersonalOptions::withCurrent(StudentPersonalOptions::denominations(), $this->denomination),
+            'passportRequirements' => app(PassportPhotoValidationService::class)->requirements(),
         ])->layout('components.layouts.student', ['title' => __('Personal information')]);
     }
 }

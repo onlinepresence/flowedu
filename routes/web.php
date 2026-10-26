@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AdminImpersonationStopController;
 use App\Http\Controllers\Auth\PostLoginRedirectController;
 use App\Http\Controllers\FilepondController;
 use App\Http\Controllers\LandingController;
+use App\Livewire\Tools\PassportValidatorPage;
 use App\Services\SchoolLicenceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -11,6 +12,8 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [LandingController::class, 'index'])->middleware(['college.bootstrap'])->name('home');
 Route::post('/quote-request', [LandingController::class, 'quoteRequest'])->name('quote-request');
 Route::get('/quote/download-pdf', [LandingController::class, 'downloadPdf'])->name('quote.download-pdf');
+
+Route::get('passport-validator', PassportValidatorPage::class)->name('passport.validator');
 
 
 Route::get('dashboard', function () {

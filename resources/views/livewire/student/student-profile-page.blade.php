@@ -165,7 +165,12 @@
 
                         <div>
                             <x-input-label for="p-nationality" :value="__('Nationality')" />
-                            <x-text-input wire:model="nationality" id="p-nationality" type="text" class="mt-1 block w-full" required />
+                            <x-select-input wire:model="nationality" id="p-nationality" class="mt-1 block w-full" required>
+                                <option value="">{{ __('Select nationality') }}</option>
+                                @foreach ($nationalities as $nationalityOption)
+                                    <option value="{{ $nationalityOption }}">{{ $nationalityOption }}</option>
+                                @endforeach
+                            </x-select-input>
                             <x-input-error :messages="$errors->get('nationality')" class="mt-1" />
                         </div>
 
@@ -177,7 +182,12 @@
 
                         <div>
                             <x-input-label for="p-denomination" :value="__('Denomination')" />
-                            <x-text-input wire:model="denomination" id="p-denomination" type="text" class="mt-1 block w-full" />
+                            <x-select-input wire:model="denomination" id="p-denomination" class="mt-1 block w-full">
+                                <option value="">{{ __('Select denomination') }}</option>
+                                @foreach ($denominations as $denominationOption)
+                                    <option value="{{ $denominationOption }}">{{ $denominationOption }}</option>
+                                @endforeach
+                            </x-select-input>
                             <x-input-error :messages="$errors->get('denomination')" class="mt-1" />
                         </div>
                     </div>

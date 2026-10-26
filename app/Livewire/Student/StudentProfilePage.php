@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Rules\GhanaMobilePhone;
 use App\Rules\PassportPhotoPendingFile;
 use App\Support\FilepondPendingFile;
+use App\Support\StudentPersonalOptions;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
@@ -360,6 +361,8 @@ class StudentProfilePage extends Component
         return view('livewire.student.student-profile-page', [
             'guardians' => $student?->parentGuardians()->orderBy('name')->get() ?? collect(),
             'photoDataUrl' => $this->getPhotoDataUrl(),
+            'nationalities' => StudentPersonalOptions::withCurrent(StudentPersonalOptions::nationalities(), $this->nationality),
+            'denominations' => StudentPersonalOptions::withCurrent(StudentPersonalOptions::denominations(), $this->denomination),
         ])->layout('components.layouts.student', [
             'title' => __('My profile'),
             'headerDescription' => __('Manage your personal, guardian, and academic details here.'),

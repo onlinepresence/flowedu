@@ -19,7 +19,7 @@
     }"
 >
     @if (session('status'))
-        <div class="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800 dark:border-green-905/40 dark:bg-green-950/40 dark:text-green-200 shadow-sm" role="status">
+        <div class="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800 dark:border-green-900/40 dark:bg-green-950/40 dark:text-green-200 shadow-sm" role="status">
             <i class="fa-solid fa-circle-check mr-2"></i>{{ session('status') }}
         </div>
     @endif
@@ -30,7 +30,7 @@
             <button
                 type="button"
                 @click="tab = 'config'"
-                :class="tab === 'config' ? 'border-purple-650 text-purple-650 dark:border-purple-400 dark:text-purple-400 border-b-2' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'"
+                :class="tab === 'config' ? 'border-purple-600 text-purple-600 dark:border-purple-400 dark:text-purple-400 border-b-2' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'"
                 class="whitespace-nowrap pb-2 px-1 text-sm font-semibold transition"
             >
                 <i class="fa-solid fa-sliders mr-2"></i>{{ __('Configuration Settings') }}
@@ -38,7 +38,7 @@
             <button
                 type="button"
                 @click="tab = 'demo'"
-                :class="tab === 'demo' ? 'border-purple-650 text-purple-650 dark:border-purple-400 dark:text-purple-400 border-b-2' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'"
+                :class="tab === 'demo' ? 'border-purple-600 text-purple-600 dark:border-purple-400 dark:text-purple-400 border-b-2' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'"
                 class="whitespace-nowrap pb-2 px-1 text-sm font-semibold transition"
             >
                 <i class="fa-solid fa-vial-circle-check mr-2"></i>{{ __('Demo Sandbox') }}
@@ -60,17 +60,17 @@
                     <div>
                         <x-input-label :value="__('Red Channel (0–255)')" />
                         <x-text-input wire:model.blur="passport_bg_color_r" id="passport_bg_color_r" type="number" min="0" max="255" required class="mt-1 block w-full font-mono text-sm" />
-                        @error('passport_bg_color_r') <p class="mt-1 text-xs text-red-650 dark:text-red-400">{{ $message }}</p> @enderror
+                        @error('passport_bg_color_r') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <x-input-label :value="__('Green Channel (0–255)')" />
                         <x-text-input wire:model.blur="passport_bg_color_g" id="passport_bg_color_g" type="number" min="0" max="255" required class="mt-1 block w-full font-mono text-sm" />
-                        @error('passport_bg_color_g') <p class="mt-1 text-xs text-red-650 dark:text-red-400">{{ $message }}</p> @enderror
+                        @error('passport_bg_color_g') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <x-input-label :value="__('Blue Channel (0–255)')" />
                         <x-text-input wire:model.blur="passport_bg_color_b" id="passport_bg_color_b" type="number" min="0" max="255" required class="mt-1 block w-full font-mono text-sm" />
-                        @error('passport_bg_color_b') <p class="mt-1 text-xs text-red-650 dark:text-red-400">{{ $message }}</p> @enderror
+                        @error('passport_bg_color_b') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                     </div>
                 </div>
             </div>
@@ -87,13 +87,13 @@
                         <x-input-label :value="__('Color Distance Tolerance (0–441)')" />
                         <p class="text-xs text-gray-500 dark:text-gray-400 mb-1.5">{{ __('Higher values accept more shadow or lighting deviations.') }}</p>
                         <x-text-input wire:model="passport_tolerance" id="passport_tolerance" type="number" min="0" max="441" required class="block w-full font-mono text-sm" />
-                        @error('passport_tolerance') <p class="mt-1 text-xs text-red-650 dark:text-red-400">{{ $message }}</p> @enderror
+                        @error('passport_tolerance') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <x-input-label :value="__('Sample Match Threshold (%)')" />
                         <p class="text-xs text-gray-500 dark:text-gray-400 mb-1.5">{{ __('Minimum percentage of background pixels along edge samples.') }}</p>
                         <x-text-input wire:model="passport_match_percentage" id="passport_match_percentage" type="number" min="0" max="100" required class="block w-full font-mono text-sm" />
-                        @error('passport_match_percentage') <p class="mt-1 text-xs text-red-650 dark:text-red-400">{{ $message }}</p> @enderror
+                        @error('passport_match_percentage') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                     </div>
                 </div>
             </div>
@@ -110,29 +110,29 @@
                         <div>
                             <x-input-label :value="__('Minimum Width (Pixels)')" />
                             <x-text-input wire:model="passport_min_width" id="passport_min_width" type="number" min="1" required class="mt-1 block w-full font-mono text-sm" />
-                            @error('passport_min_width') <p class="mt-1 text-xs text-red-650 dark:text-red-400">{{ $message }}</p> @enderror
+                            @error('passport_min_width') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                         </div>
                         <div>
                             <x-input-label :value="__('Minimum Height (Pixels)')" />
                             <x-text-input wire:model="passport_min_height" id="passport_min_height" type="number" min="1" required class="mt-1 block w-full font-mono text-sm" />
-                            @error('passport_min_height') <p class="mt-1 text-xs text-red-650 dark:text-red-400">{{ $message }}</p> @enderror
+                            @error('passport_min_height') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                         </div>
                     </div>
 
-                    <div class="border-t border-gray-100 pt-4 dark:border-gray-750">
+                    <div class="border-t border-gray-100 pt-4 dark:border-gray-700">
                         <x-input-label :value="__('Required Aspect Ratio Aspect')" />
                         <x-select-input wire:model.live="passport_aspect_ratio" id="passport_aspect_ratio" class="mt-1.5 block w-full">
                             <option value="7:9">7:9 (Standard Passport)</option>
                             <option value="3:4">3:4 Ratio</option>
                             <option value="1:1">1:1 Square Ratio</option>
                         </x-select-input>
-                        @error('passport_aspect_ratio') <p class="mt-1 text-xs text-red-650 dark:text-red-400">{{ $message }}</p> @enderror
+                        @error('passport_aspect_ratio') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                     </div>
 
                     <!-- Toggle Switch for Skip Aspect Ratio -->
-                    <div class="flex items-center justify-between mt-3 bg-gray-50 dark:bg-gray-900/40 p-3 rounded-lg border border-gray-150 dark:border-gray-700">
+                    <div class="flex items-center justify-between mt-3 bg-gray-50 dark:bg-gray-900/40 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
                         <div class="space-y-0.5">
-                            <label for="passport_skip_ratio" class="text-sm font-semibold text-gray-750 dark:text-gray-300">{{ __('Skip Aspect Ratio Checks') }}</label>
+                            <label for="passport_skip_ratio" class="text-sm font-semibold text-gray-700 dark:text-gray-300">{{ __('Skip Aspect Ratio Checks') }}</label>
                             <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('Only enforce the minimum size boundaries without evaluating aspect ratios.') }}</p>
                         </div>
                         <label class="relative inline-flex cursor-pointer items-center">
@@ -154,7 +154,7 @@
                     <x-input-label :value="__('Edge Sample Divisor (10–500)')" />
                     <x-text-input wire:model="passport_edge_sample_divisor" id="passport_edge_sample_divisor" type="number" min="10" max="500" required class="mt-1 block w-full font-mono text-sm" />
                     <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ __('Determines granularity of perimeter analysis. Higher values sample fewer edge pixels to improve upload performance.') }}</p>
-                    @error('passport_edge_sample_divisor') <p class="mt-1 text-xs text-red-650 dark:text-red-400">{{ $message }}</p> @enderror
+                    @error('passport_edge_sample_divisor') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                 </div>
             </div>
 
@@ -177,7 +177,7 @@
                 </div>
 
                 <div
-                    class="mb-5 flex items-center justify-center rounded-xl border border-gray-300 shadow-inner transition-all duration-300 dark:border-gray-650"
+                    class="mb-5 flex items-center justify-center rounded-xl border border-gray-300 shadow-inner transition-all duration-300 dark:border-gray-600"
                     :style="aspectStyle"
                 >
                     <span class="text-xs font-bold uppercase tracking-wider text-white mix-blend-difference bg-black/35 px-2.5 py-1 rounded-full">{{ __('Background') }}</span>
@@ -195,15 +195,15 @@
                     <button type="button" @click="setPresetAndInputs(0,0,255)" class="inline-flex items-center justify-center gap-1 rounded-lg border border-blue-200 bg-blue-50 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100/60 dark:border-blue-950 dark:bg-blue-950/40 dark:text-blue-400 transition">
                         <span class="h-2.5 w-2.5 rounded-full bg-blue-600"></span>{{ __('Blue') }}
                     </button>
-                    <button type="button" @click="setPresetAndInputs(0,128,0)" class="inline-flex items-center justify-center gap-1 rounded-lg border border-green-200 bg-green-50 py-1.5 text-xs font-bold text-green-705 hover:bg-green-100/60 dark:border-green-950 dark:bg-green-950/40 dark:text-green-400 transition">
+                    <button type="button" @click="setPresetAndInputs(0,128,0)" class="inline-flex items-center justify-center gap-1 rounded-lg border border-green-200 bg-green-50 py-1.5 text-xs font-bold text-green-700 hover:bg-green-100/60 dark:border-green-950 dark:bg-green-950/40 dark:text-green-400 transition">
                         <span class="h-2.5 w-2.5 rounded-full bg-green-600"></span>{{ __('Green') }}
                     </button>
-                    <button type="button" @click="setPresetAndInputs(255,255,255)" class="inline-flex items-center justify-center gap-1 rounded-lg border border-gray-250 bg-gray-50 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-105 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-300 transition">
+                    <button type="button" @click="setPresetAndInputs(255,255,255)" class="inline-flex items-center justify-center gap-1 rounded-lg border border-gray-200 bg-gray-50 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-300 transition">
                         <span class="h-2.5 w-2.5 rounded-full bg-white border border-gray-300"></span>{{ __('White') }}
                     </button>
                 </div>
 
-                <div class="mt-6 border-t border-gray-100 pt-4 w-full text-center text-xs text-gray-400 dark:border-gray-750">
+                <div class="mt-6 border-t border-gray-100 pt-4 w-full text-center text-xs text-gray-400 dark:border-gray-700">
                     {{ __('Expected RGB Hex Color') }}:
                     <span class="font-mono text-sm font-bold text-gray-800 dark:text-gray-100" x-text="'#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase()"></span>
                 </div>
@@ -230,7 +230,7 @@
                         <button 
                             type="button" 
                             wire:click="runTestUpload" 
-                            class="inline-flex items-center justify-center rounded-lg bg-purple-650 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-purple-750 focus:outline-none transition"
+                            class="inline-flex items-center justify-center rounded-lg bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-purple-700 focus:outline-none transition"
                         >
                             <i class="fa-solid fa-bolt mr-2"></i>{{ __('Validate Image') }}
                         </button>

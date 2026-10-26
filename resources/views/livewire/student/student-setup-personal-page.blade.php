@@ -121,7 +121,12 @@
 
                     <div>
                         <x-input-label for="nationality" :value="__('Nationality')" :required="true" />
-                        <x-text-input wire:model="nationality" id="nationality" type="text" class="mt-1 block w-full" required />
+                        <x-select-input wire:model="nationality" id="nationality" class="mt-1 block w-full" required>
+                            <option value="">{{ __('Select nationality') }}</option>
+                            @foreach ($nationalities as $nationalityOption)
+                                <option value="{{ $nationalityOption }}">{{ $nationalityOption }}</option>
+                            @endforeach
+                        </x-select-input>
                         <x-input-error :messages="$errors->get('nationality')" class="mt-1" />
                     </div>
 
@@ -133,7 +138,12 @@
 
                     <div class="sm:col-span-2">
                         <x-input-label for="denomination" :value="__('Denomination')" />
-                        <x-text-input wire:model="denomination" id="denomination" type="text" class="mt-1 block w-full" />
+                        <x-select-input wire:model="denomination" id="denomination" class="mt-1 block w-full">
+                            <option value="">{{ __('Select denomination') }}</option>
+                            @foreach ($denominations as $denominationOption)
+                                <option value="{{ $denominationOption }}">{{ $denominationOption }}</option>
+                            @endforeach
+                        </x-select-input>
                         <x-input-error :messages="$errors->get('denomination')" class="mt-1" />
                     </div>
                 </div>
@@ -255,6 +265,21 @@
                     <p class="text-xs text-gray-500 dark:text-gray-400">
                         {{ __('Required file formats: JPG, PNG, WebP, AVIF. Max size 5MB.') }}
                     </p>
+                    @if ($passportRequirements['enabled'])
+                        <div class="flex flex-col gap-3 rounded-lg border border-purple-200 bg-purple-50 p-3 dark:border-purple-900/60 dark:bg-purple-950/30 sm:flex-row sm:items-center sm:justify-between">
+                            <p class="text-xs text-purple-800 dark:text-purple-300">
+                                {{ __('Not sure this photo will pass? Test it first. Minimum :width x :height px.', ['width' => $passportRequirements['min_width'], 'height' => $passportRequirements['min_height']]) }}
+                            </p>
+                            <a
+                                href="{{ route('passport.validator') }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="inline-flex shrink-0 items-center justify-center rounded-lg bg-purple-600 px-3 py-2 text-xs font-semibold text-white hover:bg-purple-700"
+                            >
+                                <i class="fa-solid fa-arrow-up-right-from-square mr-2" aria-hidden="true"></i>{{ __('Test my photo') }}
+                            </a>
+                        </div>
+                    @endif
                     <x-input-error :messages="$errors->get('profilePicPond')" class="mt-1" />
                 </div>
             </fieldset>

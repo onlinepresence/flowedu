@@ -16,62 +16,220 @@ final class PassportPhotoValidationService
     ) {}
 
     /**
+     * @return array{
+     *     enabled: bool,
+     *     min_width: int,
+     *     min_height: int,
+     *     skip_ratio: bool,
+     *     aspect_ratio: string,
+     *     aspect_tolerance: float,
+     *     bg_color: array{r: int, g: int, b: int},
+     *     bg_tolerance: int,
+     *     edge_match_percent: int,
+     *     edge_sample_divisor: int
+     * }
+     */
+    public function requirements(): array
+    {
+        $cfg = $this->passportConfigResolver->passportConfig();
+        $bg = is_array($cfg['bg_color'] ?? null) ? $cfg['bg_color'] : [];
+
+        return [
+            'enabled' => (bool) ($cfg['enabled'] ?? true),
+            'min_width' => (int) ($cfg['min_width'] ?? 300),
+            'min_height' => (int) ($cfg['min_height'] ?? 400),
+            'skip_ratio' => (bool) ($cfg['skip_ratio'] ?? true),
+            'aspect_ratio' => (string) ($cfg['aspect_ratio'] ?? '7:9'),
+            'aspect_tolerance' => (float) ($cfg['aspect_tolerance'] ?? 0.05),
+            'bg_color' => [
+                'r' => (int) ($bg['r'] ?? 255),
+                'g' => (int) ($bg['g'] ?? 0),
+                'b' => (int) ($bg['b'] ?? 0),
+            ],
+            'bg_tolerance' => (int) ($cfg['bg_tolerance'] ?? 120),
+            'edge_match_percent' => (int) ($cfg['edge_match_percent'] ?? 60),
+            'edge_sample_divisor' => max(1, (int) ($cfg['edge_sample_divisor'] ?? 100)),
+        ];
+    }
+
+    /**
      * @return array{status: bool, message: string}
      */
     public function validate(string $imagePath): array
     {
-        $cfg = $this->passportConfigResolver->passportConfig();
+        $requirements = $this->requirements();
 
-        if (! (bool) ($cfg['enabled'] ?? true)) {
+        if (! $requirements['enabled']) {
             return ['status' => true, 'message' => ''];
         }
 
-        if (! is_readable($imagePath)) {
-            return ['status' => false, 'message' => __('Image file not found.')];
-        }
-        $targetBg = [
-            (int) ($cfg['bg_color']['r'] ?? 255),
-            (int) ($cfg['bg_color']['g'] ?? 0),
-            (int) ($cfg['bg_color']['b'] ?? 0),
+        $result = $this->inspect($imagePath, $requirements);
+
+        return [
+            'status' => $result['accepted'],
+            'message' => $result['accepted']
+                ? __('Image is valid as a passport photo.')
+                : $result['summary'],
         ];
-        $bgTolerance = (int) ($cfg['bg_tolerance'] ?? 120);
-        $minWidth = (int) ($cfg['min_width'] ?? 300);
-        $minHeight = (int) ($cfg['min_height'] ?? 400);
-        $skipRatioSize = (bool) ($cfg['skip_ratio'] ?? true);
-        $aspectLabel = (string) ($cfg['aspect_ratio'] ?? '7:9');
-        $aspectTolerance = (float) ($cfg['aspect_tolerance'] ?? 0.05);
-        $matchPercent = (int) ($cfg['edge_match_percent'] ?? 60);
-        $edgeDivisor = max(1, (int) ($cfg['edge_sample_divisor'] ?? 100));
+    }
+
+    /**
+     * Apply every configured check and report each one individually.
+     *
+     * @param  array<string, mixed>|null  $requirements
+     * @return array{
+     *     enabled: bool,
+     *     accepted: bool,
+     *     summary: string,
+     *     metadata: array{width: int|null, height: int|null, mime: string|null, size_bytes: int|null},
+     *     checks: list<array{key: string, label: string, state: string, detail: string}>
+     * }
+     */
+    public function inspect(string $imagePath, ?array $requirements = null): array
+    {
+        $req = $requirements ?? $this->requirements();
+        $sizeBytes = @filesize($imagePath);
+        $metadata = [
+            'width' => null,
+            'height' => null,
+            'mime' => null,
+            'size_bytes' => is_int($sizeBytes) ? $sizeBytes : null,
+        ];
+
+        if (! $req['enabled']) {
+            return [
+                'enabled' => false,
+                'accepted' => true,
+                'summary' => __('Passport photo validation is currently disabled. Any readable image will be accepted.'),
+                'metadata' => $metadata,
+                'checks' => [[
+                    'key' => 'enabled',
+                    'label' => __('Validation setting'),
+                    'state' => 'skip',
+                    'detail' => __('Validation is turned off in the school settings, so no passport checks are enforced.'),
+                ]],
+            ];
+        }
+
+        if (! is_readable($imagePath)) {
+            return [
+                'enabled' => true,
+                'accepted' => false,
+                'summary' => __('Image file not found or could not be read.'),
+                'metadata' => $metadata,
+                'checks' => [[
+                    'key' => 'file',
+                    'label' => __('Image file'),
+                    'state' => 'fail',
+                    'detail' => __('The uploaded file could not be read. Please upload the image again.'),
+                ]],
+            ];
+        }
 
         $sizeInfo = @getimagesize($imagePath);
         if ($sizeInfo === false) {
-            return ['status' => false, 'message' => __('Could not read image dimensions.')];
+            return [
+                'enabled' => true,
+                'accepted' => false,
+                'summary' => __('Could not read image dimensions.'),
+                'metadata' => $metadata,
+                'checks' => [[
+                    'key' => 'file',
+                    'label' => __('Image file'),
+                    'state' => 'fail',
+                    'detail' => __('This file is not a readable image. Use a JPG, PNG, WebP, or AVIF image.'),
+                ]],
+            ];
         }
 
         [$width, $height] = $sizeInfo;
+        $metadata['width'] = $width;
+        $metadata['height'] = $height;
+        $metadata['mime'] = isset($sizeInfo['mime']) ? (string) $sizeInfo['mime'] : null;
 
-        if ($skipRatioSize && ! $this->isImageSizeAcceptable($width, $height, $minWidth, $minHeight)) {
-            return [
-                'status' => false,
-                'message' => __('Image too small. Minimum required size is :w×:h pixels.', ['w' => $minWidth, 'h' => $minHeight]),
+        $checks = [];
+        $checks[] = [
+            'key' => 'file',
+            'label' => __('Image file'),
+            'state' => 'pass',
+            'detail' => __('Readable :mime image, :size.', [
+                'mime' => $metadata['mime'] ?: __('unknown format'),
+                'size' => $this->formatBytes($metadata['size_bytes']),
+            ]),
+        ];
+
+        $sizeAccepted = $this->isImageSizeAcceptable($width, $height, $req['min_width'], $req['min_height']);
+        $checks[] = [
+            'key' => 'size',
+            'label' => __('Minimum resolution'),
+            'state' => $sizeAccepted ? 'pass' : 'fail',
+            'detail' => $sizeAccepted
+                ? __('Image is :w x :h px. Minimum required is :minw x :minh px.', [
+                    'w' => $width,
+                    'h' => $height,
+                    'minw' => $req['min_width'],
+                    'minh' => $req['min_height'],
+                ])
+                : __('Image is too small at :w x :h px. Minimum required is :minw x :minh px.', [
+                    'w' => $width,
+                    'h' => $height,
+                    'minw' => $req['min_width'],
+                    'minh' => $req['min_height'],
+                ]),
+        ];
+
+        if ($req['skip_ratio']) {
+            $checks[] = [
+                'key' => 'aspect_ratio',
+                'label' => __('Aspect ratio'),
+                'state' => 'skip',
+                'detail' => __('Aspect ratio checking is disabled in the school settings.'),
+            ];
+        } else {
+            $actualRatio = $width / $height;
+            $expectedRatio = $this->parseAspectRatio($req['aspect_ratio']);
+            $ratioAccepted = $this->isPassportAspectRatio($width, $height, $req['aspect_tolerance'], $req['aspect_ratio']);
+            $checks[] = [
+                'key' => 'aspect_ratio',
+                'label' => __('Aspect ratio'),
+                'state' => $ratioAccepted ? 'pass' : 'fail',
+                'detail' => __('Expected :expected (:expected_value, tolerance +/-:tolerance). Your image is :w x :h px (:actual_value).', [
+                    'expected' => $req['aspect_ratio'],
+                    'expected_value' => number_format($expectedRatio, 3),
+                    'tolerance' => number_format($req['aspect_tolerance'], 3),
+                    'w' => $width,
+                    'h' => $height,
+                    'actual_value' => number_format($actualRatio, 3),
+                ]),
             ];
         }
 
-        if (! $skipRatioSize && ! $this->isPassportAspectRatio($width, $height, $aspectTolerance, $aspectLabel)) {
-            return [
-                'status' => false,
-                'message' => __('Invalid aspect ratio. Expected ratio close to :ratio.', ['ratio' => $aspectLabel]),
-            ];
-        }
+        $background = $this->analyzeBackground(
+            $imagePath,
+            [$req['bg_color']['r'], $req['bg_color']['g'], $req['bg_color']['b']],
+            $req['bg_tolerance'],
+            $req['edge_match_percent'],
+            $req['edge_sample_divisor'],
+        );
+        $checks[] = [
+            'key' => 'background',
+            'label' => __('Background colour'),
+            'state' => $background['matched'] ? 'pass' : 'fail',
+            'detail' => $this->describeBackgroundResult($background, $req),
+        ];
 
-        if (! $this->isBackgroundColorMatch($imagePath, $targetBg, $bgTolerance, $matchPercent, $edgeDivisor)) {
-            return [
-                'status' => false,
-                'message' => __('Background color does not match expected color. Please use a solid background (e.g. red).'),
-            ];
-        }
+        $failed = array_values(array_filter($checks, fn (array $check): bool => $check['state'] === 'fail'));
+        $accepted = $failed === [];
 
-        return ['status' => true, 'message' => __('Image is valid as a passport photo.')];
+        return [
+            'enabled' => true,
+            'accepted' => $accepted,
+            'summary' => $accepted
+                ? __('Image is valid as a passport photo.')
+                : $failed[0]['detail'],
+            'metadata' => $metadata,
+            'checks' => $checks,
+        ];
     }
 
     private function isImageSizeAcceptable(int $width, int $height, int $minWidth, int $minHeight): bool
@@ -104,19 +262,37 @@ final class PassportPhotoValidationService
 
     /**
      * @param  array{0: int, 1: int, 2: int}  $targetColor
+     * @return array{
+     *     matched: bool,
+     *     matched_by_edges: bool,
+     *     matched_by_average: bool,
+     *     match_percentage: float,
+     *     required_percentage: int,
+     *     average_color: array{0: int, 1: int, 2: int}|null,
+     *     tolerance: int
+     * }
      */
-    private function isBackgroundColorMatch(
+    private function analyzeBackground(
         string $imagePath,
         array $targetColor,
         int $tolerance,
         int $requiredMatchPercentage,
         int $edgeSampleDivisor
-    ): bool {
+    ): array {
         $requiredMatchPercentage = max(0, min(100, $requiredMatchPercentage));
+        $default = [
+            'matched' => false,
+            'matched_by_edges' => false,
+            'matched_by_average' => false,
+            'match_percentage' => 0.0,
+            'required_percentage' => $requiredMatchPercentage,
+            'average_color' => null,
+            'tolerance' => $tolerance,
+        ];
 
         $imageInfo = @getimagesize($imagePath);
         if ($imageInfo === false) {
-            return false;
+            return $default;
         }
 
         $width = $imageInfo[0];
@@ -125,7 +301,7 @@ final class PassportPhotoValidationService
 
         $image = $this->loadImage($imagePath, $type);
         if (! $image instanceof GdImage) {
-            return false;
+            return $default;
         }
 
         $samples = [];
@@ -163,7 +339,7 @@ final class PassportPhotoValidationService
         imagedestroy($image);
 
         if ($samples === []) {
-            return false;
+            return $default;
         }
 
         $matchingSamples = 0;
@@ -177,18 +353,94 @@ final class PassportPhotoValidationService
         }
 
         $matchPercentage = ($matchingSamples / $totalSamples) * 100;
+        $matchedByEdges = $matchPercentage >= $requiredMatchPercentage;
 
-        if ($matchPercentage >= $requiredMatchPercentage) {
-            return true;
-        }
-
-        $avgColor = [
+        $averageColor = [
             (int) round(array_sum(array_column($samples, 0)) / $totalSamples),
             (int) round(array_sum(array_column($samples, 1)) / $totalSamples),
             (int) round(array_sum(array_column($samples, 2)) / $totalSamples),
         ];
+        $matchedByAverage = $this->isColorCloseEuclidean($averageColor, $targetColor, $tolerance);
 
-        return $this->isColorCloseEuclidean($avgColor, $targetColor, $tolerance);
+        return [
+            'matched' => $matchedByEdges || $matchedByAverage,
+            'matched_by_edges' => $matchedByEdges,
+            'matched_by_average' => $matchedByAverage,
+            'match_percentage' => $matchPercentage,
+            'required_percentage' => $requiredMatchPercentage,
+            'average_color' => $averageColor,
+            'tolerance' => $tolerance,
+        ];
+    }
+
+    /**
+     * @param  array{
+     *     matched: bool,
+     *     matched_by_edges: bool,
+     *     matched_by_average: bool,
+     *     match_percentage: float,
+     *     required_percentage: int,
+     *     average_color: array{0: int, 1: int, 2: int}|null,
+     *     tolerance: int
+     * }  $background
+     * @param  array<string, mixed>  $requirements
+     */
+    private function describeBackgroundResult(array $background, array $requirements): string
+    {
+        $expected = sprintf(
+            'RGB(%d, %d, %d)',
+            $requirements['bg_color']['r'],
+            $requirements['bg_color']['g'],
+            $requirements['bg_color']['b'],
+        );
+        $actual = $background['average_color'] === null
+            ? __('unknown')
+            : sprintf('RGB(%d, %d, %d)', ...$background['average_color']);
+        $percentage = number_format($background['match_percentage'], 1);
+
+        if ($background['matched_by_edges']) {
+            return __('Background matches :expected. :actual% of edge samples are within :tolerance colour tolerance (minimum :required%).', [
+                'expected' => $expected,
+                'actual' => $percentage,
+                'tolerance' => $background['tolerance'],
+                'required' => $background['required_percentage'],
+            ]);
+        }
+
+        if ($background['matched_by_average']) {
+            return __('Edge match was only :actual% (minimum :required%), but the average edge colour :average is within :tolerance colour tolerance of :expected.', [
+                'actual' => $percentage,
+                'required' => $background['required_percentage'],
+                'average' => $actual,
+                'tolerance' => $background['tolerance'],
+                'expected' => $expected,
+            ]);
+        }
+
+        return __('Background does not match :expected. :actual% of edge samples pass (minimum :required%), and the average edge colour :average is outside the :tolerance colour tolerance. Use a plain, solid background.', [
+            'expected' => $expected,
+            'actual' => $percentage,
+            'required' => $background['required_percentage'],
+            'average' => $actual,
+            'tolerance' => $background['tolerance'],
+        ]);
+    }
+
+    private function formatBytes(?int $bytes): string
+    {
+        if ($bytes === null) {
+            return __('unknown size');
+        }
+
+        if ($bytes < 1024) {
+            return $bytes.' B';
+        }
+
+        if ($bytes < 1048576) {
+            return number_format($bytes / 1024, 1).' KB';
+        }
+
+        return number_format($bytes / 1048576, 1).' MB';
     }
 
     private function loadImage(string $imagePath, int $type): ?GdImage

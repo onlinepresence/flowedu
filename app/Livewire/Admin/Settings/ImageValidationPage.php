@@ -111,10 +111,28 @@ class ImageValidationPage extends Component
             return;
         }
 
-        $result = $service->validate($path);
-        $this->testMessages[] = $result['message'] !== ''
-            ? $result['message']
-            : ($result['status'] ? __('Validation passed.') : __('Validation failed.'));
+        $requirements = $service->requirements();
+        $requirements['bg_color'] = [
+            'r' => $this->passport_bg_color_r,
+            'g' => $this->passport_bg_color_g,
+            'b' => $this->passport_bg_color_b,
+        ];
+        $requirements['bg_tolerance'] = $this->passport_tolerance;
+        $requirements['min_width'] = $this->passport_min_width;
+        $requirements['min_height'] = $this->passport_min_height;
+        $requirements['edge_match_percent'] = $this->passport_match_percentage;
+        $requirements['skip_ratio'] = $this->passport_skip_ratio;
+        $requirements['aspect_ratio'] = $this->passport_aspect_ratio;
+        $requirements['edge_sample_divisor'] = $this->passport_edge_sample_divisor;
+
+        $result = $service->inspect($path, $requirements);
+        $this->testMessages[] = $result['accepted']
+            ? __('Validation passed.')
+            : __('Validation failed.');
+
+        foreach ($result['checks'] as $check) {
+            $this->testMessages[] = $check['label'].': '.$check['detail'];
+        }
     }
 
     public function render(): View
