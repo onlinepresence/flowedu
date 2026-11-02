@@ -222,7 +222,7 @@
                 </div>
             </fieldset>
 
-            @if ($hasStudent)
+            @if (false)
                 <!-- Group 4: Financial details (only shown once Student record is generated) -->
                 <fieldset class="space-y-4">
                     <legend class="text-sm font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 border-b border-gray-100 dark:border-gray-700 pb-2 w-full">
